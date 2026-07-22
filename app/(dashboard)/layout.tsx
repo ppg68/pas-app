@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, type Role } from "@/lib/domain/procedures";
 
+// Ogni pagina qui sotto mostra dati specifici della sessione (ruoli, richieste
+// dell'utente): senza questo, Next.js può pre-generare "/" come pagina statica in
+// build e servirla identica a chiunque, ignorando la sessione reale di chi accede.
+export const dynamic = "force-dynamic";
+
 async function signOut() {
   "use server";
   const supabase = await createClient();
