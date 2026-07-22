@@ -356,6 +356,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
     }
     Enums: {

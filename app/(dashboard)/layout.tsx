@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: roleRows, error: roleError }] = await Promise.all([
+  const [{ data: profile }, { data: roleRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, email").eq("id", user?.id ?? "").maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", user?.id ?? ""),
   ]);
@@ -30,37 +30,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const roles = (roleRows ?? []).map((r) => r.role as Role);
   const canCreateRequest = roles.includes("BH");
 
-  // DEBUG TEMPORANEO — da rimuovere una volta capito perché user_roles risulta
-  // sempre vuoto in produzione nonostante il dato esista nel database.
-  const debugInfo = JSON.stringify({
-    userId: user?.id ?? null,
-    userEmail: user?.email ?? null,
-    roleRows,
-    roleError: roleError
-      ? { message: roleError.message, code: roleError.code, details: roleError.details, hint: roleError.hint }
-      : null,
-  });
-
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      <pre
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          maxHeight: 200,
-          overflow: "auto",
-          fontSize: 10,
-          background: "#111",
-          color: "#0f0",
-          padding: 8,
-          zIndex: 999,
-          margin: 0,
-        }}
-      >
-        DEBUG: {debugInfo}
-      </pre>
       <aside
         style={{
           width: 220,
