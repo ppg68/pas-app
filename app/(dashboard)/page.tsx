@@ -1,58 +1,51 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { procConfigFor, STAGE_TITLES } from "@/lib/domain/procedures";
+import RequestsExplorer from "@/components/requests/RequestsExplorer";
 
 export default async function RequestListPage() {
   const supabase = await createClient();
   const { data: requests } = await supabase
     .from("requests")
-    .select("id, code, description, estimated_price, currency, proc_code, stage, created_at")
+    .select(
+      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, created_at, initiated_by"
+    )
     .order("created_at", { ascending: false });
+
+  const requestIds = (requests ?? []).map((r) => r.id);
+  const initiatorIds = Array.from(new Set((requests ?? []).map((r) => r.initiated_by)));
+
+  const [{ data: initiators }, { data: offers }] = await Promise.all([
+    initiatorIds.length
+      ? supabase.from("profiles").select("id, full_name").in("id", initiatorIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    requestIds.length
+      ? supabase.from("offers").select("id, request_id, supplier").in("request_id", requestIds)
+      : Promise.resolve({ data: [] as { id: string; request_id: string; supplier: string }[] }),
+  ]);
+
+  const nameById = new Map((initiators ?? []).map((p) => [p.id, p.full_name]));
+  const offersByRequest = new Map<string, { id: string; supplier: string }[]>();
+  (offers ?? []).forEach((o) => {
+    const list = offersByRequest.get(o.request_id) ?? [];
+    list.push({ id: o.id, supplier: o.supplier });
+    offersByRequest.set(o.request_id, list);
+  });
+
+  const rows = (requests ?? []).map((r) => {
+    const requestOffers = offersByRequest.get(r.id) ?? [];
+    return {
+      ...r,
+      initiatedByName: nameById.get(r.initiated_by) ?? "",
+      winnerSupplier: r.winner_offer_id
+        ? requestOffers.find((o) => o.id === r.winner_offer_id)?.supplier ?? ""
+        : "",
+      offersCount: requestOffers.length,
+    };
+  });
 
   return (
     <div style={{ maxWidth: 900, padding: 24 }}>
       <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 20 }}>Richieste</h1>
-
-      {(!requests || requests.length === 0) && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>Nessuna richiesta ancora.</p>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {(requests ?? []).map((r) => (
-          <Link
-            key={r.id}
-            href={`/requests/${r.id}`}
-            style={{
-              border: "0.5px solid #d3d1c7",
-              borderRadius: 10,
-              padding: 12,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>{r.code}</div>
-              <div style={{ fontSize: 12, color: "#888780" }}>
-                {r.description} · {procConfigFor(r.proc_code).label} · {r.estimated_price}{" "}
-                {r.currency}
-              </div>
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                border: "0.5px solid #b4b2a9",
-                borderRadius: 999,
-                padding: "3px 10px",
-              }}
-            >
-              {STAGE_TITLES[r.stage]}
-            </div>
-          </Link>
-        ))}
-      </div>
+      <RequestsExplorer requests={rows} />
     </div>
   );
 }
