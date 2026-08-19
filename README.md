@@ -127,10 +127,8 @@ si tocca solo questo file.
 2. **Abilita il provider Email in Supabase** (Authentication → Providers → Email,
    con "Confirm email" attivo — Supabase usa lo stesso meccanismo per il magic link).
 3. **Login page**: `app/(auth)/login/page.tsx` — form con un solo campo email, manda
-   il link via `supabase.auth.signInWithOtp`. Il controllo sul dominio
-   `@istituto-oikos.org` è fatto due volte: un messaggio subito in UI (comodità), e il
-   trigger `restrict_email_domain` nel database (quello che conta davvero — rifiuta
-   anche una chiamata diretta all'API Supabase, non solo il form).
+   il link via `supabase.auth.signInWithOtp`. Nessun controllo di dominio: PAS include
+   anche firmatari esterni a Oikos (vedi "Accesso esterni" più sotto).
 4. **Callback**: `app/auth/callback/route.ts` scambia il codice per la sessione e
    reindirizza alla dashboard.
 5. **Middleware** aggiornato: chi non ha sessione viene rimandato a `/login` su
@@ -151,6 +149,22 @@ si tocca solo questo file.
    comparire il profilo), poi da Settings → Team assegni i ruoli per email — la form
    rifiuta l'assegnazione se la persona non ha ancora fatto il primo login, con un
    messaggio esplicito invece di creare un ruolo "orfano".
+
+## Accesso esterni
+
+PAS include anche persone esterne a Oikos (consulenti, membri di organizzazioni
+partner) come firmatari occasionali — non solo staff con email
+`@istituto-oikos.org`. Per questo `0007_remove_email_domain_restriction.sql`
+rimuove il trigger `restrict_email_domain` che c'era in `0002_auth_and_roles.sql`:
+chiunque può ora creare un account via magic link con qualsiasi email.
+
+Questo è sicuro perché il dominio email non era mai la vera barriera di accesso:
+lo è il ruolo in `user_roles`. Al primo login `handle_new_user` crea comunque solo
+una riga in `profiles`, senza alcun ruolo — chi si registra non può firmare né
+creare nulla finché un RAC/CAR non gli assegna un ruolo da Settings → Team (RLS e
+i controlli nelle server action lo bloccano su ogni azione, non solo l'UI). Aprire
+la registrazione a chiunque significa solo più account "inerti" possibili, non più
+permessi.
 
 ## Le due modifiche confermate
 

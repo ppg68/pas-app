@@ -13,15 +13,6 @@ export default function LoginPage() {
     setStatus("sending");
     setErrorMsg("");
 
-    // Controllo lato client solo per un messaggio d'errore immediato e leggibile —
-    // il controllo che conta è il trigger restrict_email_domain nel database,
-    // che rifiuta comunque qualsiasi email non @istituto-oikos.org.
-    if (!email.toLowerCase().endsWith("@istituto-oikos.org")) {
-      setStatus("error");
-      setErrorMsg("Usa il tuo indirizzo @istituto-oikos.org.");
-      return;
-    }
-
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
