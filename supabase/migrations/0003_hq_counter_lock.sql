@@ -1,8 +1,8 @@
--- PAS — contatore IR (HQ) con lock, per evitare che due Budget Holder ottengano
--- lo stesso numero creando richieste nello stesso istante.
--- Da chiamare via RPC (supabase.rpc('next_hq_number')) dentro la stessa richiesta
--- che poi inserisce la riga in `requests` — non separatamente, altrimenti il lock
--- si rilascia prima che il numero sia davvero usato.
+-- PAS — IR (HQ) counter with lock, to prevent two Budget Holders from getting
+-- the same number when creating requests at the same moment.
+-- Call it via RPC (supabase.rpc('next_hq_number')) within the same request that
+-- then inserts the row into `requests` — not separately, otherwise the lock is
+-- released before the number is actually used.
 
 create or replace function next_hq_number()
 returns int as $$
@@ -15,8 +15,8 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Chi può crearne una nuova richiesta è già ristretto dalla policy "BH creates
--- requests" su `requests`; questa funzione va comunque eseguita come parte dello
--- stesso flusso (server action), non esposta come endpoint libero.
+-- Who can create a new request is already restricted by the "BH creates
+-- requests" policy on `requests`; this function should still only be run as part
+-- of the same flow (server action), not exposed as an open endpoint.
 revoke execute on function next_hq_number() from public;
 grant execute on function next_hq_number() to authenticated;

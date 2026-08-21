@@ -1,22 +1,22 @@
-# PAS — da prototipo a web app (Next.js + Supabase + Vercel)
+# PAS — from prototype to web app (Next.js + Supabase + Vercel)
 
-Questi file sono un punto di partenza da copiare dentro un progetto Next.js appena creato.
-Non è un progetto completo: sono i pezzi che valeva la pena scrivere prima (logica di
-dominio + schema DB + client Supabase), da incollare ed espandere.
+These files are a starting point to copy into a freshly created Next.js project.
+This isn't a complete project: it's the pieces that were worth writing first (domain
+logic + DB schema + Supabase client), to be pasted in and expanded.
 
-## Perché Next.js e non Vite
+## Why Next.js and not Vite
 
-Con Vite + React ottieni una SPA pura: veloce da avviare, ma l'autenticazione reale
-(che nel prototipo manca del tutto — `currentUser` è testo libero) va gestita tutta
-lato client, con i token esposti nel browser.
+With Vite + React you get a pure SPA: fast to spin up, but real authentication
+(which is entirely missing in the prototype — `currentUser` is free text) has to be
+handled entirely client-side, with tokens exposed in the browser.
 
-Next.js (App Router) + `@supabase/ssr` gestisce la sessione via cookie httpOnly,
-lato server: più adatto quando smetti di fidarti del client per l'identità di chi firma
-un'autorizzazione. In più Vercel è fatto dallo stesso team, quindi deploy e preview
-branch-by-branch sono a costo zero. Per un'app con ruoli reali e firme che contano,
-è la scelta più solida.
+Next.js (App Router) + `@supabase/ssr` manages the session via an httpOnly cookie,
+server-side: a better fit once you stop trusting the client for the identity of
+whoever signs an authorization. Plus Vercel is built by the same team, so deploys
+and branch-by-branch previews cost nothing extra. For an app with real roles and
+signatures that matter, it's the more solid choice.
 
-## Struttura cartelle proposta
+## Proposed folder structure
 
 ```
 pas-app/
@@ -24,179 +24,181 @@ pas-app/
     (auth)/
       login/page.tsx
     (dashboard)/
-      layout.tsx                # sidebar, ruolo attivo, nome utente
-      page.tsx                  # lista richieste (equivalente pas-list del prototipo)
+      layout.tsx                # sidebar, active role, user name
+      page.tsx                  # request list (equivalent to the prototype's pas-list)
       requests/
-        new/page.tsx            # form nuova richiesta
-        [id]/page.tsx           # dettaglio + workflow gates
+        new/page.tsx            # new request form
+        [id]/page.tsx           # detail + workflow gates
       settings/
-        team/page.tsx           # registro ruoli per persona
-        assignments/page.tsx    # PM/CAR per progetto
+        team/page.tsx           # per-person role registry
+        assignments/page.tsx    # PM/CAR per project
     layout.tsx
     globals.css
   components/
-    requests/                   # RequestList, RequestCard, StageBar, OffersPanel, ecc.
+    requests/                   # RequestList, RequestCard, StageBar, OffersPanel, etc.
     layout/
     ui/
   lib/
     supabase/
-      client.ts                 # incluso qui
-      server.ts                 # incluso qui
+      client.ts                 # included here
+      server.ts                 # included here
     domain/
-      procedures.ts             # incluso qui — costanti e logica pure, porting 1:1
-      workflow.ts                # da scrivere: signIrAuth/signPayment/toggleDoc come
-                                  # server actions che chiamano Supabase
+      procedures.ts             # included here — pure constants and logic, 1:1 port
+      workflow.ts                # to be written: signIrAuth/signPayment/toggleDoc as
+                                  # server actions that call Supabase
   types/
-    database.types.ts           # generato con `supabase gen types typescript`
-  middleware.ts                 # incluso qui
+    database.types.ts           # generated with `supabase gen types typescript`
+  middleware.ts                 # included here
   supabase/
     migrations/
-      0001_init.sql             # incluso qui
+      0001_init.sql             # included here
   .env.local
 ```
 
-`lib/domain/procedures.ts` è il pezzo più importante da tenere fedele al prototipo:
-soglie, tipi di procedura, documenti richiesti, chi deve firmare cosa. Se PR04 cambia,
-si tocca solo questo file.
+`lib/domain/procedures.ts` is the most important piece to keep faithful to the
+prototype: thresholds, procedure types, required documents, who must sign what. If
+PR04 changes, only this file needs to be touched.
 
-## Passi pratici
+## Practical steps
 
-1. **Crea il progetto Next.js**
+1. **Create the Next.js project**
    ```
    npx create-next-app@latest pas-app --typescript --app --eslint
    cd pas-app
    npm install @supabase/supabase-js @supabase/ssr
    ```
-   Copia dentro `pas-app/` i file di questo pacchetto (`lib/domain`, `lib/supabase`,
-   `middleware.ts`, `supabase/migrations`).
+   Copy the files from this package (`lib/domain`, `lib/supabase`,
+   `middleware.ts`, `supabase/migrations`) into `pas-app/`.
 
-2. **Crea il progetto Supabase**
-   Vai su supabase.com → New project → segna `Project URL` e `anon public key`.
-   Mettili in `.env.local`:
+2. **Create the Supabase project**
+   Go to supabase.com → New project → note down the `Project URL` and `anon public key`.
+   Put them in `.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxxx
    ```
 
-3. **Applica lo schema**
-   Con la Supabase CLI (`npm install -g supabase`):
+3. **Apply the schema**
+   With the Supabase CLI (`npm install -g supabase`):
    ```
    supabase login
    supabase link --project-ref xxxx
    supabase db push
    ```
-   oppure incolla `supabase/migrations/0001_init.sql` nel SQL Editor della dashboard
-   Supabase ed eseguilo — più veloce per iniziare, la CLI la introduci quando servono
-   migrazioni ripetibili in team.
+   or paste `supabase/migrations/0001_init.sql` into the Supabase dashboard's SQL
+   Editor and run it — faster to get started; introduce the CLI once you need
+   repeatable migrations as a team.
 
-4. **Genera i tipi TypeScript dal DB**
+4. **Generate TypeScript types from the DB**
    ```
    supabase gen types typescript --linked > types/database.types.ts
    ```
-   così ogni query a Supabase è tipata contro lo schema reale.
+   so that every query to Supabase is typed against the real schema.
 
-5. **Autenticazione**
-   Nel prototipo `currentUser` è testo libero — è la parte da sostituire per prima.
-   Più semplice per uno staff Oikos: Supabase Auth con Magic Link via email, oppure
-   OAuth Google ristretto al dominio `@istituto-oikos.org` (si configura nelle
-   impostazioni del provider Google in Supabase). Dopo il primo login, una riga in
-   `profiles` + almeno un ruolo in `user_roles` (assegnato a mano da un RAC/CAR reale,
-   o seed manuale i primi giorni).
+5. **Authentication**
+   In the prototype `currentUser` is free text — this is the first thing to replace.
+   The simplest option for Oikos staff: Supabase Auth with Magic Link via email, or
+   Google OAuth restricted to the `@istituto-oikos.org` domain (configured in the
+   Google provider settings in Supabase). After the first login, a row in
+   `profiles` + at least one role in `user_roles` (assigned by hand by a real
+   RAC/CAR, or seeded manually in the first few days).
 
-6. **Porta la logica, non solo le schermate**
-   Prima di toccare l'interfaccia, verifica che `lib/domain/procedures.ts` produca
-   esattamente gli stessi risultati del prototipo su un po' di casi noti (soglie,
-   codice IR generato, elenco documenti per tipo procedura). Un test veloce con
-   `vitest` qui vale più di qualsiasi schermata.
+6. **Port the logic, not just the screens**
+   Before touching the UI, verify that `lib/domain/procedures.ts` produces exactly
+   the same results as the prototype on a set of known cases (thresholds,
+   generated IR code, document list per procedure type). A quick test with
+   `vitest` here is worth more than any screen.
 
-7. **Collega Vercel**
+7. **Connect Vercel**
    ```
    npm install -g vercel
    vercel link
    vercel env add NEXT_PUBLIC_SUPABASE_URL
    vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
    ```
-   Push su GitHub → collega il repo su vercel.com → deploy automatico a ogni push,
-   preview URL per ogni branch/PR (comodo per farti approvare una modifica al workflow
-   prima che vada in produzione).
+   Push to GitHub → connect the repo on vercel.com → automatic deploy on every push,
+   preview URL for every branch/PR (handy for getting a workflow change approved
+   before it goes to production).
 
-## Autenticazione e ruoli — ordine dei passi
+## Authentication and roles — order of steps
 
-1. **Applica anche `0002_auth_and_roles.sql`, `0003_hq_counter_lock.sql`** (dopo
-   `0001_init.sql`), stesso metodo del punto 3 sopra.
-2. **Abilita il provider Email in Supabase** (Authentication → Providers → Email,
-   con "Confirm email" attivo — Supabase usa lo stesso meccanismo per il magic link).
-3. **Login page**: `app/(auth)/login/page.tsx` — form con un solo campo email, manda
-   il link via `supabase.auth.signInWithOtp`. Nessun controllo di dominio: PAS include
-   anche firmatari esterni a Oikos (vedi "Accesso esterni" più sotto).
-4. **Callback**: `app/auth/callback/route.ts` scambia il codice per la sessione e
-   reindirizza alla dashboard.
-5. **Middleware** aggiornato: chi non ha sessione viene rimandato a `/login` su
-   qualunque route tranne `/login` e `/auth/callback`.
-6. **Primo accesso di ciascuno**: al primo login il trigger `handle_new_user` crea
-   automaticamente la riga in `profiles` — ma senza nessun ruolo in `user_roles`,
-   quindi non può ancora firmare nulla. Questo è voluto: nessuno ha permessi finché
-   qualcuno con RAC/CAR non glieli assegna esplicitamente da Settings → Team.
-7. **Sblocco del primo amministratore** (uovo-e-gallina: per assegnare ruoli serve
-   già avere RAC o CAR): dopo il tuo primo login, vai nel SQL Editor di Supabase
-   (gira come `postgres`, bypassa RLS) ed esegui:
+1. **Also apply `0002_auth_and_roles.sql`, `0003_hq_counter_lock.sql`** (after
+   `0001_init.sql`), same method as step 3 above.
+2. **Enable the Email provider in Supabase** (Authentication → Providers → Email,
+   with "Confirm email" enabled — Supabase uses the same mechanism for the magic link).
+3. **Login page**: `app/(auth)/login/page.tsx` — a form with a single email field,
+   sends the link via `supabase.auth.signInWithOtp`. No domain check: PAS also
+   includes signers external to Oikos (see "External access" below).
+4. **Callback**: `app/auth/callback/route.ts` exchanges the code for the session and
+   redirects to the dashboard.
+5. **Updated middleware**: anyone without a session is redirected to `/login` on
+   any route except `/login` and `/auth/callback`.
+6. **Everyone's first login**: on first login the `handle_new_user` trigger
+   automatically creates the row in `profiles` — but with no role in `user_roles`,
+   so they can't sign anything yet. This is intentional: no one has permissions
+   until someone with RAC/CAR explicitly grants them via Settings → Team.
+7. **Unlocking the first administrator** (chicken-and-egg: assigning roles already
+   requires having RAC or CAR): after your first login, go to the Supabase SQL
+   Editor (runs as `postgres`, bypasses RLS) and run:
    ```sql
    insert into user_roles (user_id, role)
-   select id, 'RAC' from profiles where email = 'tuo.indirizzo@istituto-oikos.org';
+   select id, 'RAC' from profiles where email = 'your.address@istituto-oikos.org';
    ```
-   Da lì assegni tutti gli altri dalla UI in `app/(dashboard)/settings/team/page.tsx`.
-8. **Seed del team**: fai accedere una volta ciascuna persona (anche solo per far
-   comparire il profilo), poi da Settings → Team assegni i ruoli per email — la form
-   rifiuta l'assegnazione se la persona non ha ancora fatto il primo login, con un
-   messaggio esplicito invece di creare un ruolo "orfano".
+   From there you assign everyone else from the UI in `app/(dashboard)/settings/team/page.tsx`.
+8. **Seeding the team**: have each person log in once (even just to make their
+   profile appear), then assign roles by email from Settings → Team — the form
+   rejects the assignment if the person hasn't logged in yet, with an explicit
+   message instead of creating an "orphan" role.
 
-## Accesso esterni
+## External access
 
-PAS include anche persone esterne a Oikos (consulenti, membri di organizzazioni
-partner) come firmatari occasionali — non solo staff con email
-`@istituto-oikos.org`. Per questo `0007_remove_email_domain_restriction.sql`
-rimuove il trigger `restrict_email_domain` che c'era in `0002_auth_and_roles.sql`:
-chiunque può ora creare un account via magic link con qualsiasi email.
+PAS also includes people outside Oikos (consultants, members of partner
+organizations) as occasional signers — not just staff with an
+`@istituto-oikos.org` email. That's why `0007_remove_email_domain_restriction.sql`
+removes the `restrict_email_domain` trigger that was set up in `0002_auth_and_roles.sql`:
+anyone can now create an account via magic link with any email.
 
-Questo è sicuro perché il dominio email non era mai la vera barriera di accesso:
-lo è il ruolo in `user_roles`. Al primo login `handle_new_user` crea comunque solo
-una riga in `profiles`, senza alcun ruolo — chi si registra non può firmare né
-creare nulla finché un RAC/CAR non gli assegna un ruolo da Settings → Team (RLS e
-i controlli nelle server action lo bloccano su ogni azione, non solo l'UI). Aprire
-la registrazione a chiunque significa solo più account "inerti" possibili, non più
-permessi.
+This is safe because the email domain was never the actual access barrier: the
+role in `user_roles` is. On first login `handle_new_user` still only creates a
+row in `profiles`, with no role — someone who signs up cannot sign or create
+anything until a RAC/CAR assigns them a role via Settings → Team (RLS and the
+checks in the server actions block it on every action, not just the UI). Opening
+sign-up to anyone just means more possible "inert" accounts, not more
+permissions.
 
-## Le due modifiche confermate
+## The two confirmed changes
 
-- **Contatore IR con lock**: `next_hq_number()` in `0003_hq_counter_lock.sql` fa
-  `SELECT ... FOR UPDATE` sulla riga di `hq_counter` prima di incrementarla — chiamala
-  via `supabase.rpc('next_hq_number')` **dentro la stessa server action** che poi
-  inserisce la richiesta, non in una chiamata separata, altrimenti il lock si rilascia
-  troppo presto e il vantaggio si perde.
-- **Notifiche via Edge Function**: `supabase/functions/notify-signers/index.ts` è uno
-  scheletro funzionante con Resend (va solo verificato il dominio mittente su Resend
-  e impostata `RESEND_API_KEY` con `supabase secrets set`). Sostituisce il `mailto:`
-  del prototipo: l'email parte davvero dal server, non dipende dal client di posta
-  configurato sul PC di chi clicca "Notifica".
+- **IR counter with lock**: `next_hq_number()` in `0003_hq_counter_lock.sql` does
+  `SELECT ... FOR UPDATE` on the `hq_counter` row before incrementing it — call it
+  via `supabase.rpc('next_hq_number')` **inside the same server action** that then
+  inserts the request, not in a separate call, otherwise the lock is released too
+  early and the benefit is lost.
+- **Notifications via Edge Function**: `supabase/functions/notify-signers/index.ts` is
+  a working skeleton using Resend (you just need to verify the sender domain on
+  Resend and set `RESEND_API_KEY` with `supabase secrets set`). It replaces the
+  prototype's `mailto:`: the email actually goes out from the server, and doesn't
+  depend on the mail client configured on the clicking user's PC when they hit
+  "Notify".
 
-## Cosa cambia rispetto al prototipo (di proposito)
+## What changes compared to the prototype (on purpose)
 
-- **Segregazione dei compiti**: nel prototipo è un `alert()` lato client, aggirabile.
-  Nello schema qui è anche un trigger Postgres (`enforce_segregation_of_duties`):
-  anche una richiesta API diretta, senza passare dalla UI, verrebbe rifiutata.
-- **Ruoli**: restano "per persona, non globali" come nel prototipo (`user_roles` è
-  una tabella con più righe per utente), ma ora i permessi sono verificati anche via
-  RLS, non solo nascondendo pulsanti in UI.
-- **Contatore IR (HQ)**: va incrementato dentro una transazione con lock
-  (`SELECT ... FOR UPDATE` su `hq_counter`) per evitare che due Budget Holder ottengano
-  lo stesso numero creando richieste nello stesso istante — nel prototipo, mono-utente
-  in memoria, questo problema non esisteva.
-- **Notifiche**: il prototipo apre un `mailto:` lato client. In produzione conviene
-  spostarlo su una Edge Function Supabase che invia davvero l'email (es. via Resend),
-  altrimenti dipende dal client di posta configurato su ogni PC.
+- **Segregation of duties**: in the prototype this is a client-side `alert()`,
+  which can be bypassed. In the schema here it's also a Postgres trigger
+  (`enforce_segregation_of_duties`): even a direct API request, bypassing the UI,
+  would be rejected.
+- **Roles**: they remain "per person, not global" as in the prototype (`user_roles`
+  is a table with multiple rows per user), but permissions are now also checked
+  via RLS, not just by hiding buttons in the UI.
+- **IR (HQ) counter**: must be incremented inside a transaction with a lock
+  (`SELECT ... FOR UPDATE` on `hq_counter`) to prevent two Budget Holders from
+  getting the same number when creating requests at the same moment — in the
+  prototype, single-user and in-memory, this problem didn't exist.
+- **Notifications**: the prototype opens a client-side `mailto:`. In production it's
+  better to move this to a Supabase Edge Function that actually sends the email
+  (e.g. via Resend), otherwise it depends on the mail client configured on each PC.
 
-## Cosa NON cambia
+## What does NOT change
 
-Soglie PR04, tipi di procedura, checklist documenti per tipo, chi firma cosa,
-downgrade da 3Q a SQ con deroga, doppia numerazione HQ/campo: tutto in
-`lib/domain/procedures.ts`, portato 1:1 dal prototipo.
+PR04 thresholds, procedure types, document checklist per type, who signs what,
+downgrade from 3Q to SQ with derogation, dual HQ/field numbering: all in
+`lib/domain/procedures.ts`, ported 1:1 from the prototype.

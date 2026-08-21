@@ -30,11 +30,11 @@ export default async function TeamSettingsPage() {
 
   return (
     <div style={{ maxWidth: 640, padding: 24 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Team &amp; ruoli</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Team &amp; roles</h1>
       <p style={{ fontSize: 13, color: "#5f5e5a", marginBottom: 20 }}>
-        Ogni persona può avere più ruoli contemporaneamente — la segregazione dei
-        compiti è verificata per singola richiesta, non per persona (come nel
-        prototipo).
+        Each person can have multiple roles at once — segregation of duties is
+        checked per individual request, not per person (as in the
+        prototype).
       </p>
 
       {!canManage && (
@@ -48,8 +48,8 @@ export default async function TeamSettingsPage() {
             marginBottom: 16,
           }}
         >
-          Solo chi ha ruolo RAC o CAR può assegnare ruoli. Puoi vedere l'elenco ma le
-          modifiche verranno rifiutate dal database.
+          Only those with the RAC or CAR role can assign roles. You can view the list but
+          changes will be rejected by the database.
         </div>
       )}
 
@@ -75,7 +75,7 @@ export default async function TeamSettingsPage() {
                   {p.email} ·{" "}
                   {roles.length > 0
                     ? roles.map((r) => ROLE_LABEL[r]).join(", ")
-                    : "nessun ruolo assegnato — non può ancora firmare nulla"}
+                    : "no role assigned — cannot sign anything yet"}
                 </div>
               </div>
               {canManage && roles.length > 0 && (
@@ -108,13 +108,13 @@ export default async function TeamSettingsPage() {
         <form action={addRole} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-              Email della persona (deve aver già fatto accesso una volta)
+              Email address of the person (must have already signed in at least once)
             </label>
             <input
               name="email"
               type="email"
               required
-              placeholder="nome.cognome@istituto-oikos.org"
+              placeholder="firstname.lastname@istituto-oikos.org"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
@@ -127,7 +127,7 @@ export default async function TeamSettingsPage() {
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-              Ruolo da assegnare
+              Role to assign
             </label>
             <select
               name="role"
@@ -158,7 +158,7 @@ export default async function TeamSettingsPage() {
               cursor: "pointer",
             }}
           >
-            Assegna
+            Assign
           </button>
         </form>
       )}

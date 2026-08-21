@@ -1,12 +1,12 @@
--- PAS — fix: "RAC/CAR manage roles" su user_roles interrogava user_roles stessa nella
--- propria USING clause. Essendo la sotto-query soggetta anch'essa a RLS, la policy si
--- ri-attivava su se stessa all'infinito ("infinite recursion detected in policy for
--- relation user_roles", 42P17) — qualunque SELECT su user_roles falliva silenziosamente
--- lato client (nessuna riga, ma con un error object mai controllato prima d'ora).
+-- PAS — fix: "RAC/CAR manage roles" on user_roles was querying user_roles itself in
+-- its own USING clause. Since the sub-query is itself subject to RLS, the policy
+-- kept re-triggering itself infinitely ("infinite recursion detected in policy for
+-- relation user_roles", 42P17) — any SELECT on user_roles failed silently on the
+-- client side (no rows, but with an error object that was never checked until now).
 --
--- Fix standard Postgres/Supabase: il controllo del ruolo passa da una funzione
--- SECURITY DEFINER, che gira con i privilegi del proprietario (postgres) e quindi non
--- ri-applica RLS alla sotto-query interna.
+-- Standard Postgres/Supabase fix: the role check now goes through a SECURITY
+-- DEFINER function, which runs with the owner's privileges (postgres) and therefore
+-- doesn't re-apply RLS to the inner sub-query.
 
 create or replace function is_rac_or_car(uid uuid)
 returns boolean as $$

@@ -14,6 +14,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // Link scaduto, già usato, o email rifiutata dal trigger restrict_email_domain.
+  // Link expired, already used, or email rejected by the restrict_email_domain trigger.
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

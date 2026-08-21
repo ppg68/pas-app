@@ -17,9 +17,9 @@ export async function addRole(formData: FormData) {
     .eq("email", email)
     .maybeSingle();
 
-  // Nessun account trovato per questa email (deve prima accedere una volta), oppure
-  // RLS ("RAC/CAR manage roles") rifiuta l'insert se chi lo esegue non ha già ruolo
-  // RAC o CAR: in entrambi i casi la riga non compare e la lista resta invariata.
+  // No account found for this email (they must sign in at least once first), or
+  // RLS ("RAC/CAR manage roles") rejects the insert if the caller doesn't already
+  // have the RAC or CAR role: either way the row doesn't appear and the list stays unchanged.
   if (!profile) return;
 
   await supabase.from("user_roles").insert({ user_id: profile.id, role });
@@ -29,8 +29,8 @@ export async function addRole(formData: FormData) {
 
 export async function removeRole(userId: string, role: Role) {
   const supabase = await createClient();
-  // bind() nel form action richiede un tipo di ritorno void — l'errore, se c'è,
-  // resta visibile nella riga (il ruolo non sparisce dalla lista dopo il submit).
+  // bind() in the form action requires a void return type — if there's an error,
+  // it stays visible in the row (the role doesn't disappear from the list after submit).
   await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
 
   revalidatePath("/settings/team");

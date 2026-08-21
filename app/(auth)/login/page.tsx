@@ -31,17 +31,17 @@ export default function LoginPage() {
 
   return (
     <div style={{ maxWidth: 360, margin: "80px auto", padding: 24 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 16 }}>PAS — accesso</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 16 }}>PAS — sign in</h1>
 
       {status === "sent" ? (
         <p style={{ fontSize: 14, color: "#5f5e5a" }}>
-          Ti abbiamo mandato un link di accesso a <b>{email}</b>. Aprilo dalla stessa
-          casella di posta per entrare.
+          We sent a sign-in link to <b>{email}</b>. Open it from the same
+          mailbox to log in.
         </p>
       ) : (
         <form onSubmit={sendMagicLink}>
           <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-            Email di lavoro
+            Work email
           </label>
           <input
             type="email"
@@ -74,7 +74,7 @@ export default function LoginPage() {
               cursor: status === "sending" ? "not-allowed" : "pointer",
             }}
           >
-            {status === "sending" ? "Invio in corso…" : "Invia link di accesso"}
+            {status === "sending" ? "Sending…" : "Send sign-in link"}
           </button>
           {status === "error" && (
             <p style={{ color: "#791f1f", fontSize: 13, marginTop: 10 }}>{errorMsg}</p>

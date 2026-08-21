@@ -44,7 +44,7 @@ export default async function RequestListPage() {
 
   return (
     <div style={{ maxWidth: 900, padding: 24 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 20 }}>Richieste</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 20 }}>Requests</h1>
       <RequestsExplorer requests={rows} />
     </div>
   );

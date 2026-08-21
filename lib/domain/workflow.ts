@@ -12,9 +12,9 @@ import {
   type Role,
 } from "@/lib/domain/procedures";
 
-// redirect() lancia internamente — usarlo per riportare un messaggio d'errore
-// leggibile sulla pagina di provenienza invece di far esplodere la server action
-// con un'eccezione Postgres grezza.
+// redirect() throws internally — used here to bring a readable error message
+// back to the originating page instead of letting the server action blow up
+// with a raw Postgres exception.
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
@@ -41,10 +41,10 @@ export async function createRequest(formData: FormData) {
     !Number.isFinite(estimatedPrice) ||
     estimatedPrice <= 0
   ) {
-    fail("/requests/new", "Compila tutti i campi obbligatori con un importo valido.");
+    fail("/requests/new", "Fill in all required fields with a valid amount.");
   }
   if (derogation && !derogationReason) {
-    fail("/requests/new", "La deroga richiede una motivazione.");
+    fail("/requests/new", "Derogation requires a reason.");
   }
 
   const procCode = effectiveProcCode(estimatedPrice, derogation);
@@ -53,25 +53,25 @@ export async function createRequest(formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) fail("/requests/new", "Sessione scaduta, rifai il login.");
+  if (!user) fail("/requests/new", "Session expired, please log in again.");
 
   const { data: myRoles } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id);
   if (!(myRoles ?? []).some((r) => r.role === "BH")) {
-    fail("/requests/new", "Solo chi ha ruolo Budget Holder può creare una richiesta.");
+    fail("/requests/new", "Only someone with the Budget Holder role can create a request.");
   }
 
   let hqNumber = 0;
   let fieldProgressive = 0;
 
   if (country === "IT") {
-    // rpc + insert nella stessa server action: il lock su hq_counter dura solo
-    // quanto la funzione next_hq_number(), va quindi consumato subito dopo.
+    // rpc + insert in the same server action: the lock on hq_counter only lasts
+    // as long as the next_hq_number() function, so it must be consumed right after.
     const { data, error } = await supabase.rpc("next_hq_number");
     if (error || data == null) {
-      fail("/requests/new", error?.message ?? "Impossibile generare il numero IR.");
+      fail("/requests/new", error?.message ?? "Unable to generate the IR number.");
     }
     hqNumber = data;
   } else {
@@ -117,7 +117,7 @@ export async function createRequest(formData: FormData) {
     .single();
 
   if (insertError || !inserted) {
-    fail("/requests/new", insertError?.message ?? "Impossibile creare la richiesta.");
+    fail("/requests/new", insertError?.message ?? "Unable to create the request.");
   }
 
   await supabase.from("audit_log").insert({
@@ -137,10 +137,10 @@ export async function signIrAuth(requestId: string, role: Role) {
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  // "role holder signs" (RLS) rifiuta l'insert se l'utente non ha `role`; il trigger
-  // enforce_segregation_of_duties rifiuta se ha creato lui la richiesta. In entrambi i
-  // casi qui l'errore viene ignorato: la UI mostra il bottone "Firma" solo quando
-  // nessuno dei due casi si applica, quindi non dovrebbe capitare in uso normale.
+  // "role holder signs" (RLS) rejects the insert if the user doesn't have `role`; the
+  // enforce_segregation_of_duties trigger rejects it if they created the request
+  // themselves. In both cases the error is ignored here: the UI only shows the "Sign"
+  // button when neither case applies, so this shouldn't happen in normal use.
   const { error } = await supabase.from("signatures").insert({
     request_id: requestId,
     phase: "ir_auth",
@@ -258,7 +258,7 @@ export async function toggleDoc(requestId: string, docKey: string, checked: bool
 
 export async function advanceToPayment(requestId: string, formData: FormData) {
   const folderPath = String(formData.get("folder_path") || "").trim();
-  if (!folderPath) fail(`/requests/${requestId}`, "Il percorso della cartella è obbligatorio.");
+  if (!folderPath) fail(`/requests/${requestId}`, "The folder path is required.");
 
   const supabase = await createClient();
   const { data: req } = await supabase
@@ -267,7 +267,7 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
     .eq("id", requestId)
     .single();
   if (!req || req.stage !== "documents") {
-    fail(`/requests/${requestId}`, "La richiesta non è nello stage documenti.");
+    fail(`/requests/${requestId}`, "The request is not in the documents stage.");
   }
 
   const { data: docs } = await supabase
@@ -281,7 +281,7 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
   });
 
   if (!documentsComplete(req.proc_code, docsMap, folderPath)) {
-    fail(`/requests/${requestId}`, "Mancano documenti obbligatori o il percorso cartella.");
+    fail(`/requests/${requestId}`, "Required documents or the folder path are missing.");
   }
 
   await supabase

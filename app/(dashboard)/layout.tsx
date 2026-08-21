@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, type Role } from "@/lib/domain/procedures";
 
-// Ogni pagina qui sotto mostra dati specifici della sessione (ruoli, richieste
-// dell'utente): senza questo, Next.js può pre-generare "/" come pagina statica in
-// build e servirla identica a chiunque, ignorando la sessione reale di chi accede.
+// Every page below shows session-specific data (roles, the user's own requests):
+// without this, Next.js could pre-render "/" as a static page at build time and
+// serve it identically to everyone, ignoring the actual session of whoever visits.
 export const dynamic = "force-dynamic";
 
 async function signOut() {
@@ -45,13 +45,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div>
           <div style={{ fontSize: 14, fontWeight: 500 }}>{profile?.full_name ?? "—"}</div>
           <div style={{ fontSize: 12, color: "#888780" }}>
-            {roles.length > 0 ? roles.map((r) => ROLE_LABEL[r]).join(", ") : "nessun ruolo"}
+            {roles.length > 0 ? roles.map((r) => ROLE_LABEL[r]).join(", ") : "no role"}
           </div>
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
-          <Link href="/">Richieste</Link>
-          {canCreateRequest && <Link href="/requests/new">Nuova richiesta</Link>}
+          <Link href="/">Requests</Link>
+          {canCreateRequest && <Link href="/requests/new">New request</Link>}
           <Link href="/settings/team">Team</Link>
         </nav>
 
@@ -68,7 +68,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               width: "100%",
             }}
           >
-            Esci
+            Sign out
           </button>
         </form>
       </aside>

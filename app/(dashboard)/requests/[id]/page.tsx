@@ -65,7 +65,7 @@ export default async function RequestDetailPage({
 
   if (!request) {
     return (
-      <div style={{ padding: 24, fontSize: 13 }}>Richiesta non trovata.</div>
+      <div style={{ padding: 24, fontSize: 13 }}>Request not found.</div>
     );
   }
 
@@ -150,7 +150,7 @@ export default async function RequestDetailPage({
 
       {/* IR approval */}
       <div style={cardStyle}>
-        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Approvazione IR</h2>
+        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>IR approval</h2>
         {config.signers.map((role) => {
           const signed = irSignedRoles.get(role);
           const canShowButton =
@@ -167,12 +167,12 @@ export default async function RequestDetailPage({
               }}
             >
               <span>
-                {ROLE_LABEL[role]} — {signed ? "firmato" : "in attesa"}
+                {ROLE_LABEL[role]} — {signed ? "signed" : "pending"}
               </span>
               {canShowButton && (
                 <form action={signIrAuth.bind(null, request.id, role)}>
                   <button type="submit" style={buttonStyle}>
-                    Firma
+                    Sign
                   </button>
                 </form>
               )}
@@ -181,25 +181,25 @@ export default async function RequestDetailPage({
         })}
         {!iCanAct && request.stage === "ir_auth" && (
           <p style={{ fontSize: 12, color: "#888780", marginTop: 8 }}>
-            Chi ha creato questa richiesta non può firmarla (segregazione dei compiti).
+            Whoever created this request cannot sign it (segregation of duties).
           </p>
         )}
       </div>
 
-      {/* Offerte */}
+      {/* Offers */}
       {showOffers && stageIndex >= offersIndex && (
         <div style={cardStyle}>
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>
-            Offerte (minimo {config.minOffers})
+            Offers (minimum {config.minOffers})
           </h2>
           {(offers ?? []).length === 0 && (
-            <p style={{ fontSize: 13, color: "#888780" }}>Nessuna offerta ancora.</p>
+            <p style={{ fontSize: 13, color: "#888780" }}>No offers yet.</p>
           )}
           {(offers ?? []).map((o) => (
             <div key={o.id} style={{ fontSize: 13, padding: "4px 0" }}>
               {o.supplier} — {o.price} {request.currency}
               {request.winner_offer_id === o.id && (
-                <strong style={{ color: "#1A3A5C" }}> · vincitore</strong>
+                <strong style={{ color: "#1A3A5C" }}> · winner</strong>
               )}
             </div>
           ))}
@@ -212,25 +212,25 @@ export default async function RequestDetailPage({
               >
                 <div>
                   <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
-                    Fornitore
+                    Supplier
                   </label>
                   <input name="supplier" required style={inputStyle} />
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
-                    Prezzo
+                    Price
                   </label>
                   <input name="price" type="number" step="0.01" min="0.01" required style={inputStyle} />
                 </div>
                 <button type="submit" style={buttonStyle}>
-                  Aggiungi
+                  Add
                 </button>
               </form>
 
               {(offers ?? []).length >= config.minOffers && (
                 <form action={closeOffers.bind(null, request.id)} style={{ marginTop: 10 }}>
                   <button type="submit" style={buttonStyle}>
-                    Chiudi raccolta offerte
+                    Close offer collection
                   </button>
                 </form>
               )}
@@ -239,10 +239,10 @@ export default async function RequestDetailPage({
         </div>
       )}
 
-      {/* Vincitore */}
+      {/* Winner */}
       {showOffers && stageIndex >= winnerIndex && (
         <div style={cardStyle}>
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Vincitore</h2>
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Winner</h2>
           {request.stage === "winner" ? (
             <form action={selectWinner.bind(null, request.id)} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(offers ?? []).map((o) => (
@@ -251,9 +251,9 @@ export default async function RequestDetailPage({
                   {o.supplier} — {o.price} {request.currency}
                 </label>
               ))}
-              <input name="note" placeholder="Nota (opzionale)" style={inputStyle} />
+              <input name="note" placeholder="Note (optional)" style={inputStyle} />
               <button type="submit" style={{ ...buttonStyle, width: "fit-content" }}>
-                Conferma vincitore
+                Confirm winner
               </button>
             </form>
           ) : (
@@ -267,10 +267,10 @@ export default async function RequestDetailPage({
         </div>
       )}
 
-      {/* Documenti */}
+      {/* Documents */}
       {stageIndex >= documentsIndex && (
         <div style={cardStyle}>
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Documenti</h2>
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Documents</h2>
           {requiredDocs.map((docKey) => {
             const checked = !!docsMap[docKey];
             const optional = OPTIONAL_DOCS.has(docKey);
@@ -286,8 +286,8 @@ export default async function RequestDetailPage({
                 }}
               >
                 <span>
-                  {FOLDER_NAMES[docKey]} {optional && "(opzionale)"} —{" "}
-                  {checked ? "completato" : "da fare"}
+                  {FOLDER_NAMES[docKey]} {optional && "(optional)"} —{" "}
+                  {checked ? "completed" : "to do"}
                 </span>
                 {request.stage === "documents" && (
                   <form action={toggleDoc.bind(null, request.id, docKey, !checked)}>
@@ -302,7 +302,7 @@ export default async function RequestDetailPage({
                         cursor: "pointer",
                       }}
                     >
-                      {checked ? "Annulla" : "Segna completo"}
+                      {checked ? "Undo" : "Mark complete"}
                     </button>
                   </form>
                 )}
@@ -317,7 +317,7 @@ export default async function RequestDetailPage({
             >
               <div style={{ flex: 1 }}>
                 <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
-                  Percorso cartella
+                  Folder path
                 </label>
                 <input
                   name="folder_path"
@@ -327,23 +327,23 @@ export default async function RequestDetailPage({
                 />
               </div>
               <button type="submit" disabled={!docsOk} style={buttonStyle}>
-                Vai al pagamento
+                Go to payment
               </button>
             </form>
           ) : (
             request.folder_path && (
               <p style={{ fontSize: 12, color: "#888780", marginTop: 8 }}>
-                Cartella: {request.folder_path}
+                Folder: {request.folder_path}
               </p>
             )
           )}
         </div>
       )}
 
-      {/* Pagamento */}
+      {/* Payment */}
       {stageIndex >= paymentIndex && (
         <div style={cardStyle}>
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Pagamento</h2>
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment</h2>
           {paySigners.map((role) => {
             const signed = paySignedRoles.get(role);
             const canShowButton =
@@ -360,12 +360,12 @@ export default async function RequestDetailPage({
                 }}
               >
                 <span>
-                  {ROLE_LABEL[role]} — {signed ? "firmato" : "in attesa"}
+                  {ROLE_LABEL[role]} — {signed ? "signed" : "pending"}
                 </span>
                 {canShowButton && (
                   <form action={signPayment.bind(null, request.id, role)}>
                     <button type="submit" style={buttonStyle}>
-                      Firma
+                      Sign
                     </button>
                   </form>
                 )}
@@ -377,7 +377,7 @@ export default async function RequestDetailPage({
 
       {request.stage === "completed" && (
         <div style={{ ...cardStyle, textAlign: "center", color: "#1A3A5C", fontWeight: 500 }}>
-          Richiesta chiusa
+          Request closed
         </div>
       )}
     </div>

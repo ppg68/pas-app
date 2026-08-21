@@ -89,24 +89,24 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
       const rows = requests.map((r) => {
         const c = procConfigFor(r.proc_code);
         return {
-          "Codice IR": r.code,
-          "Paese/Sede": r.country,
-          Progetto: r.project_code,
-          "Linea di budget": r.budget_line,
-          Descrizione: r.description,
-          "Codice CUP/AID": r.cup_code || "",
-          "Importo stimato": r.estimated_price,
-          Valuta: r.currency,
-          Procedura: c.label,
-          Fornitore: r.winnerSupplier,
-          "Attività istituzionale": r.institutional_activity ? "x" : "",
-          "Collaboratore occasionale": r.occasional_collaborator ? "x" : "",
-          Deroga: r.derogation ? `Sì — ${r.derogation_reason ?? ""}` : "No",
-          "Costo di coordinamento": r.coordination_cost ? "Sì" : "No",
-          Fase: STAGE_TITLES[r.stage],
-          "Avviata da": r.initiatedByName,
-          "N. offerte": r.offersCount,
-          "Percorso cartella archivio": r.folder_path || "",
+          "IR Code": r.code,
+          "Country/Office": r.country,
+          Project: r.project_code,
+          "Budget line": r.budget_line,
+          Description: r.description,
+          "CUP/AID code": r.cup_code || "",
+          "Estimated amount": r.estimated_price,
+          Currency: r.currency,
+          Procedure: c.label,
+          Supplier: r.winnerSupplier,
+          "Institutional activity": r.institutional_activity ? "x" : "",
+          "Occasional collaborator": r.occasional_collaborator ? "x" : "",
+          Derogation: r.derogation ? `Yes — ${r.derogation_reason ?? ""}` : "No",
+          "Coordination cost": r.coordination_cost ? "Yes" : "No",
+          Stage: STAGE_TITLES[r.stage],
+          "Initiated by": r.initiatedByName,
+          "No. of offers": r.offersCount,
+          "Archive folder path": r.folder_path || "",
         };
       });
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -114,9 +114,9 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
         wch: Math.min(Math.max(k.length, 14), 45),
       }));
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Elenco IR");
+      XLSX.utils.book_append_sheet(wb, ws, "IR List");
       const stamp = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `PAS_elenco_IR_${stamp}.xlsx`);
+      XLSX.writeFile(wb, `PAS_IR_list_${stamp}.xlsx`);
     } finally {
       setExporting(false);
     }
@@ -136,8 +136,8 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
       >
         <div style={{ fontSize: 13, color: "#5f5e5a" }}>
           {searchQuery
-            ? `Richieste (${filteredRequests.length} di ${requests.length})`
-            : `Richieste (${requests.length})`}
+            ? `Requests (${filteredRequests.length} of ${requests.length})`
+            : `Requests (${requests.length})`}
         </div>
         <button
           type="button"
@@ -154,7 +154,7 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
             cursor: requests.length === 0 || exporting ? "not-allowed" : "pointer",
           }}
         >
-          {exporting ? "Esportazione…" : "Esporta Excel"}
+          {exporting ? "Exporting…" : "Export Excel"}
         </button>
       </div>
 
@@ -168,7 +168,7 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
           }}
         >
           <input
-            placeholder="Cerca per codice IR, progetto o descrizione…"
+            placeholder="Search by IR code, project, or description…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={inputStyle}
@@ -178,21 +178,21 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
             onChange={(e) => setSortBy(e.target.value as SortBy)}
             style={inputStyle}
           >
-            <option value="default">Ordina: più recenti</option>
-            <option value="status">Ordina: per fase</option>
-            <option value="project">Ordina: per progetto</option>
-            <option value="amount">Ordina: per importo</option>
-            <option value="code">Ordina: per codice</option>
+            <option value="default">Sort: most recent</option>
+            <option value="status">Sort: by stage</option>
+            <option value="project">Sort: by project</option>
+            <option value="amount">Sort: by amount</option>
+            <option value="code">Sort: by code</option>
           </select>
         </div>
       )}
 
       {requests.length === 0 && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>Nessuna richiesta ancora.</p>
+        <p style={{ fontSize: 13, color: "#5f5e5a" }}>No requests yet.</p>
       )}
 
       {requests.length > 0 && filteredRequests.length === 0 && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>Nessuna richiesta corrisponde alla ricerca.</p>
+        <p style={{ fontSize: 13, color: "#5f5e5a" }}>No requests match the search.</p>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

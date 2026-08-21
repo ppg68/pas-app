@@ -24,7 +24,7 @@ export default async function NewRequestPage({
 
   return (
     <div style={{ maxWidth: 480, padding: 24 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 16 }}>Nuova richiesta</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 16 }}>New request</h1>
 
       {error && (
         <div
@@ -43,24 +43,24 @@ export default async function NewRequestPage({
 
       <form action={createRequest} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <label style={labelStyle}>Country (IT per numerazione HQ)</label>
+          <label style={labelStyle}>Country (IT for HQ numbering)</label>
           <input name="country" defaultValue="IT" required style={inputStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Codice progetto</label>
+          <label style={labelStyle}>Project code</label>
           <input name="project_code" required style={inputStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Linea di budget</label>
+          <label style={labelStyle}>Budget line</label>
           <input name="budget_line" required style={inputStyle} />
         </div>
         <div>
-          <label style={labelStyle}>Descrizione</label>
+          <label style={labelStyle}>Description</label>
           <input name="description" required style={inputStyle} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Importo stimato</label>
+            <label style={labelStyle}>Estimated amount</label>
             <input
               name="estimated_price"
               type="number"
@@ -71,32 +71,32 @@ export default async function NewRequestPage({
             />
           </div>
           <div style={{ width: 90 }}>
-            <label style={labelStyle}>Valuta</label>
+            <label style={labelStyle}>Currency</label>
             <input name="currency" defaultValue="EUR" style={inputStyle} />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>CUP (opzionale)</label>
+          <label style={labelStyle}>CUP (optional)</label>
           <input name="cup_code" style={inputStyle} />
         </div>
 
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" name="derogation" /> Deroga (3Q → SQ)
+          <input type="checkbox" name="derogation" /> Derogation (3Q → SQ)
         </label>
         <div>
-          <label style={labelStyle}>Motivo deroga (obbligatorio se sopra spuntato)</label>
+          <label style={labelStyle}>Derogation reason (required if checked above)</label>
           <input name="derogation_reason" style={inputStyle} />
         </div>
 
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" name="coordination_cost" /> Costo di coordinamento (nessun
-          progetto collegato)
+          <input type="checkbox" name="coordination_cost" /> Coordination cost (no
+          linked project)
         </label>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" name="institutional_activity" /> Attività istituzionale
+          <input type="checkbox" name="institutional_activity" /> Institutional activity
         </label>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" name="occasional_collaborator" /> Collaboratore occasionale
+          <input type="checkbox" name="occasional_collaborator" /> Occasional collaborator
         </label>
 
         <button
@@ -113,7 +113,7 @@ export default async function NewRequestPage({
             marginTop: 8,
           }}
         >
-          Crea richiesta
+          Create request
         </button>
       </form>
     </div>
