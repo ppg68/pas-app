@@ -7,9 +7,7 @@ export default async function ContractsListPage() {
   const supabase = await createClient();
   const { data: contracts } = await supabase
     .from("contracts")
-    .select(
-      "id, legacy_id, subject, status, country, project_code, ir_code, contract_kind, end_date, currency, amount, created_at"
-    )
+    .select("*")
     .order("created_at", { ascending: false });
 
   const contractIds = (contracts ?? []).map((c) => c.id);
@@ -37,7 +35,7 @@ export default async function ContractsListPage() {
   });
 
   return (
-    <div style={{ maxWidth: 1280, padding: 24 }}>
+    <div style={{ padding: 24 }}>
       <div
         style={{
           display: "flex",

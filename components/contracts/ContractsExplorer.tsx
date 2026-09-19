@@ -2,20 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CONTRACT_STATUS_LABEL, daysUntil, type ContractStatus } from "@/lib/domain/contracts";
+import {
+  CONTRACT_STATUS_LABEL,
+  daysUntil,
+  type ContractRow,
+  type ContractStatus,
+} from "@/lib/domain/contracts";
 
-export type ContractListRow = {
-  id: string;
-  legacy_id: string | null;
-  subject: string;
-  status: ContractStatus;
-  country: string | null;
-  project_code: string | null;
-  ir_code: string | null;
-  contract_kind: string | null;
-  end_date: string | null;
-  currency: string;
-  amount: number;
+export type ContractListRow = ContractRow & {
   paid: number;
   tranchesCount: number;
 };
@@ -43,10 +37,13 @@ const th: React.CSSProperties = {
   padding: "8px 10px",
   borderBottom: "1px solid #d3d1c7",
   whiteSpace: "nowrap",
-  cursor: "pointer",
   userSelect: "none",
+  position: "sticky",
+  top: 0,
+  background: "#fff",
 };
-const thRight: React.CSSProperties = { ...th, textAlign: "right" };
+const thSortable: React.CSSProperties = { ...th, cursor: "pointer" };
+const thRight: React.CSSProperties = { ...thSortable, textAlign: "right" };
 const td: React.CSSProperties = {
   fontSize: 13,
   padding: "8px 10px",
@@ -54,16 +51,27 @@ const td: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 const tdRight: React.CSSProperties = { ...td, textAlign: "right" };
-const tdSubject: React.CSSProperties = {
-  ...td,
-  whiteSpace: "normal",
-  maxWidth: 260,
-  fontWeight: 500,
-};
+const tdWrap: React.CSSProperties = { ...td, whiteSpace: "normal", maxWidth: 220 };
+const tdSubject: React.CSSProperties = { ...tdWrap, maxWidth: 200, fontWeight: 500 };
+const tdCheck: React.CSSProperties = { ...td, textAlign: "center" };
 
 function money(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
+
+function Check({ v }: { v: boolean }) {
+  return <span style={{ color: v ? "#1A3A5C" : "#d3d1c7" }}>{v ? "✓" : "—"}</span>;
+}
+
+// Columns, in the same left-to-right order as the original "Elenco contratti"
+// Google Sheet, so the shape is familiar even though this now scrolls.
+type Col = {
+  key: string;
+  label: string;
+  sort?: SortBy;
+  align?: "right" | "center";
+  render: (c: ContractListRow) => React.ReactNode;
+};
 
 export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
   const router = useRouter();
@@ -92,7 +100,8 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           (c.project_code || "").toLowerCase().includes(q) ||
           (c.ir_code || "").toLowerCase().includes(q) ||
           (c.country || "").toLowerCase().includes(q) ||
-          (c.legacy_id || "").toLowerCase().includes(q)
+          (c.legacy_id || "").toLowerCase().includes(q) ||
+          (c.referent || "").toLowerCase().includes(q)
       );
     }
 
@@ -122,13 +131,32 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
         ID: c.legacy_id || "",
         Subject: c.subject,
         Status: CONTRACT_STATUS_LABEL[c.status],
-        Project: c.project_code || "",
-        IR: c.ir_code || "",
-        "End date": c.end_date || "",
+        Typology: c.typology || "",
+        Unit: c.unit || "",
+        Role: c.role_title || "",
+        Activity: c.activity || "",
+        Country: c.country || "",
+        "Signed date": c.signed_date || "",
+        Start: c.start_date || "",
+        End: c.end_date || "",
         Currency: c.currency,
         Amount: c.amount,
+        "Contract type": c.contract_kind || "",
         Paid: c.paid,
         Balance: c.amount - c.paid,
+        Project: c.project_code || "",
+        IR: c.ir_code || "",
+        "Payment terms": c.payment_terms || "",
+        Signed: c.signed ? "x" : "",
+        Privacy: c.privacy ? "x" : "",
+        "Code of Conduct": c.code_of_conduct ? "x" : "",
+        "PSEA Policy": c.psea_policy ? "x" : "",
+        "Criminal record check": c.criminal_record_check ? "x" : "",
+        "Technical requirements check": c.technical_requirements_check ? "x" : "",
+        "Labor inspectorate notice": c.labor_inspectorate_notice ? "x" : "",
+        Referent: c.referent || "",
+        Notes: c.notes || "",
+        "Project deadline": c.project_deadline || "",
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       ws["!cols"] = Object.keys(rows[0]).map((k) => ({
@@ -147,6 +175,90 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     if (sortBy !== col) return "";
     return sortDir === "asc" ? " ↑" : " ↓";
   }
+
+  const columns: Col[] = [
+    { key: "legacy_id", label: "ID", render: (c) => c.legacy_id || "—" },
+    { key: "subject", label: "Subject", sort: "subject", render: (c) => c.subject },
+    {
+      key: "status",
+      label: "Status",
+      sort: "status",
+      render: (c) => (
+        <span style={{ fontSize: 11, border: "0.5px solid #b4b2a9", borderRadius: 999, padding: "2px 8px" }}>
+          {CONTRACT_STATUS_LABEL[c.status]}
+        </span>
+      ),
+    },
+    { key: "typology", label: "Typology", render: (c) => c.typology || "—" },
+    { key: "unit", label: "Unit", render: (c) => c.unit || "—" },
+    { key: "role_title", label: "Role", render: (c) => c.role_title || "—" },
+    { key: "activity", label: "Activity", render: (c) => c.activity || "—" },
+    { key: "country", label: "Country", render: (c) => c.country || "—" },
+    { key: "signed_date", label: "Signed date", render: (c) => c.signed_date || "—" },
+    { key: "start_date", label: "Start", render: (c) => c.start_date || "—" },
+    {
+      key: "end_date",
+      label: "End",
+      sort: "deadline",
+      render: (c) => {
+        const dLeft = daysUntil(c.end_date);
+        const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
+        return (
+          <span style={{ color: overdue ? "#c0392b" : undefined, fontWeight: overdue ? 500 : undefined }}>
+            {c.end_date || "—"}
+            {overdue && ` (${Math.abs(dLeft!)}d overdue)`}
+          </span>
+        );
+      },
+    },
+    { key: "contract_kind", label: "Contract type", render: (c) => c.contract_kind || "—" },
+    {
+      key: "amount",
+      label: "Amount",
+      sort: "amount",
+      align: "right",
+      render: (c) => `${money(c.amount)} ${c.currency}`,
+    },
+    { key: "paid", label: "Paid", align: "right", render: (c) => money(c.paid) },
+    { key: "balance", label: "Balance", align: "right", render: (c) => money(c.amount - c.paid) },
+    { key: "project_code", label: "Project", render: (c) => c.project_code || "—" },
+    { key: "ir_code", label: "IR", render: (c) => c.ir_code || "—" },
+    {
+      key: "payment_terms",
+      label: "Payment terms",
+      render: (c) => c.payment_terms || "—",
+    },
+    { key: "signed", label: "Signed", align: "center", render: (c) => <Check v={c.signed} /> },
+    { key: "privacy", label: "Privacy", align: "center", render: (c) => <Check v={c.privacy} /> },
+    {
+      key: "code_of_conduct",
+      label: "Code of Conduct",
+      align: "center",
+      render: (c) => <Check v={c.code_of_conduct} />,
+    },
+    { key: "psea_policy", label: "PSEA Policy", align: "center", render: (c) => <Check v={c.psea_policy} /> },
+    {
+      key: "criminal_record_check",
+      label: "Criminal record check",
+      align: "center",
+      render: (c) => <Check v={c.criminal_record_check} />,
+    },
+    {
+      key: "technical_requirements_check",
+      label: "Technical requirements",
+      align: "center",
+      render: (c) => <Check v={c.technical_requirements_check} />,
+    },
+    {
+      key: "labor_inspectorate_notice",
+      label: "Labor inspectorate",
+      align: "center",
+      render: (c) => <Check v={c.labor_inspectorate_notice} />,
+    },
+    { key: "referent", label: "Referent", render: (c) => c.referent || "—" },
+    { key: "notes", label: "Notes", render: (c) => c.notes || "—" },
+    { key: "project_deadline", label: "Project deadline", render: (c) => c.project_deadline || "—" },
+  ];
 
   return (
     <div>
@@ -190,10 +302,11 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           gridTemplateColumns: "1fr auto",
           gap: 10,
           marginBottom: 14,
+          maxWidth: 700,
         }}
       >
         <input
-          placeholder="Search by subject, project, IR, or country…"
+          placeholder="Search by subject, project, IR, country, or referent…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={inputStyle}
@@ -215,68 +328,68 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       )}
 
       {filtered.length > 0 && (
-        <div style={{ overflowX: "auto", border: "0.5px solid #d3d1c7", borderRadius: 10 }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <div
+          style={{
+            overflowX: "auto",
+            border: "0.5px solid #d3d1c7",
+            borderRadius: 10,
+            maxHeight: "75vh",
+            overflowY: "auto",
+          }}
+        >
+          <table style={{ borderCollapse: "collapse", width: "max-content" }}>
             <thead>
               <tr>
-                <th style={th}>ID</th>
-                <th style={th} onClick={() => toggleSort("subject")}>
-                  Subject{sortArrow("subject")}
-                </th>
-                <th style={th} onClick={() => toggleSort("status")}>
-                  Status{sortArrow("status")}
-                </th>
-                <th style={th}>Project</th>
-                <th style={th}>IR</th>
-                <th style={th} onClick={() => toggleSort("deadline")}>
-                  Deadline{sortArrow("deadline")}
-                </th>
-                <th style={thRight} onClick={() => toggleSort("amount")}>
-                  Amount{sortArrow("amount")}
-                </th>
-                <th style={thRight}>Paid</th>
-                <th style={thRight}>Balance</th>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    style={
+                      col.sort
+                        ? col.align === "right"
+                          ? thRight
+                          : thSortable
+                        : col.align === "right"
+                          ? { ...th, textAlign: "right" }
+                          : col.align === "center"
+                            ? { ...th, textAlign: "center" }
+                            : th
+                    }
+                    onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
+                  >
+                    {col.label}
+                    {col.sort ? sortArrow(col.sort) : ""}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((c) => {
-                const balance = c.amount - c.paid;
                 const dLeft = daysUntil(c.end_date);
                 const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
                 return (
                   <tr
                     key={c.id}
                     onClick={() => router.push(`/contracts/${c.id}`)}
-                    style={{
-                      cursor: "pointer",
-                      background: overdue ? "#fdecea" : "transparent",
-                    }}
+                    style={{ cursor: "pointer", background: overdue ? "#fdecea" : "transparent" }}
                   >
-                    <td style={{ ...td, color: "#888780" }}>{c.legacy_id || "—"}</td>
-                    <td style={tdSubject}>{c.subject}</td>
-                    <td style={td}>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          border: "0.5px solid #b4b2a9",
-                          borderRadius: 999,
-                          padding: "2px 8px",
-                        }}
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        style={
+                          col.align === "right"
+                            ? tdRight
+                            : col.align === "center"
+                              ? tdCheck
+                              : col.key === "subject"
+                                ? tdSubject
+                                : col.key === "notes" || col.key === "payment_terms"
+                                  ? tdWrap
+                                  : td
+                        }
                       >
-                        {CONTRACT_STATUS_LABEL[c.status]}
-                      </span>
-                    </td>
-                    <td style={td}>{[c.country, c.project_code].filter(Boolean).join(" · ") || "—"}</td>
-                    <td style={td}>{c.ir_code || "—"}</td>
-                    <td style={{ ...td, color: overdue ? "#c0392b" : undefined, fontWeight: overdue ? 500 : undefined }}>
-                      {c.end_date || "—"}
-                      {overdue && ` (${Math.abs(dLeft!)}d overdue)`}
-                    </td>
-                    <td style={tdRight}>
-                      {money(c.amount)} {c.currency}
-                    </td>
-                    <td style={tdRight}>{money(c.paid)}</td>
-                    <td style={tdRight}>{money(balance)}</td>
+                        {col.render(c)}
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
