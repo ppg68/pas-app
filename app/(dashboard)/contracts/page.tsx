@@ -8,7 +8,7 @@ export default async function ContractsListPage() {
   const { data: contracts } = await supabase
     .from("contracts")
     .select(
-      "id, legacy_id, subject, status, country, project_code, contract_kind, end_date, currency, amount, created_at"
+      "id, legacy_id, subject, status, country, project_code, ir_code, contract_kind, end_date, currency, amount, created_at"
     )
     .order("created_at", { ascending: false });
 
@@ -37,7 +37,7 @@ export default async function ContractsListPage() {
   });
 
   return (
-    <div style={{ maxWidth: 960, padding: 24 }}>
+    <div style={{ maxWidth: 1280, padding: 24 }}>
       <div
         style={{
           display: "flex",
