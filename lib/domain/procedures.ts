@@ -3,7 +3,7 @@
 // if the procedure changes; UI components should never hardcode these values.
 
 export type ProcCode = "DIR" | "SQ" | "3Q" | "SP" | "TEN";
-export type Role = "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG";
+export type Role = "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS";
 
 export const ROLE_LABEL: Record<Role, string> = {
   BH: "Budget Holder",
@@ -12,6 +12,11 @@ export const ROLE_LABEL: Record<Role, string> = {
   CAR: "CAR / Admin (Project Accounting Officer)",
   RAC: "RAC",
   DG: "Director (DG)",
+  // Not a procurement-workflow role: gates the whole Contracts module (see
+  // lib/domain/contracts.ts). Managed day-to-day from /contracts/access, not
+  // this list — kept here too only so an existing RAC/CAR can bootstrap the
+  // very first Contracts admin without needing the Supabase SQL Editor.
+  CONTRACTS: "Contracts access",
 };
 export const ROLES = Object.keys(ROLE_LABEL) as Role[];
 

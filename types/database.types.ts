@@ -523,7 +523,7 @@ export type Database = {
       next_hq_number: { Args: never; Returns: number }
     }
     Enums: {
-      app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG"
+      app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS"
       contract_status: "in_corso" | "concluso" | "annullato"
       proc_code: "DIR" | "SQ" | "3Q" | "SP" | "TEN"
       request_stage:
@@ -661,7 +661,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG"],
+      app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG", "CONTRACTS"],
       contract_status: ["in_corso", "concluso", "annullato"],
       proc_code: ["DIR", "SQ", "3Q", "SP", "TEN"],
       request_stage: [
