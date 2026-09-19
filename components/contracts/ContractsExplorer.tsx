@@ -335,6 +335,8 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
             borderRadius: 10,
             maxHeight: "75vh",
             overflowY: "auto",
+            width: "100%",
+            maxWidth: "100%",
           }}
         >
           <table style={{ borderCollapse: "collapse", width: "max-content" }}>

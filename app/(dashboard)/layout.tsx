@@ -75,7 +75,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </form>
       </aside>
 
-      <main style={{ flex: 1 }}>{children}</main>
+      {/* minWidth: 0 overrides flex's default min-width:auto, which would otherwise
+          let this column grow to fit a wide child (like the Contracts table) instead
+          of letting that child's own overflow-x:auto scrollbar do the job. */}
+      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
     </div>
   );
 }
