@@ -85,3 +85,22 @@ export function daysUntil(dateStr: string | null): number | null {
   const ms = new Date(dateStr).getTime() - new Date(new Date().toDateString()).getTime();
   return Math.round(ms / 86_400_000);
 }
+
+/** DB dates are stored as YYYY-MM-DD; displayed in Italian order, DD/MM/YYYY. */
+export function formatDateIT(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  if (!y || !m || !d) return dateStr;
+  return `${d}/${m}/${y}`;
+}
+
+/** Amounts always shown with exactly 2 decimals, Italian grouping (1.234,56).
+ *  useGrouping is passed explicitly — leaving it out silently drops the "."
+ *  thousands separator for it-IT specifically on some ICU builds. */
+export function formatMoney(n: number): string {
+  return n.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  });
+}

@@ -5,6 +5,8 @@ import {
   totalPaid,
   totalScheduled,
   daysUntil,
+  formatDateIT,
+  formatMoney,
 } from "@/lib/domain/contracts";
 import {
   updateContract,
@@ -102,7 +104,7 @@ export default async function ContractDetailPage({
         <div style={{ fontSize: 13, color: "#5f5e5a" }}>
           {[contract.country, contract.project_code].filter(Boolean).join(" · ")}
           {(contract.country || contract.project_code) && " · "}
-          {contract.amount.toLocaleString()} {contract.currency}
+          {formatMoney(contract.amount)} {contract.currency}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <span style={{ ...ghostButtonStyle, cursor: "default" }}>
@@ -117,7 +119,7 @@ export default async function ContractDetailPage({
                 color: overdue ? "#c0392b" : "inherit",
               }}
             >
-              ends {contract.end_date}
+              ends {formatDateIT(contract.end_date)}
               {overdue && ` · overdue (${Math.abs(dLeft!)}d)`}
             </span>
           )}
@@ -146,25 +148,25 @@ export default async function ContractDetailPage({
           <div>
             <div style={{ color: "#888780", fontSize: 11 }}>Contract amount</div>
             <div style={{ fontWeight: 500 }}>
-              {contract.amount.toLocaleString()} {contract.currency}
+              {formatMoney(contract.amount)} {contract.currency}
             </div>
           </div>
           <div>
             <div style={{ color: "#888780", fontSize: 11 }}>Scheduled (tranches)</div>
             <div style={{ fontWeight: 500 }}>
-              {scheduled.toLocaleString()} {contract.currency}
+              {formatMoney(scheduled)} {contract.currency}
             </div>
           </div>
           <div>
             <div style={{ color: "#888780", fontSize: 11 }}>Paid</div>
             <div style={{ fontWeight: 500 }}>
-              {paid.toLocaleString()} {contract.currency}
+              {formatMoney(paid)} {contract.currency}
             </div>
           </div>
           <div>
             <div style={{ color: "#888780", fontSize: 11 }}>Balance</div>
             <div style={{ fontWeight: 500 }}>
-              {balance.toLocaleString()} {contract.currency}
+              {formatMoney(balance)} {contract.currency}
             </div>
           </div>
         </div>
@@ -193,10 +195,10 @@ export default async function ContractDetailPage({
                   #{t.seq} {t.label ? `— ${t.label}` : ""}
                 </div>
                 <div style={{ color: "#888780", fontSize: 12 }}>
-                  {t.amount.toLocaleString()} {contract.currency}
-                  {t.due_date ? ` · due ${t.due_date}` : ""}
+                  {formatMoney(t.amount)} {contract.currency}
+                  {t.due_date ? ` · due ${formatDateIT(t.due_date)}` : ""}
                   {t.due_condition ? ` · ${t.due_condition}` : ""}
-                  {t.paid && t.paid_date ? ` · paid ${t.paid_date}` : ""}
+                  {t.paid && t.paid_date ? ` · paid ${formatDateIT(t.paid_date)}` : ""}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>

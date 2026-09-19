@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   CONTRACT_STATUS_LABEL,
   daysUntil,
+  formatDateIT,
+  formatMoney,
   type ContractRow,
   type ContractStatus,
 } from "@/lib/domain/contracts";
@@ -54,10 +56,6 @@ const tdRight: React.CSSProperties = { ...td, textAlign: "right" };
 const tdWrap: React.CSSProperties = { ...td, whiteSpace: "normal", maxWidth: 220 };
 const tdSubject: React.CSSProperties = { ...tdWrap, maxWidth: 200, fontWeight: 500 };
 const tdCheck: React.CSSProperties = { ...td, textAlign: "center" };
-
-function money(n: number) {
-  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
 
 function Check({ v }: { v: boolean }) {
   return <span style={{ color: v ? "#1A3A5C" : "#d3d1c7" }}>{v ? "✓" : "—"}</span>;
@@ -231,8 +229,8 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     { key: "role_title", label: "Role", render: (c) => c.role_title || "—" },
     { key: "activity", label: "Activity", render: (c) => c.activity || "—" },
     { key: "country", label: "Country", render: (c) => c.country || "—" },
-    { key: "signed_date", label: "Signed date", render: (c) => c.signed_date || "—" },
-    { key: "start_date", label: "Start", render: (c) => c.start_date || "—" },
+    { key: "signed_date", label: "Signed date", render: (c) => formatDateIT(c.signed_date) },
+    { key: "start_date", label: "Start", render: (c) => formatDateIT(c.start_date) },
     {
       key: "end_date",
       label: "End",
@@ -242,7 +240,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
         const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
         return (
           <span style={{ color: overdue ? "#c0392b" : undefined, fontWeight: overdue ? 500 : undefined }}>
-            {c.end_date || "—"}
+            {formatDateIT(c.end_date)}
             {overdue && ` (${Math.abs(dLeft!)}d overdue)`}
           </span>
         );
@@ -254,10 +252,10 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       label: "Amount",
       sort: "amount",
       align: "right",
-      render: (c) => `${money(c.amount)} ${c.currency}`,
+      render: (c) => `${formatMoney(c.amount)} ${c.currency}`,
     },
-    { key: "paid", label: "Paid", align: "right", render: (c) => money(c.paid) },
-    { key: "balance", label: "Balance", align: "right", render: (c) => money(c.amount - c.paid) },
+    { key: "paid", label: "Paid", align: "right", render: (c) => formatMoney(c.paid) },
+    { key: "balance", label: "Balance", align: "right", render: (c) => formatMoney(c.amount - c.paid) },
     { key: "project_code", label: "Project", render: (c) => c.project_code || "—" },
     { key: "ir_code", label: "IR", render: (c) => c.ir_code || "—" },
     {
@@ -294,7 +292,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     },
     { key: "referent", label: "Referent", render: (c) => c.referent || "—" },
     { key: "notes", label: "Notes", render: (c) => c.notes || "—" },
-    { key: "project_deadline", label: "Project deadline", render: (c) => c.project_deadline || "—" },
+    { key: "project_deadline", label: "Project deadline", render: (c) => formatDateIT(c.project_deadline) },
   ];
 
   return (
