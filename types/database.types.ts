@@ -103,6 +103,169 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          activity: string | null
+          amount: number
+          code_of_conduct: boolean
+          contract_kind: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          criminal_record_check: boolean
+          currency: string
+          end_date: string | null
+          id: string
+          ir_code: string | null
+          labor_inspectorate_notice: boolean
+          legacy_id: string | null
+          notes: string | null
+          payment_terms: string | null
+          privacy: boolean
+          project_code: string | null
+          project_deadline: string | null
+          psea_policy: boolean
+          referent: string | null
+          role_title: string | null
+          signed: boolean
+          signed_date: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          subject: string
+          technical_requirements_check: boolean
+          typology: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity?: string | null
+          amount?: number
+          code_of_conduct?: boolean
+          contract_kind?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          criminal_record_check?: boolean
+          currency?: string
+          end_date?: string | null
+          id?: string
+          ir_code?: string | null
+          labor_inspectorate_notice?: boolean
+          legacy_id?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          privacy?: boolean
+          project_code?: string | null
+          project_deadline?: string | null
+          psea_policy?: boolean
+          referent?: string | null
+          role_title?: string | null
+          signed?: boolean
+          signed_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          subject: string
+          technical_requirements_check?: boolean
+          typology?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity?: string | null
+          amount?: number
+          code_of_conduct?: boolean
+          contract_kind?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          criminal_record_check?: boolean
+          currency?: string
+          end_date?: string | null
+          id?: string
+          ir_code?: string | null
+          labor_inspectorate_notice?: boolean
+          legacy_id?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          privacy?: boolean
+          project_code?: string | null
+          project_deadline?: string | null
+          psea_policy?: boolean
+          referent?: string | null
+          role_title?: string | null
+          signed?: boolean
+          signed_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          subject?: string
+          technical_requirements_check?: boolean
+          typology?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_tranches: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          due_condition: string | null
+          due_date: string | null
+          id: string
+          label: string | null
+          notes: string | null
+          paid: boolean
+          paid_amount: number | null
+          paid_date: string | null
+          seq: number
+        }
+        Insert: {
+          amount?: number
+          contract_id: string
+          created_at?: string
+          due_condition?: string | null
+          due_date?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          paid?: boolean
+          paid_amount?: number | null
+          paid_date?: string | null
+          seq?: number
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          due_condition?: string | null
+          due_date?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          paid?: boolean
+          paid_amount?: number | null
+          paid_date?: string | null
+          seq?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_tranches_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -361,6 +524,7 @@ export type Database = {
     }
     Enums: {
       app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG"
+      contract_status: "in_corso" | "concluso" | "annullato"
       proc_code: "DIR" | "SQ" | "3Q" | "SP" | "TEN"
       request_stage:
         | "request"
@@ -498,6 +662,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG"],
+      contract_status: ["in_corso", "concluso", "annullato"],
       proc_code: ["DIR", "SQ", "3Q", "SP", "TEN"],
       request_stage: [
         "request",

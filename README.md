@@ -202,3 +202,41 @@ permissions.
 PR04 thresholds, procedure types, document checklist per type, who signs what,
 downgrade from 3Q to SQ with derogation, dual HQ/field numbering: all in
 `lib/domain/procedures.ts`, ported 1:1 from the prototype.
+
+## Contracts module
+
+A second, independent module living in the same app (same login, same roles):
+replaces the "Elenco contratti" Google Sheet, which tracked consultant/supplier
+contracts and their payment schedule. Not linked to the `requests` workflow above
+— a contract here is its own record, entered directly (or imported from the sheet).
+
+- **Schema**: `supabase/migrations/0008_contracts.sql` — `contracts` (subject,
+  status, typology, unit, role, dates, amount, the compliance checklist columns
+  from the sheet — Firmato/privacy/Codice di Condotta/PSEA/casellario/etc.) and
+  `contract_tranches` (one row per payment tranche: amount, due date or free-text
+  condition, paid/unpaid + paid date). Apply it the same way as the others (SQL
+  Editor, or `supabase db push`) — **after** `0007_remove_email_domain_restriction.sql`.
+  The sheet's "condizioni di pagamento" free text is kept on `contracts.payment_terms`
+  for reference, but the source of truth for tracking is now `contract_tranches`.
+- **Access**: read is open to any authenticated user; create/edit/delete requires
+  the PM, LOG, CAR, or RAC role (same set as document management on requests) —
+  see the RLS policies at the bottom of the migration.
+- **Pages**: `/contracts` (list, search/sort/status filter/Excel export — same
+  pattern as the requests list), `/contracts/new`, `/contracts/[id]` (edit fields,
+  toggle compliance checklist, add/remove tranches, mark a tranche paid — computes
+  scheduled/paid/balance from the tranches, not from a manually-typed total).
+- **Historical import**: `supabase/migrations/0009_contracts_kind_and_status.sql`
+  widens the schema to match the real sheet data (adds `annullato` to
+  `contract_status`; turns `contract_kind` from a 2-value enum into free text —
+  the sheet actually has ~18 variants like "R.A.", "P.IVA esente R.A", "Estero -
+  Autofattura"). `0010_import_contracts.sql` then loads the 415 real rows (425
+  minus 10 section-header/separator rows in the sheet that aren't contracts).
+  Since the sheet only ever tracked one lump "importo pagato" per contract, each
+  imported contract gets 1–2 synthesized tranches: a "paid" one for the amount
+  already paid (dated to the contract's end date), and/or an unpaid "balance"
+  one for the rest — so `contracts`/`contract_tranches` totals reconcile exactly
+  with what the sheet showed, without pretending to know the real tranche
+  schedule. Original per-row extras that don't have their own column (Impegnato,
+  Valutazione performance, Mansione GRUPPI OMOGENEI DVR, non-boolean compliance
+  cells like a date instead of "x") are preserved as labeled lines appended to
+  `notes`, not dropped. Apply 0009 and 0010 in order, after 0008.

@@ -52,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <nav style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
           <Link href="/">Requests</Link>
           {canCreateRequest && <Link href="/requests/new">New request</Link>}
+          <Link href="/contracts">Contracts</Link>
           <Link href="/settings/team">Team</Link>
         </nav>
 
