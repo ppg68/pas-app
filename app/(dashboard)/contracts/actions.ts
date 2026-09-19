@@ -251,3 +251,79 @@ export async function toggleTranchePaid(contractId: string, trancheId: string, p
     .eq("id", trancheId);
   revalidatePath(`/contracts/${contractId}`);
 }
+
+// === Invoices ("Elenco Fatture") — Elisa's actual recorded invoices against a
+// contract; separate from the planned tranches above. ===
+
+const INVOICE_TEXT_FIELDS = new Set([
+  "legacy_contract_id",
+  "subject",
+  "invoice_number",
+  "protocol",
+  "description",
+  "payment_note",
+  "notes",
+]);
+const INVOICE_DATE_FIELDS = new Set(["invoice_date", "payment_date"]);
+const INVOICE_NUMBER_FIELDS = new Set(["amount", "paid_amount"]);
+
+export async function createInvoice(contractId: string | null, legacyContractId: string, formData: FormData) {
+  const amount = parseFloat(str(formData, "amount"));
+  if (!Number.isFinite(amount) || amount < 0) {
+    fail(contractId ? `/contracts/${contractId}` : "/contracts/invoices", "Invoice amount must be a valid number.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("contract_invoices").insert({
+    contract_id: contractId,
+    legacy_contract_id: legacyContractId,
+    subject: optStr(formData, "subject"),
+    invoice_number: optStr(formData, "invoice_number"),
+    invoice_date: optDate(formData, "invoice_date"),
+    amount,
+    protocol: optStr(formData, "protocol"),
+    description: optStr(formData, "description"),
+    paid_amount: str(formData, "paid_amount") ? parseFloat(str(formData, "paid_amount")) : null,
+    payment_date: optDate(formData, "payment_date"),
+    notes: optStr(formData, "notes"),
+  });
+
+  if (error) fail(contractId ? `/contracts/${contractId}` : "/contracts/invoices", error.message);
+
+  revalidatePath("/contracts/invoices");
+  if (contractId) revalidatePath(`/contracts/${contractId}`);
+}
+
+/** Whitelisted inline-edit save for a single cell in the Invoices table. */
+export async function updateInvoiceField(invoiceId: string, field: string, rawValue: string) {
+  const supabase = await createClient();
+  const patch: Record<string, string | number | null> = {};
+
+  if (INVOICE_NUMBER_FIELDS.has(field)) {
+    if (!rawValue.trim()) {
+      patch[field] = null;
+    } else {
+      const n = parseFloat(rawValue);
+      if (!Number.isFinite(n)) return;
+      patch[field] = n;
+    }
+  } else if (INVOICE_DATE_FIELDS.has(field)) {
+    patch[field] = rawValue.trim() || null;
+  } else if (INVOICE_TEXT_FIELDS.has(field)) {
+    patch[field] = rawValue.trim() || null;
+  } else {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await supabase.from("contract_invoices").update(patch as any).eq("id", invoiceId);
+  revalidatePath("/contracts/invoices");
+  revalidatePath("/contracts", "layout");
+}
+
+export async function deleteInvoice(invoiceId: string) {
+  const supabase = await createClient();
+  await supabase.from("contract_invoices").delete().eq("id", invoiceId);
+  revalidatePath("/contracts/invoices");
+  revalidatePath("/contracts", "layout");
+}

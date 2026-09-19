@@ -15,6 +15,8 @@ import {
   addTranche,
   deleteTranche,
   toggleTranchePaid,
+  createInvoice,
+  deleteInvoice,
 } from "../actions";
 
 const cardStyle: React.CSSProperties = {
@@ -90,6 +92,12 @@ export default async function ContractDetailPage({
   if (!contract) {
     return <div style={{ padding: 24, fontSize: 13 }}>Contract not found.</div>;
   }
+
+  const { data: invoices } = await supabase
+    .from("contract_invoices")
+    .select("*")
+    .eq("contract_id", id)
+    .order("invoice_date", { ascending: false, nullsFirst: false });
 
   const paid = totalPaid(tranches ?? []);
   const scheduled = totalScheduled(tranches ?? []);
@@ -239,6 +247,92 @@ export default async function ContractDetailPage({
           </div>
           <button type="submit" style={buttonStyle}>
             Add tranche
+          </button>
+        </form>
+      </div>
+
+      {/* Invoices ("Elenco Fatture") — Elisa's actual recorded invoices; their
+          totals are what "importo pagato" really is, separate from the
+          planned tranches above. */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Invoices</h2>
+
+        {(invoices ?? []).length === 0 && (
+          <p style={{ fontSize: 13, color: "#888780", marginBottom: 10 }}>No invoices yet.</p>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {(invoices ?? []).map((inv) => (
+            <div
+              key={inv.id}
+              style={{
+                border: "0.5px solid #e4e2da",
+                borderRadius: 8,
+                padding: "8px 10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 13,
+                gap: 8,
+              }}
+            >
+              <div>
+                <div>
+                  {inv.invoice_number ? `#${inv.invoice_number}` : "Invoice"}
+                  {inv.protocol ? ` · prot. ${inv.protocol}` : ""}
+                </div>
+                <div style={{ color: "#888780", fontSize: 12 }}>
+                  {formatMoney(inv.amount)} {contract.currency}
+                  {inv.invoice_date ? ` · ${formatDateIT(inv.invoice_date)}` : ""}
+                  {inv.description ? ` · ${inv.description}` : ""}
+                  {inv.paid_amount != null
+                    ? ` · paid ${formatMoney(inv.paid_amount)}${inv.payment_date ? ` (${formatDateIT(inv.payment_date)})` : ""}${inv.payment_note ? ` — ${inv.payment_note}` : ""}`
+                    : ""}
+                </div>
+              </div>
+              <form action={deleteInvoice.bind(null, inv.id)}>
+                <button type="submit" style={{ ...ghostButtonStyle, color: "#c0392b" }}>
+                  Remove
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
+
+        <form
+          action={createInvoice.bind(null, contract.id, contract.legacy_id ?? "")}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}
+        >
+          <div style={{ width: 110 }}>
+            <label style={labelStyle}>Invoice #</label>
+            <input name="invoice_number" style={inputStyle} />
+          </div>
+          <div style={{ width: 140 }}>
+            <label style={labelStyle}>Invoice date</label>
+            <input name="invoice_date" type="date" style={inputStyle} />
+          </div>
+          <div style={{ width: 120 }}>
+            <label style={labelStyle}>Amount</label>
+            <input name="amount" type="number" step="0.01" min="0" required style={inputStyle} />
+          </div>
+          <div style={{ width: 100 }}>
+            <label style={labelStyle}>Protocol</label>
+            <input name="protocol" style={inputStyle} />
+          </div>
+          <div style={{ flex: "1 1 160px" }}>
+            <label style={labelStyle}>Description</label>
+            <input name="description" style={inputStyle} />
+          </div>
+          <div style={{ width: 120 }}>
+            <label style={labelStyle}>Paid amount</label>
+            <input name="paid_amount" type="number" step="0.01" style={inputStyle} />
+          </div>
+          <div style={{ width: 140 }}>
+            <label style={labelStyle}>Payment date</label>
+            <input name="payment_date" type="date" style={inputStyle} />
+          </div>
+          <button type="submit" style={buttonStyle}>
+            Add invoice
           </button>
         </form>
       </div>

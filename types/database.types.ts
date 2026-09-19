@@ -266,6 +266,65 @@ export type Database = {
           },
         ]
       }
+      contract_invoices: {
+        Row: {
+          amount: number
+          contract_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          legacy_contract_id: string
+          notes: string | null
+          paid_amount: number | null
+          payment_date: string | null
+          payment_note: string | null
+          protocol: string | null
+          subject: string | null
+        }
+        Insert: {
+          amount?: number
+          contract_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          legacy_contract_id: string
+          notes?: string | null
+          paid_amount?: number | null
+          payment_date?: string | null
+          payment_note?: string | null
+          protocol?: string | null
+          subject?: string | null
+        }
+        Update: {
+          amount?: number
+          contract_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          legacy_contract_id?: string
+          notes?: string | null
+          paid_amount?: number | null
+          payment_date?: string | null
+          payment_note?: string | null
+          protocol?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_invoices_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

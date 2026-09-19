@@ -47,6 +47,19 @@ export default async function ContractsListPage() {
         <h1 style={{ fontSize: 18, fontWeight: 500 }}>Contracts</h1>
         <div style={{ display: "flex", gap: 8 }}>
           <Link
+            href="/contracts/invoices"
+            style={{
+              border: "0.5px solid #b4b2a9",
+              borderRadius: 6,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#1a1a1a",
+            }}
+          >
+            Invoices
+          </Link>
+          <Link
             href="/contracts/access"
             style={{
               border: "0.5px solid #b4b2a9",

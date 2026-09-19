@@ -54,6 +54,23 @@ export interface ContractRow {
   created_at: string;
 }
 
+export interface InvoiceRow {
+  id: string;
+  contract_id: string | null;
+  legacy_contract_id: string;
+  subject: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  amount: number;
+  protocol: string | null;
+  description: string | null;
+  paid_amount: number | null;
+  payment_date: string | null;
+  payment_note: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface TrancheRow {
   id: string;
   contract_id: string;
