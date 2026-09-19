@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CONTRACT_STATUS_LABEL,
@@ -76,6 +76,7 @@ type Col = {
 export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hoveringRef = useRef(false);
 
   // The table is wider than the viewport by design (all sheet columns), and a
   // plain mouse wheel only scrolls vertically by default — most people don't
@@ -89,6 +90,28 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     el.scrollLeft += e.deltaY;
     e.preventDefault();
   }
+
+  // Arrow keys, tied to mouse position (hoveringRef) rather than DOM focus:
+  // clicking a row navigates away immediately, so the div's own tabIndex/
+  // onKeyDown never gets a real chance to hold focus — "cursor is over the
+  // table" is the same trigger the wheel handler above already uses.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!hoveringRef.current) return;
+      const el = scrollRef.current;
+      if (!el || el.scrollWidth <= el.clientWidth) return;
+      if (e.key === "ArrowRight") {
+        el.scrollLeft += 60;
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft") {
+        el.scrollLeft -= 60;
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -343,7 +366,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
 
       {filtered.length > 0 && (
         <p style={{ fontSize: 12, color: "#888780", marginBottom: 6 }}>
-          Scroll (or click a row and use the arrow keys) to see more columns →
+          Scroll, or hover over the table and use the ← → arrow keys, to see more columns
         </p>
       )}
 
@@ -352,16 +375,11 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           ref={scrollRef}
           tabIndex={0}
           onWheel={handleWheel}
-          onKeyDown={(e) => {
-            const el = scrollRef.current;
-            if (!el) return;
-            if (e.key === "ArrowRight") {
-              el.scrollLeft += 60;
-              e.preventDefault();
-            } else if (e.key === "ArrowLeft") {
-              el.scrollLeft -= 60;
-              e.preventDefault();
-            }
+          onMouseEnter={() => {
+            hoveringRef.current = true;
+          }}
+          onMouseLeave={() => {
+            hoveringRef.current = false;
           }}
           style={{
             overflowX: "auto",
