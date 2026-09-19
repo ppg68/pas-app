@@ -145,6 +145,68 @@ export async function toggleComplianceField(
   revalidatePath(`/contracts/${contractId}`);
 }
 
+const TEXT_FIELDS = new Set([
+  "subject",
+  "typology",
+  "unit",
+  "role_title",
+  "activity",
+  "country",
+  "project_code",
+  "ir_code",
+  "contract_kind",
+  "currency",
+  "payment_terms",
+  "referent",
+  "notes",
+  "legacy_id",
+]);
+const DATE_FIELDS = new Set(["signed_date", "start_date", "end_date", "project_deadline"]);
+const BOOL_FIELDS = new Set([
+  "signed",
+  "privacy",
+  "code_of_conduct",
+  "psea_policy",
+  "criminal_record_check",
+  "technical_requirements_check",
+  "labor_inspectorate_notice",
+]);
+const STATUSES = new Set<ContractStatus>(["in_corso", "concluso", "annullato"]);
+
+/**
+ * Inline-edit save for a single cell in the Contracts table (list page), as an
+ * alternative to going through the full Details form on the detail page.
+ * Field name is checked against an explicit whitelist — never interpolate an
+ * arbitrary client-supplied column name into the update.
+ */
+export async function updateContractField(contractId: string, field: string, rawValue: string) {
+  const supabase = await createClient();
+  const patch: Record<string, string | number | boolean | null> = { updated_at: new Date().toISOString() };
+
+  if (field === "amount") {
+    const n = parseFloat(rawValue);
+    if (!Number.isFinite(n) || n < 0) return;
+    patch.amount = n;
+  } else if (field === "status") {
+    if (!STATUSES.has(rawValue as ContractStatus)) return;
+    patch.status = rawValue;
+  } else if (DATE_FIELDS.has(field)) {
+    patch[field] = rawValue.trim() || null;
+  } else if (BOOL_FIELDS.has(field)) {
+    patch[field] = rawValue === "true";
+  } else if (TEXT_FIELDS.has(field)) {
+    if (field === "subject" && !rawValue.trim()) return; // subject stays required
+    patch[field] = rawValue.trim() || null;
+  } else {
+    return; // not an editable/whitelisted field
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await supabase.from("contracts").update(patch as any).eq("id", contractId);
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${contractId}`);
+}
+
 export async function addTranche(contractId: string, formData: FormData) {
   const amount = parseFloat(str(formData, "amount"));
   if (!Number.isFinite(amount) || amount <= 0) {

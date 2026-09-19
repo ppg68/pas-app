@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CONTRACT_STATUS_LABEL,
+  CONTRACT_KIND_SUGGESTIONS,
   daysUntil,
-  formatDateIT,
   formatMoney,
   type ContractRow,
   type ContractStatus,
 } from "@/lib/domain/contracts";
+import { updateContractField } from "@/app/(dashboard)/contracts/actions";
 
 export type ContractListRow = ContractRow & {
   paid: number;
@@ -18,6 +19,7 @@ export type ContractListRow = ContractRow & {
 
 type SortBy = "default" | "status" | "subject" | "amount" | "deadline";
 type SortDir = "asc" | "desc";
+type FieldType = "readonly" | "text" | "select" | "date" | "number" | "checkbox";
 
 const inputStyle: React.CSSProperties = {
   border: "0.5px solid #d3d1c7",
@@ -48,39 +50,79 @@ const thSortable: React.CSSProperties = { ...th, cursor: "pointer" };
 const thRight: React.CSSProperties = { ...thSortable, textAlign: "right" };
 const td: React.CSSProperties = {
   fontSize: 13,
-  padding: "8px 10px",
+  padding: "3px 6px",
   borderBottom: "0.5px solid #e4e2da",
-  whiteSpace: "nowrap",
 };
-const tdRight: React.CSSProperties = { ...td, textAlign: "right" };
-const tdWrap: React.CSSProperties = { ...td, whiteSpace: "normal", maxWidth: 220 };
-const tdSubject: React.CSSProperties = { ...tdWrap, maxWidth: 200, fontWeight: 500 };
+const tdRight: React.CSSProperties = { ...td, textAlign: "right", padding: "8px 10px" };
 const tdCheck: React.CSSProperties = { ...td, textAlign: "center" };
-
-function Check({ v }: { v: boolean }) {
-  return <span style={{ color: v ? "#1A3A5C" : "#d3d1c7" }}>{v ? "✓" : "—"}</span>;
-}
+const cellInputStyle: React.CSSProperties = {
+  border: "0.5px solid transparent",
+  borderRadius: 4,
+  padding: "5px 7px",
+  fontSize: 13,
+  fontFamily: "inherit",
+  background: "transparent",
+  width: "100%",
+  boxSizing: "border-box",
+  minWidth: 90,
+};
 
 // Columns, in the same left-to-right order as the original "Elenco contratti"
 // Google Sheet, so the shape is familiar even though this now scrolls.
+// `type` drives which inline-editable control the cell renders as — every
+// column here saves directly to the DB on blur/change, same as the sibling
+// Geko Lite/RICO apps' inline-edit tables.
 type Col = {
   key: string;
   label: string;
   sort?: SortBy;
   align?: "right" | "center";
-  render: (c: ContractListRow) => React.ReactNode;
+  type: FieldType;
+  width?: number;
+  options?: string[];
 };
 
+const COLUMNS: Col[] = [
+  { key: "legacy_id", label: "ID", type: "text", width: 70 },
+  { key: "subject", label: "Subject", sort: "subject", type: "text", width: 170 },
+  { key: "status", label: "Status", sort: "status", type: "select", options: ["in_corso", "concluso", "annullato"] },
+  { key: "typology", label: "Typology", type: "text" },
+  { key: "unit", label: "Unit", type: "text", width: 180 },
+  { key: "role_title", label: "Role", type: "text" },
+  { key: "activity", label: "Activity", type: "text", width: 180 },
+  { key: "country", label: "Country", type: "text" },
+  { key: "signed_date", label: "Signed date", type: "date" },
+  { key: "start_date", label: "Start", type: "date" },
+  { key: "end_date", label: "End", sort: "deadline", type: "date" },
+  { key: "contract_kind", label: "Contract type", type: "text" },
+  { key: "amount", label: "Amount", sort: "amount", align: "right", type: "number" },
+  { key: "paid", label: "Paid", align: "right", type: "readonly" },
+  { key: "balance", label: "Balance", align: "right", type: "readonly" },
+  { key: "project_code", label: "Project", type: "text" },
+  { key: "ir_code", label: "IR", type: "text" },
+  { key: "payment_terms", label: "Payment terms", type: "text", width: 220 },
+  { key: "signed", label: "Signed", align: "center", type: "checkbox" },
+  { key: "privacy", label: "Privacy", align: "center", type: "checkbox" },
+  { key: "code_of_conduct", label: "Code of Conduct", align: "center", type: "checkbox" },
+  { key: "psea_policy", label: "PSEA Policy", align: "center", type: "checkbox" },
+  { key: "criminal_record_check", label: "Criminal record check", align: "center", type: "checkbox" },
+  { key: "technical_requirements_check", label: "Technical requirements", align: "center", type: "checkbox" },
+  { key: "labor_inspectorate_notice", label: "Labor inspectorate", align: "center", type: "checkbox" },
+  { key: "referent", label: "Referent", type: "text" },
+  { key: "notes", label: "Notes", type: "text", width: 220 },
+  { key: "project_deadline", label: "Project deadline", type: "date" },
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cellValue(row: ContractListRow, key: string): any {
+  return (row as unknown as Record<string, unknown>)[key];
+}
+
 export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
-  const router = useRouter();
+  const [rows, setRows] = useState(contracts);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hoveringRef = useRef(false);
 
-  // The table is wider than the viewport by design (all sheet columns), and a
-  // plain mouse wheel only scrolls vertically by default — most people don't
-  // know about Shift+wheel. Rows scroll with the page itself (no separate
-  // vertical scroll region here), so while the pointer is over the table a
-  // normal wheel just moves it sideways instead.
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     const el = scrollRef.current;
     if (!el || e.deltaY === 0) return;
@@ -89,13 +131,14 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     e.preventDefault();
   }
 
-  // Arrow keys, tied to mouse position (hoveringRef) rather than DOM focus:
-  // clicking a row navigates away immediately, so the div's own tabIndex/
-  // onKeyDown never gets a real chance to hold focus — "cursor is over the
-  // table" is the same trigger the wheel handler above already uses.
+  // Arrow keys, tied to mouse position rather than DOM focus — with editable
+  // cells now in every row, focus constantly moves between inputs, so a
+  // focus-based handler on the scroll container would be unreliable.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!hoveringRef.current) return;
+      const target = e.target as HTMLElement | null;
+      if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
       const el = scrollRef.current;
       if (!el || el.scrollWidth <= el.clientWidth) return;
       if (e.key === "ArrowRight") {
@@ -125,9 +168,32 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     }
   }
 
+  // Optimistic local save: update the row in state immediately, then persist.
+  // The whitelist of what's actually writable lives server-side in
+  // updateContractField — this just reflects the change back into the UI.
+  function saveField(id: string, key: string, raw: string) {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        if (key === "amount") {
+          const n = parseFloat(raw);
+          return Number.isFinite(n) ? { ...r, amount: n } : r;
+        }
+        if (key === "status") return { ...r, status: raw as ContractStatus };
+        return { ...r, [key]: raw || null } as ContractListRow;
+      })
+    );
+    void updateContractField(id, key, raw);
+  }
+
+  function saveCheckbox(id: string, key: string, checked: boolean) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [key]: checked } : r)));
+    void updateContractField(id, key, String(checked));
+  }
+
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    let list = contracts.filter((c) => statusFilter === "all" || c.status === statusFilter);
+    let list = rows.filter((c) => statusFilter === "all" || c.status === statusFilter);
     if (q) {
       list = list.filter(
         (c) =>
@@ -155,14 +221,14 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       });
     }
     return list;
-  }, [contracts, searchQuery, sortBy, sortDir, statusFilter]);
+  }, [rows, searchQuery, sortBy, sortDir, statusFilter]);
 
   async function exportExcel() {
-    if (contracts.length === 0) return;
+    if (rows.length === 0) return;
     setExporting(true);
     try {
       const XLSX = await import("xlsx");
-      const rows = contracts.map((c) => ({
+      const exportRows = rows.map((c) => ({
         ID: c.legacy_id || "",
         Subject: c.subject,
         Status: CONTRACT_STATUS_LABEL[c.status],
@@ -193,8 +259,8 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
         Notes: c.notes || "",
         "Project deadline": c.project_deadline || "",
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws["!cols"] = Object.keys(rows[0]).map((k) => ({
+      const ws = XLSX.utils.json_to_sheet(exportRows);
+      ws["!cols"] = Object.keys(exportRows[0]).map((k) => ({
         wch: Math.min(Math.max(k.length, 12), 40),
       }));
       const wb = XLSX.utils.book_new();
@@ -211,89 +277,104 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     return sortDir === "asc" ? " ↑" : " ↓";
   }
 
-  const columns: Col[] = [
-    { key: "legacy_id", label: "ID", render: (c) => c.legacy_id || "—" },
-    { key: "subject", label: "Subject", sort: "subject", render: (c) => c.subject },
-    {
-      key: "status",
-      label: "Status",
-      sort: "status",
-      render: (c) => (
-        <span style={{ fontSize: 11, border: "0.5px solid #b4b2a9", borderRadius: 999, padding: "2px 8px" }}>
-          {CONTRACT_STATUS_LABEL[c.status]}
-        </span>
-      ),
-    },
-    { key: "typology", label: "Typology", render: (c) => c.typology || "—" },
-    { key: "unit", label: "Unit", render: (c) => c.unit || "—" },
-    { key: "role_title", label: "Role", render: (c) => c.role_title || "—" },
-    { key: "activity", label: "Activity", render: (c) => c.activity || "—" },
-    { key: "country", label: "Country", render: (c) => c.country || "—" },
-    { key: "signed_date", label: "Signed date", render: (c) => formatDateIT(c.signed_date) },
-    { key: "start_date", label: "Start", render: (c) => formatDateIT(c.start_date) },
-    {
-      key: "end_date",
-      label: "End",
-      sort: "deadline",
-      render: (c) => {
-        const dLeft = daysUntil(c.end_date);
-        const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
-        return (
-          <span style={{ color: overdue ? "#c0392b" : undefined, fontWeight: overdue ? 500 : undefined }}>
-            {formatDateIT(c.end_date)}
-            {overdue && ` (${Math.abs(dLeft!)}d overdue)`}
-          </span>
-        );
-      },
-    },
-    { key: "contract_kind", label: "Contract type", render: (c) => c.contract_kind || "—" },
-    {
-      key: "amount",
-      label: "Amount",
-      sort: "amount",
-      align: "right",
-      render: (c) => `${formatMoney(c.amount)} ${c.currency}`,
-    },
-    { key: "paid", label: "Paid", align: "right", render: (c) => formatMoney(c.paid) },
-    { key: "balance", label: "Balance", align: "right", render: (c) => formatMoney(c.amount - c.paid) },
-    { key: "project_code", label: "Project", render: (c) => c.project_code || "—" },
-    { key: "ir_code", label: "IR", render: (c) => c.ir_code || "—" },
-    {
-      key: "payment_terms",
-      label: "Payment terms",
-      render: (c) => c.payment_terms || "—",
-    },
-    { key: "signed", label: "Signed", align: "center", render: (c) => <Check v={c.signed} /> },
-    { key: "privacy", label: "Privacy", align: "center", render: (c) => <Check v={c.privacy} /> },
-    {
-      key: "code_of_conduct",
-      label: "Code of Conduct",
-      align: "center",
-      render: (c) => <Check v={c.code_of_conduct} />,
-    },
-    { key: "psea_policy", label: "PSEA Policy", align: "center", render: (c) => <Check v={c.psea_policy} /> },
-    {
-      key: "criminal_record_check",
-      label: "Criminal record check",
-      align: "center",
-      render: (c) => <Check v={c.criminal_record_check} />,
-    },
-    {
-      key: "technical_requirements_check",
-      label: "Technical requirements",
-      align: "center",
-      render: (c) => <Check v={c.technical_requirements_check} />,
-    },
-    {
-      key: "labor_inspectorate_notice",
-      label: "Labor inspectorate",
-      align: "center",
-      render: (c) => <Check v={c.labor_inspectorate_notice} />,
-    },
-    { key: "referent", label: "Referent", render: (c) => c.referent || "—" },
-    { key: "notes", label: "Notes", render: (c) => c.notes || "—" },
-    { key: "project_deadline", label: "Project deadline", render: (c) => formatDateIT(c.project_deadline) },
-  ];
+  function renderCell(c: ContractListRow, col: Col) {
+    const value = cellValue(c, col.key);
+
+    if (col.type === "readonly") {
+      if (col.key === "paid") return formatMoney(c.paid);
+      if (col.key === "balance") return formatMoney(c.amount - c.paid);
+      return value ?? "—";
+    }
+
+    if (col.type === "checkbox") {
+      return (
+        <input
+          type="checkbox"
+          defaultChecked={Boolean(value)}
+          onChange={(e) => saveCheckbox(c.id, col.key, e.target.checked)}
+        />
+      );
+    }
+
+    if (col.type === "select") {
+      return (
+        <select
+          defaultValue={c.status}
+          onChange={(e) => saveField(c.id, col.key, e.target.value)}
+          style={{ ...cellInputStyle, cursor: "pointer" }}
+        >
+          {(col.options ?? []).map((o) => (
+            <option key={o} value={o}>
+              {CONTRACT_STATUS_LABEL[o as ContractStatus] ?? o}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (col.type === "date") {
+      const overdue =
+        col.key === "end_date" &&
+        c.status === "in_corso" &&
+        (() => {
+          const d = daysUntil(c.end_date);
+          return d !== null && d < 0;
+        })();
+      return (
+        <input
+          type="date"
+          defaultValue={(value as string) ?? ""}
+          onBlur={(e) => saveField(c.id, col.key, e.target.value)}
+          style={{
+            ...cellInputStyle,
+            color: overdue ? "#c0392b" : undefined,
+            fontWeight: overdue ? 500 : undefined,
+          }}
+        />
+      );
+    }
+
+    if (col.type === "number") {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+          <input
+            type="number"
+            step="0.01"
+            defaultValue={value as number}
+            onBlur={(e) => saveField(c.id, col.key, e.target.value)}
+            style={{ ...cellInputStyle, textAlign: "right", minWidth: 90 }}
+          />
+          <span style={{ color: "#888780" }}>{c.currency}</span>
+        </div>
+      );
+    }
+
+    // text
+    if (col.key === "contract_kind") {
+      return (
+        <>
+          <input
+            list="contract-kind-options"
+            defaultValue={(value as string) ?? ""}
+            onBlur={(e) => saveField(c.id, col.key, e.target.value)}
+            style={cellInputStyle}
+          />
+          <datalist id="contract-kind-options">
+            {CONTRACT_KIND_SUGGESTIONS.map((k) => (
+              <option key={k} value={k} />
+            ))}
+          </datalist>
+        </>
+      );
+    }
+    return (
+      <input
+        defaultValue={(value as string) ?? ""}
+        onBlur={(e) => saveField(c.id, col.key, e.target.value)}
+        style={cellInputStyle}
+      />
+    );
+  }
 
   return (
     <div>
@@ -309,13 +390,13 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       >
         <div style={{ fontSize: 13, color: "#5f5e5a" }}>
           {searchQuery
-            ? `Contracts (${filtered.length} of ${contracts.length})`
+            ? `Contracts (${filtered.length} of ${rows.length})`
             : `Contracts (${filtered.length})`}
         </div>
         <button
           type="button"
           onClick={exportExcel}
-          disabled={contracts.length === 0 || exporting}
+          disabled={rows.length === 0 || exporting}
           style={{
             border: "0.5px solid #b4b2a9",
             borderRadius: 6,
@@ -324,7 +405,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
             fontWeight: 500,
             background: "transparent",
             color: "#1a1a1a",
-            cursor: contracts.length === 0 || exporting ? "not-allowed" : "pointer",
+            cursor: rows.length === 0 || exporting ? "not-allowed" : "pointer",
           }}
         >
           {exporting ? "Exporting…" : "Export Excel"}
@@ -364,7 +445,9 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
 
       {filtered.length > 0 && (
         <p style={{ fontSize: 12, color: "#888780", marginBottom: 6 }}>
-          Scroll, or hover over the table and use the ← → arrow keys, to see more columns
+          Click a cell to edit it directly (saved automatically). Click the ↗ to open the full
+          record (tranches, compliance checklist). Scroll, or hover the table and use ← → , to
+          see more columns.
         </p>
       )}
 
@@ -391,7 +474,8 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           <table style={{ borderCollapse: "collapse", width: "max-content" }}>
             <thead>
               <tr>
-                {columns.map((col) => (
+                <th style={th}></th>
+                {COLUMNS.map((col) => (
                   <th
                     key={col.key}
                     style={
@@ -418,12 +502,27 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
                 const dLeft = daysUntil(c.end_date);
                 const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
                 return (
-                  <tr
-                    key={c.id}
-                    onClick={() => router.push(`/contracts/${c.id}`)}
-                    style={{ cursor: "pointer", background: overdue ? "#fdecea" : "transparent" }}
-                  >
-                    {columns.map((col) => (
+                  <tr key={c.id} style={{ background: overdue ? "#fdecea" : "transparent" }}>
+                    <td style={{ ...td, textAlign: "center" }}>
+                      <Link
+                        href={`/contracts/${c.id}`}
+                        title="Open full record"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          color: "#1A3A5C",
+                          textDecoration: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ↗
+                      </Link>
+                    </td>
+                    {COLUMNS.map((col) => (
                       <td
                         key={col.key}
                         style={
@@ -431,14 +530,10 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
                             ? tdRight
                             : col.align === "center"
                               ? tdCheck
-                              : col.key === "subject"
-                                ? tdSubject
-                                : col.key === "notes" || col.key === "payment_terms"
-                                  ? tdWrap
-                                  : td
+                              : { ...td, minWidth: col.width ?? 110 }
                         }
                       >
-                        {col.render(c)}
+                        {renderCell(c, col)}
                       </td>
                     ))}
                   </tr>
