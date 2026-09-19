@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CONTRACT_STATUS_LABEL,
@@ -75,6 +75,20 @@ type Col = {
 
 export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
   const router = useRouter();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // The table is wider than the viewport by design (all sheet columns), and a
+  // plain mouse wheel only scrolls vertically by default — most people don't
+  // know about Shift+wheel. Rows scroll with the page itself (no separate
+  // vertical scroll region here), so while the pointer is over the table a
+  // normal wheel just moves it sideways instead.
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (!el || e.deltaY === 0) return;
+    if (el.scrollWidth <= el.clientWidth) return;
+    el.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -328,15 +342,34 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       )}
 
       {filtered.length > 0 && (
+        <p style={{ fontSize: 12, color: "#888780", marginBottom: 6 }}>
+          Scroll (or click a row and use the arrow keys) to see more columns →
+        </p>
+      )}
+
+      {filtered.length > 0 && (
         <div
+          ref={scrollRef}
+          tabIndex={0}
+          onWheel={handleWheel}
+          onKeyDown={(e) => {
+            const el = scrollRef.current;
+            if (!el) return;
+            if (e.key === "ArrowRight") {
+              el.scrollLeft += 60;
+              e.preventDefault();
+            } else if (e.key === "ArrowLeft") {
+              el.scrollLeft -= 60;
+              e.preventDefault();
+            }
+          }}
           style={{
             overflowX: "auto",
             border: "0.5px solid #d3d1c7",
             borderRadius: 10,
-            maxHeight: "75vh",
-            overflowY: "auto",
             width: "100%",
             maxWidth: "100%",
+            outline: "none",
           }}
         >
           <table style={{ borderCollapse: "collapse", width: "max-content" }}>
