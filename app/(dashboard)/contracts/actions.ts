@@ -113,6 +113,7 @@ export async function updateContract(contractId: string, formData: FormData) {
 
   revalidatePath(`/contracts/${contractId}`);
   revalidatePath("/contracts");
+  redirect("/contracts");
 }
 
 export async function deleteContract(contractId: string) {
