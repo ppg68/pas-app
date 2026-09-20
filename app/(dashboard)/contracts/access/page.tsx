@@ -2,26 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { grantContractsAccess, revokeContractsAccess } from "./actions";
 
-const cardStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 10,
-  padding: 12,
-  marginBottom: 8,
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-};
-const buttonStyle: React.CSSProperties = {
-  border: 0,
-  borderRadius: 6,
-  padding: "8px 14px",
-  fontSize: 13,
-  fontWeight: 500,
-  background: "#1A3A5C",
-  color: "#fff",
-  cursor: "pointer",
-};
-
 export default async function ContractsAccessPage({
   searchParams,
 }: {
@@ -47,73 +27,39 @@ export default async function ContractsAccessPage({
     .filter((p): p is { id: string; full_name: string; email: string | null } => !!p);
 
   return (
-    <div style={{ maxWidth: 560, padding: 24 }}>
+    <div style={{ maxWidth: 560 }}>
       <div style={{ marginBottom: 16 }}>
-        <Link href="/contracts" style={{ fontSize: 13, color: "#5f5e5a" }}>
+        <Link href="/contracts" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           ← Back to Contracts
         </Link>
       </div>
 
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Contracts — access</h1>
-      <p style={{ fontSize: 13, color: "#5f5e5a", marginBottom: 20 }}>
+      <h1 style={{ marginBottom: 4 }}>Contracts — access</h1>
+      <p className="subtitle" style={{ marginBottom: 20 }}>
         Only the people listed here can see or edit the Contracts module — everyone
         else in PAS, including other roles like RAC/CAR, has no access to it.
       </p>
 
-      {error && (
-        <div
-          style={{
-            background: "#faeeda",
-            color: "#633806",
-            borderRadius: 8,
-            padding: "8px 10px",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
-        >
-          {decodeURIComponent(error)}
-        </div>
-      )}
+      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
 
       {!iHaveAccess && (
-        <div
-          style={{
-            background: "#faeeda",
-            color: "#633806",
-            borderRadius: 8,
-            padding: "8px 10px",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
-        >
+        <div className="banner">
           You don&apos;t currently have Contracts access yourself, so you can view this
           list but can&apos;t grant or revoke it.
         </div>
       )}
 
       <div style={{ marginBottom: 24 }}>
-        {holders.length === 0 && (
-          <p style={{ fontSize: 13, color: "#888780" }}>Nobody has Contracts access yet.</p>
-        )}
+        {holders.length === 0 && <p className="empty">Nobody has Contracts access yet.</p>}
         {holders.map((p) => (
-          <div key={p.id} style={cardStyle}>
+          <div key={p.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500 }}>{p.full_name}</div>
-              <div style={{ fontSize: 12, color: "#888780" }}>{p.email}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{p.email}</div>
             </div>
             {iHaveAccess && (
               <form action={revokeContractsAccess.bind(null, p.id)}>
-                <button
-                  type="submit"
-                  style={{
-                    border: "0.5px solid #b4b2a9",
-                    borderRadius: 999,
-                    padding: "3px 10px",
-                    fontSize: 11,
-                    background: "transparent",
-                    cursor: "pointer",
-                  }}
-                >
+                <button type="submit" className="pill">
                   Remove ×
                 </button>
               </form>
@@ -124,26 +70,11 @@ export default async function ContractsAccessPage({
 
       {iHaveAccess && (
         <form action={grantContractsAccess} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-              Email address of the person (must have already signed in to PAS at least once)
-            </label>
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder="firstname.lastname@istituto-oikos.org"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                border: "0.5px solid #d3d1c7",
-                borderRadius: 6,
-                padding: "7px 9px",
-                fontSize: 13,
-              }}
-            />
+          <div className="field" style={{ flex: 1 }}>
+            <label>Email address of the person (must have already signed in to PAS at least once)</label>
+            <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
           </div>
-          <button type="submit" style={buttonStyle}>
+          <button type="submit" className="primary">
             Grant access
           </button>
         </form>

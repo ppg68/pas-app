@@ -75,47 +75,6 @@ export async function createContract(formData: FormData) {
   redirect(`/contracts/${inserted.id}`);
 }
 
-export async function updateContract(contractId: string, formData: FormData) {
-  const subject = str(formData, "subject");
-  const amount = parseFloat(str(formData, "amount"));
-  if (!subject || !Number.isFinite(amount) || amount < 0) {
-    fail(`/contracts/${contractId}`, "Subject and a valid amount are required.");
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("contracts")
-    .update({
-      subject,
-      status: (str(formData, "status") || "in_corso") as ContractStatus,
-      typology: optStr(formData, "typology"),
-      unit: optStr(formData, "unit"),
-      role_title: optStr(formData, "role_title"),
-      activity: optStr(formData, "activity"),
-      country: optStr(formData, "country"),
-      project_code: optStr(formData, "project_code"),
-      ir_code: optStr(formData, "ir_code"),
-      contract_kind: optStr(formData, "contract_kind"),
-      signed_date: optDate(formData, "signed_date"),
-      start_date: optDate(formData, "start_date"),
-      end_date: optDate(formData, "end_date"),
-      project_deadline: optDate(formData, "project_deadline"),
-      currency: str(formData, "currency") || "EUR",
-      amount,
-      payment_terms: optStr(formData, "payment_terms"),
-      referent: optStr(formData, "referent"),
-      notes: optStr(formData, "notes"),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", contractId);
-
-  if (error) fail(`/contracts/${contractId}`, error.message);
-
-  revalidatePath(`/contracts/${contractId}`);
-  revalidatePath("/contracts");
-  redirect("/contracts");
-}
-
 export async function deleteContract(contractId: string) {
   const supabase = await createClient();
   await supabase.from("contracts").delete().eq("id", contractId);

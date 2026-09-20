@@ -29,25 +29,15 @@ export default async function TeamSettingsPage() {
   });
 
   return (
-    <div style={{ maxWidth: 640, padding: 24 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Team &amp; roles</h1>
-      <p style={{ fontSize: 13, color: "#5f5e5a", marginBottom: 20 }}>
+    <div style={{ maxWidth: 640 }}>
+      <h1 style={{ marginBottom: 4 }}>Team &amp; roles</h1>
+      <p className="subtitle" style={{ marginBottom: 20 }}>
         Each person can have multiple roles at once — segregation of duties is
-        checked per individual request, not per person (as in the
-        prototype).
+        checked per individual request, not per person (as in the prototype).
       </p>
 
       {!canManage && (
-        <div
-          style={{
-            background: "#faeeda",
-            color: "#633806",
-            borderRadius: 8,
-            padding: "8px 10px",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
-        >
+        <div className="banner">
           Only those with the RAC or CAR role can assign roles. You can view the list but
           changes will be rejected by the database.
         </div>
@@ -59,19 +49,12 @@ export default async function TeamSettingsPage() {
           return (
             <div
               key={p.id}
-              style={{
-                border: "0.5px solid #d3d1c7",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 8,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="card"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
               <div>
                 <div style={{ fontSize: 14, fontWeight: 500 }}>{p.full_name}</div>
-                <div style={{ fontSize: 12, color: "#888780" }}>
+                <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
                   {p.email} ·{" "}
                   {roles.length > 0
                     ? roles.map((r) => ROLE_LABEL[r]).join(", ")
@@ -82,17 +65,7 @@ export default async function TeamSettingsPage() {
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {roles.map((r) => (
                     <form key={r} action={removeRole.bind(null, p.id, r)}>
-                      <button
-                        type="submit"
-                        style={{
-                          border: "0.5px solid #b4b2a9",
-                          borderRadius: 999,
-                          padding: "3px 10px",
-                          fontSize: 11,
-                          background: "transparent",
-                          cursor: "pointer",
-                        }}
-                      >
+                      <button type="submit" className="pill">
                         {ROLE_LABEL[r]} ×
                       </button>
                     </form>
@@ -105,39 +78,14 @@ export default async function TeamSettingsPage() {
       </div>
 
       {canManage && (
-        <form action={addRole} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-              Email address of the person (must have already signed in at least once)
-            </label>
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder="firstname.lastname@istituto-oikos.org"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                border: "0.5px solid #d3d1c7",
-                borderRadius: 6,
-                padding: "7px 9px",
-                fontSize: 13,
-              }}
-            />
+        <form action={addRole} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Email address of the person (must have already signed in at least once)</label>
+            <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
           </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12, color: "#5f5e5a", marginBottom: 4 }}>
-              Role to assign
-            </label>
-            <select
-              name="role"
-              style={{
-                border: "0.5px solid #d3d1c7",
-                borderRadius: 6,
-                padding: "7px 9px",
-                fontSize: 13,
-              }}
-            >
+          <div className="field">
+            <label>Role to assign</label>
+            <select name="role">
               {ROLES.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABEL[r]}
@@ -145,19 +93,7 @@ export default async function TeamSettingsPage() {
               ))}
             </select>
           </div>
-          <button
-            type="submit"
-            style={{
-              border: 0,
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              background: "#1A3A5C",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
+          <button type="submit" className="primary">
             Assign
           </button>
         </form>

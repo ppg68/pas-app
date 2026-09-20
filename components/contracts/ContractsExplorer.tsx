@@ -21,51 +21,13 @@ type SortBy = "default" | "status" | "subject" | "amount" | "deadline";
 type SortDir = "asc" | "desc";
 type FieldType = "readonly" | "text" | "select" | "date" | "number" | "checkbox";
 
-const inputStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 6,
-  padding: "7px 9px",
-  fontSize: 13,
-  background: "#ffffff",
-  color: "#1a1a1a",
-  fontFamily: "inherit",
-};
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  fontSize: 11,
-  fontWeight: 500,
-  color: "#5f5e5a",
-  textTransform: "uppercase",
-  letterSpacing: 0.3,
-  padding: "8px 10px",
-  borderBottom: "1px solid #d3d1c7",
-  whiteSpace: "nowrap",
-  userSelect: "none",
-  position: "sticky",
-  top: 0,
-  background: "#fff",
-};
-const thSortable: React.CSSProperties = { ...th, cursor: "pointer" };
-const thRight: React.CSSProperties = { ...thSortable, textAlign: "right" };
-const td: React.CSSProperties = {
-  fontSize: 13,
-  padding: "3px 6px",
-  borderBottom: "0.5px solid #e4e2da",
-};
-const tdRight: React.CSSProperties = { ...td, textAlign: "right", padding: "8px 10px" };
-const tdCheck: React.CSSProperties = { ...td, textAlign: "center" };
-const cellInputStyle: React.CSSProperties = {
-  border: "0.5px solid transparent",
-  borderRadius: 4,
-  padding: "5px 7px",
-  fontSize: 13,
-  fontFamily: "inherit",
-  background: "transparent",
-  width: "100%",
-  boxSizing: "border-box",
-  minWidth: 90,
-};
+const th: React.CSSProperties = { textAlign: "left" };
+const thRight: React.CSSProperties = { textAlign: "right" };
+const thCenter: React.CSSProperties = { textAlign: "center" };
+const td: React.CSSProperties = { whiteSpace: "nowrap" };
+const tdRight: React.CSSProperties = { textAlign: "right", whiteSpace: "nowrap" };
+const tdCheck: React.CSSProperties = { textAlign: "center" };
+const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
 // Columns, in the same left-to-right order as the original "Elenco contratti"
 // Google Sheet, so the shape is familiar even though this now scrolls.
@@ -327,7 +289,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           onBlur={(e) => saveField(c.id, col.key, e.target.value)}
           style={{
             ...cellInputStyle,
-            color: overdue ? "#c0392b" : undefined,
+            color: overdue ? "var(--brick)" : undefined,
             fontWeight: overdue ? 500 : undefined,
           }}
         />
@@ -344,7 +306,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
             onBlur={(e) => saveField(c.id, col.key, e.target.value)}
             style={{ ...cellInputStyle, textAlign: "right", minWidth: 90 }}
           />
-          <span style={{ color: "#888780" }}>{c.currency}</span>
+          <span style={{ color: "var(--ink-soft)" }}>{c.currency}</span>
         </div>
       );
     }
@@ -388,50 +350,24 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           flexWrap: "wrap",
         }}
       >
-        <div style={{ fontSize: 13, color: "#5f5e5a" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {searchQuery
             ? `Contracts (${filtered.length} of ${rows.length})`
             : `Contracts (${filtered.length})`}
         </div>
-        <button
-          type="button"
-          onClick={exportExcel}
-          disabled={rows.length === 0 || exporting}
-          style={{
-            border: "0.5px solid #b4b2a9",
-            borderRadius: 6,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: 500,
-            background: "transparent",
-            color: "#1a1a1a",
-            cursor: rows.length === 0 || exporting ? "not-allowed" : "pointer",
-          }}
-        >
+        <button type="button" className="export" onClick={exportExcel} disabled={rows.length === 0 || exporting}>
           {exporting ? "Exporting…" : "Export Excel"}
         </button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: 10,
-          marginBottom: 14,
-          maxWidth: 700,
-        }}
-      >
+      <div className="toolbar" style={{ maxWidth: 700 }}>
         <input
+          type="text"
           placeholder="Search by subject, project, IR, country, or referent…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={inputStyle}
         />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as "all" | ContractStatus)}
-          style={inputStyle}
-        >
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | ContractStatus)}>
           <option value="all">All statuses</option>
           <option value="in_corso">In corso</option>
           <option value="concluso">Concluso</option>
@@ -439,12 +375,10 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
         </select>
       </div>
 
-      {filtered.length === 0 && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>No contracts match.</p>
-      )}
+      {filtered.length === 0 && <p className="empty">No contracts match.</p>}
 
       {filtered.length > 0 && (
-        <p style={{ fontSize: 12, color: "#888780", marginBottom: 6 }}>
+        <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>
           Click a cell to edit it directly (saved automatically). Click the ↗ to open the full
           record (tranches, compliance checklist). Scroll, or hover the table and use ← → , to
           see more columns.
@@ -462,33 +396,18 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           onMouseLeave={() => {
             hoveringRef.current = false;
           }}
-          style={{
-            overflowX: "auto",
-            border: "0.5px solid #d3d1c7",
-            borderRadius: 10,
-            width: "100%",
-            maxWidth: "100%",
-            outline: "none",
-          }}
+          className="table-wrap"
+          style={{ outline: "none" }}
         >
-          <table style={{ borderCollapse: "collapse", width: "max-content" }}>
+          <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th style={th}></th>
+                <th></th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key}
-                    style={
-                      col.sort
-                        ? col.align === "right"
-                          ? thRight
-                          : thSortable
-                        : col.align === "right"
-                          ? { ...th, textAlign: "right" }
-                          : col.align === "center"
-                            ? { ...th, textAlign: "center" }
-                            : th
-                    }
+                    className={col.sort ? "sortable" : undefined}
+                    style={col.align === "right" ? thRight : col.align === "center" ? thCenter : th}
                     onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
                   >
                     {col.label}
@@ -502,22 +421,12 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
                 const dLeft = daysUntil(c.end_date);
                 const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
                 return (
-                  <tr key={c.id} style={{ background: overdue ? "#fdecea" : "transparent" }}>
-                    <td style={{ ...td, textAlign: "center" }}>
+                  <tr key={c.id} className={overdue ? "overdue" : undefined}>
+                    <td className="center">
                       <Link
                         href={`/contracts/${c.id}`}
                         title="Open full record"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 24,
-                          height: 24,
-                          borderRadius: 6,
-                          color: "#1A3A5C",
-                          textDecoration: "none",
-                          fontWeight: 600,
-                        }}
+                        style={{ fontWeight: 600, color: "var(--navy)" }}
                       >
                         ↗
                       </Link>

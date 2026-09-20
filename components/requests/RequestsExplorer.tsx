@@ -36,16 +36,6 @@ export type RequestRow = {
 
 type SortBy = "default" | "status" | "project" | "amount" | "code";
 
-const inputStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 6,
-  padding: "7px 9px",
-  fontSize: 13,
-  background: "#ffffff",
-  color: "#1a1a1a",
-  fontFamily: "inherit",
-};
-
 export default function RequestsExplorer({ requests }: { requests: RequestRow[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -134,50 +124,25 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
           flexWrap: "wrap",
         }}
       >
-        <div style={{ fontSize: 13, color: "#5f5e5a" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {searchQuery
             ? `Requests (${filteredRequests.length} of ${requests.length})`
             : `Requests (${requests.length})`}
         </div>
-        <button
-          type="button"
-          onClick={exportExcel}
-          disabled={requests.length === 0 || exporting}
-          style={{
-            border: "0.5px solid #b4b2a9",
-            borderRadius: 6,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: 500,
-            background: "transparent",
-            color: "#1a1a1a",
-            cursor: requests.length === 0 || exporting ? "not-allowed" : "pointer",
-          }}
-        >
+        <button type="button" className="export" onClick={exportExcel} disabled={requests.length === 0 || exporting}>
           {exporting ? "Exporting…" : "Export Excel"}
         </button>
       </div>
 
       {requests.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto",
-            gap: 10,
-            marginBottom: 14,
-          }}
-        >
+        <div className="toolbar">
           <input
+            type="text"
             placeholder="Search by IR code, project, or description…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={inputStyle}
           />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
-            style={inputStyle}
-          >
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
             <option value="default">Sort: most recent</option>
             <option value="status">Sort: by stage</option>
             <option value="project">Sort: by project</option>
@@ -187,47 +152,23 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
         </div>
       )}
 
-      {requests.length === 0 && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>No requests yet.</p>
-      )}
+      {requests.length === 0 && <p className="empty">No requests yet.</p>}
 
       {requests.length > 0 && filteredRequests.length === 0 && (
-        <p style={{ fontSize: 13, color: "#5f5e5a" }}>No requests match the search.</p>
+        <p className="empty">No requests match the search.</p>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filteredRequests.map((r) => (
-          <Link
-            key={r.id}
-            href={`/requests/${r.id}`}
-            style={{
-              border: "0.5px solid #d3d1c7",
-              borderRadius: 10,
-              padding: 12,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
+          <Link key={r.id} href={`/requests/${r.id}`} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500 }}>{r.code}</div>
-              <div style={{ fontSize: 12, color: "#888780" }}>
+              <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
                 {r.description} · {procConfigFor(r.proc_code).label} · {r.estimated_price}{" "}
                 {r.currency}
               </div>
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                border: "0.5px solid #b4b2a9",
-                borderRadius: 999,
-                padding: "3px 10px",
-              }}
-            >
-              {STAGE_TITLES[r.stage]}
-            </div>
+            <span className="stamp brand">{STAGE_TITLES[r.stage]}</span>
           </Link>
         ))}
       </div>

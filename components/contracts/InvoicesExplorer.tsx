@@ -10,49 +10,11 @@ export type InvoiceListRow = InvoiceRow & { contractUuid: string | null };
 type SortBy = "default" | "date" | "amount" | "subject";
 type SortDir = "asc" | "desc";
 
-const inputStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 6,
-  padding: "7px 9px",
-  fontSize: 13,
-  background: "#ffffff",
-  color: "#1a1a1a",
-  fontFamily: "inherit",
-};
-const th: React.CSSProperties = {
-  textAlign: "left",
-  fontSize: 11,
-  fontWeight: 500,
-  color: "#5f5e5a",
-  textTransform: "uppercase",
-  letterSpacing: 0.3,
-  padding: "8px 10px",
-  borderBottom: "1px solid #d3d1c7",
-  whiteSpace: "nowrap",
-  userSelect: "none",
-  position: "sticky",
-  top: 0,
-  background: "#fff",
-};
-const thSortable: React.CSSProperties = { ...th, cursor: "pointer" };
-const thRight: React.CSSProperties = { ...thSortable, textAlign: "right" };
-const td: React.CSSProperties = {
-  fontSize: 13,
-  padding: "3px 6px",
-  borderBottom: "0.5px solid #e4e2da",
-};
-const tdRight: React.CSSProperties = { ...td, textAlign: "right", padding: "8px 10px" };
-const cellInputStyle: React.CSSProperties = {
-  border: "0.5px solid transparent",
-  borderRadius: 4,
-  padding: "5px 7px",
-  fontSize: 13,
-  fontFamily: "inherit",
-  background: "transparent",
-  width: "100%",
-  boxSizing: "border-box",
-  minWidth: 90,
-};
+const th: React.CSSProperties = { textAlign: "left" };
+const thRight: React.CSSProperties = { textAlign: "right" };
+const td: React.CSSProperties = { whiteSpace: "nowrap" };
+const tdRight: React.CSSProperties = { textAlign: "right", whiteSpace: "nowrap" };
+const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
 type Col = {
   key: keyof InvoiceListRow;
@@ -223,56 +185,36 @@ export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRo
           flexWrap: "wrap",
         }}
       >
-        <div style={{ fontSize: 13, color: "#5f5e5a" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {`Invoices (${filtered.length}) · total ${formatMoney(totalAmount)} · paid ${formatMoney(totalPaid)}`}
         </div>
-        <button
-          type="button"
-          onClick={exportExcel}
-          disabled={rows.length === 0 || exporting}
-          style={{
-            border: "0.5px solid #b4b2a9",
-            borderRadius: 6,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: 500,
-            background: "transparent",
-            color: "#1a1a1a",
-            cursor: rows.length === 0 || exporting ? "not-allowed" : "pointer",
-          }}
-        >
+        <button type="button" className="export" onClick={exportExcel} disabled={rows.length === 0 || exporting}>
           {exporting ? "Exporting…" : "Export Excel"}
         </button>
       </div>
 
       <input
+        type="text"
         placeholder="Search by contract ID, subject, invoice #, or protocol…"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        style={{ ...inputStyle, maxWidth: 420, marginBottom: 14, display: "block" }}
+        style={{ maxWidth: 420, marginBottom: 14, display: "block" }}
       />
 
-      {filtered.length === 0 && <p style={{ fontSize: 13, color: "#5f5e5a" }}>No invoices match.</p>}
+      {filtered.length === 0 && <p className="empty">No invoices match.</p>}
 
       {filtered.length > 0 && (
-        <div
-          style={{
-            overflowX: "auto",
-            border: "0.5px solid #d3d1c7",
-            borderRadius: 10,
-            width: "100%",
-            maxWidth: "100%",
-          }}
-        >
-          <table style={{ borderCollapse: "collapse", width: "max-content" }}>
+        <div className="table-wrap">
+          <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th style={th}></th>
-                <th style={th}></th>
+                <th></th>
+                <th></th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key}
-                    style={col.sort ? (col.align === "right" ? thRight : thSortable) : col.align === "right" ? { ...th, textAlign: "right" } : th}
+                    className={col.sort ? "sortable" : undefined}
+                    style={col.align === "right" ? thRight : th}
                     onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
                   >
                     {col.label}
@@ -284,22 +226,22 @@ export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRo
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  <td style={{ ...td, textAlign: "center" }}>
+                  <td className="center">
                     {r.contractUuid ? (
                       <Link
                         href={`/contracts/${r.contractUuid}`}
                         title="Open contract"
-                        style={{ color: "#1A3A5C", textDecoration: "none", fontWeight: 600 }}
+                        style={{ fontWeight: 600, color: "var(--navy)" }}
                       >
                         ↗
                       </Link>
                     ) : (
-                      <span title="No matching contract found" style={{ color: "#c0392b" }}>
+                      <span title="No matching contract found" style={{ color: "var(--brick)" }}>
                         ⚠
                       </span>
                     )}
                   </td>
-                  <td style={{ ...td, textAlign: "center" }}>
+                  <td className="center">
                     <button
                       type="button"
                       onClick={() => removeRow(r.id)}
@@ -307,7 +249,7 @@ export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRo
                       style={{
                         border: "none",
                         background: "transparent",
-                        color: "#c0392b",
+                        color: "var(--brick)",
                         cursor: "pointer",
                         fontSize: 13,
                       }}

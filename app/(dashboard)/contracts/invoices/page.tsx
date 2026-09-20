@@ -15,20 +15,13 @@ export default async function InvoicesListPage() {
   }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
+    <div>
+      <div className="page-header">
         <div>
-          <Link href="/contracts" style={{ fontSize: 13, color: "#5f5e5a" }}>
+          <Link href="/contracts" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
             ← Back to Contracts
           </Link>
-          <h1 style={{ fontSize: 18, fontWeight: 500, marginTop: 4 }}>Invoices</h1>
+          <h1 style={{ marginTop: 4 }}>Invoices</h1>
         </div>
       </div>
       <InvoicesExplorer invoices={rows} />

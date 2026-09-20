@@ -23,29 +23,6 @@ import {
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
 
-const cardStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 10,
-  padding: 16,
-  marginBottom: 16,
-};
-const inputStyle: React.CSSProperties = {
-  border: "0.5px solid #d3d1c7",
-  borderRadius: 6,
-  padding: "7px 9px",
-  fontSize: 13,
-};
-const buttonStyle: React.CSSProperties = {
-  border: 0,
-  borderRadius: 6,
-  padding: "7px 12px",
-  fontSize: 13,
-  fontWeight: 500,
-  background: "#1A3A5C",
-  color: "#fff",
-  cursor: "pointer",
-};
-
 export default async function RequestDetailPage({
   params,
   searchParams,
@@ -65,7 +42,7 @@ export default async function RequestDetailPage({
 
   if (!request) {
     return (
-      <div style={{ padding: 24, fontSize: 13 }}>Request not found.</div>
+      <div style={{ fontSize: 13 }}>Request not found.</div>
     );
   }
 
@@ -113,10 +90,10 @@ export default async function RequestDetailPage({
   const paymentIndex = STAGE_ORDER.indexOf("payment");
 
   return (
-    <div style={{ maxWidth: 700, padding: 24 }}>
+    <div style={{ maxWidth: 700 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{request.code}</h1>
-        <div style={{ fontSize: 13, color: "#5f5e5a" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {request.description} · {config.label} · {request.estimated_price} {request.currency}
         </div>
         <div
@@ -124,7 +101,7 @@ export default async function RequestDetailPage({
             display: "inline-block",
             marginTop: 8,
             fontSize: 11,
-            border: "0.5px solid #b4b2a9",
+            border: "1px solid var(--line)",
             borderRadius: 999,
             padding: "3px 10px",
           }}
@@ -136,8 +113,8 @@ export default async function RequestDetailPage({
       {error && (
         <div
           style={{
-            background: "#faeeda",
-            color: "#633806",
+            background: "var(--amber-soft)",
+            color: "#7A5A1C",
             borderRadius: 8,
             padding: "8px 10px",
             fontSize: 13,
@@ -149,7 +126,7 @@ export default async function RequestDetailPage({
       )}
 
       {/* IR approval */}
-      <div style={cardStyle}>
+      <div className="card">
         <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>IR approval</h2>
         {config.signers.map((role) => {
           const signed = irSignedRoles.get(role);
@@ -171,7 +148,7 @@ export default async function RequestDetailPage({
               </span>
               {canShowButton && (
                 <form action={signIrAuth.bind(null, request.id, role)}>
-                  <button type="submit" style={buttonStyle}>
+                  <button type="submit" className="primary">
                     Sign
                   </button>
                 </form>
@@ -180,7 +157,7 @@ export default async function RequestDetailPage({
           );
         })}
         {!iCanAct && request.stage === "ir_auth" && (
-          <p style={{ fontSize: 12, color: "#888780", marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
             Whoever created this request cannot sign it (segregation of duties).
           </p>
         )}
@@ -188,18 +165,18 @@ export default async function RequestDetailPage({
 
       {/* Offers */}
       {showOffers && stageIndex >= offersIndex && (
-        <div style={cardStyle}>
+        <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>
             Offers (minimum {config.minOffers})
           </h2>
           {(offers ?? []).length === 0 && (
-            <p style={{ fontSize: 13, color: "#888780" }}>No offers yet.</p>
+            <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>No offers yet.</p>
           )}
           {(offers ?? []).map((o) => (
             <div key={o.id} style={{ fontSize: 13, padding: "4px 0" }}>
               {o.supplier} — {o.price} {request.currency}
               {request.winner_offer_id === o.id && (
-                <strong style={{ color: "#1A3A5C" }}> · winner</strong>
+                <strong style={{ color: "var(--navy)" }}> · winner</strong>
               )}
             </div>
           ))}
@@ -211,25 +188,25 @@ export default async function RequestDetailPage({
                 style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}
               >
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
+                  <label>
                     Supplier
                   </label>
-                  <input name="supplier" required style={inputStyle} />
+                  <input name="supplier" required />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
+                  <label>
                     Price
                   </label>
-                  <input name="price" type="number" step="0.01" min="0.01" required style={inputStyle} />
+                  <input name="price" type="number" step="0.01" min="0.01" required />
                 </div>
-                <button type="submit" style={buttonStyle}>
+                <button type="submit" className="primary">
                   Add
                 </button>
               </form>
 
               {(offers ?? []).length >= config.minOffers && (
                 <form action={closeOffers.bind(null, request.id)} style={{ marginTop: 10 }}>
-                  <button type="submit" style={buttonStyle}>
+                  <button type="submit" className="primary">
                     Close offer collection
                   </button>
                 </form>
@@ -241,7 +218,7 @@ export default async function RequestDetailPage({
 
       {/* Winner */}
       {showOffers && stageIndex >= winnerIndex && (
-        <div style={cardStyle}>
+        <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Winner</h2>
           {request.stage === "winner" ? (
             <form action={selectWinner.bind(null, request.id)} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -251,8 +228,8 @@ export default async function RequestDetailPage({
                   {o.supplier} — {o.price} {request.currency}
                 </label>
               ))}
-              <input name="note" placeholder="Note (optional)" style={inputStyle} />
-              <button type="submit" style={{ ...buttonStyle, width: "fit-content" }}>
+              <input name="note" placeholder="Note (optional)" />
+              <button type="submit" className="primary" style={{ width: "fit-content" }}>
                 Confirm winner
               </button>
             </form>
@@ -269,7 +246,7 @@ export default async function RequestDetailPage({
 
       {/* Documents */}
       {stageIndex >= documentsIndex && (
-        <div style={cardStyle}>
+        <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Documents</h2>
           {requiredDocs.map((docKey) => {
             const checked = !!docsMap[docKey];
@@ -294,7 +271,7 @@ export default async function RequestDetailPage({
                     <button
                       type="submit"
                       style={{
-                        border: "0.5px solid #b4b2a9",
+                        border: "1px solid var(--line)",
                         borderRadius: 999,
                         padding: "3px 10px",
                         fontSize: 11,
@@ -316,23 +293,23 @@ export default async function RequestDetailPage({
               style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "flex-end" }}
             >
               <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 12, color: "#5f5e5a" }}>
+                <label>
                   Folder path
                 </label>
                 <input
                   name="folder_path"
                   defaultValue={request.folder_path ?? ""}
                   required
-                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  
                 />
               </div>
-              <button type="submit" disabled={!docsOk} style={buttonStyle}>
+              <button type="submit" disabled={!docsOk} className="primary">
                 Go to payment
               </button>
             </form>
           ) : (
             request.folder_path && (
-              <p style={{ fontSize: 12, color: "#888780", marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
                 Folder: {request.folder_path}
               </p>
             )
@@ -342,7 +319,7 @@ export default async function RequestDetailPage({
 
       {/* Payment */}
       {stageIndex >= paymentIndex && (
-        <div style={cardStyle}>
+        <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment</h2>
           {paySigners.map((role) => {
             const signed = paySignedRoles.get(role);
@@ -364,7 +341,7 @@ export default async function RequestDetailPage({
                 </span>
                 {canShowButton && (
                   <form action={signPayment.bind(null, request.id, role)}>
-                    <button type="submit" style={buttonStyle}>
+                    <button type="submit" className="primary">
                       Sign
                     </button>
                   </form>
@@ -376,7 +353,7 @@ export default async function RequestDetailPage({
       )}
 
       {request.stage === "completed" && (
-        <div style={{ ...cardStyle, textAlign: "center", color: "#1A3A5C", fontWeight: 500 }}>
+        <div className="card" style={{ textAlign: "center", color: "var(--navy)", fontWeight: 600 }}>
           Request closed
         </div>
       )}

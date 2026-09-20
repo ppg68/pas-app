@@ -35,55 +35,20 @@ export default async function ContractsListPage() {
   });
 
   return (
-    <div style={{ padding: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h1 style={{ fontSize: 18, fontWeight: 500 }}>Contracts</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link
-            href="/contracts/invoices"
-            style={{
-              border: "0.5px solid #b4b2a9",
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#1a1a1a",
-            }}
-          >
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>Contracts</h1>
+          <p className="subtitle">{rows.length} records</p>
+        </div>
+        <div className="page-actions">
+          <Link href="/contracts/invoices" className="ghost">
             Invoices
           </Link>
-          <Link
-            href="/contracts/access"
-            style={{
-              border: "0.5px solid #b4b2a9",
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#1a1a1a",
-            }}
-          >
+          <Link href="/contracts/access" className="ghost">
             Manage access
           </Link>
-          <Link
-            href="/contracts/new"
-            style={{
-              border: 0,
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              background: "#1A3A5C",
-              color: "#fff",
-            }}
-          >
+          <Link href="/contracts/new" className="primary">
             New contract
           </Link>
         </div>

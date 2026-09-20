@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ROLE_LABEL, type Role } from "@/lib/domain/procedures";
+import type { Role } from "@/lib/domain/procedures";
+import Sidebar from "@/components/Sidebar";
 
 // Every page below shows session-specific data (roles, the user's own requests):
 // without this, Next.js could pre-render "/" as a static page at build time and
@@ -32,53 +32,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const canSeeContracts = roles.includes("CONTRACTS");
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside
-        style={{
-          width: 220,
-          borderRight: "0.5px solid #d3d1c7",
-          padding: 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>{profile?.full_name ?? "—"}</div>
-          <div style={{ fontSize: 12, color: "#888780" }}>
-            {roles.length > 0 ? roles.map((r) => ROLE_LABEL[r]).join(", ") : "no role"}
-          </div>
-        </div>
-
-        <nav style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
-          <Link href="/">Requests</Link>
-          {canCreateRequest && <Link href="/requests/new">New request</Link>}
-          {canSeeContracts && <Link href="/contracts">Contracts</Link>}
-          <Link href="/settings/team">Team</Link>
-        </nav>
-
-        <form action={signOut} style={{ marginTop: "auto" }}>
-          <button
-            type="submit"
-            style={{
-              border: "0.5px solid #d3d1c7",
-              borderRadius: 6,
-              padding: "6px 10px",
-              fontSize: 12,
-              background: "transparent",
-              cursor: "pointer",
-              width: "100%",
-            }}
-          >
-            Sign out
-          </button>
-        </form>
-      </aside>
-
-      {/* minWidth: 0 overrides flex's default min-width:auto, which would otherwise
-          let this column grow to fit a wide child (like the Contracts table) instead
-          of letting that child's own overflow-x:auto scrollbar do the job. */}
-      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+    <div className="app">
+      <Sidebar
+        fullName={profile?.full_name ?? "—"}
+        roles={roles}
+        canCreateRequest={canCreateRequest}
+        canSeeContracts={canSeeContracts}
+        onSignOut={signOut}
+      />
+      <main>{children}</main>
     </div>
   );
 }
