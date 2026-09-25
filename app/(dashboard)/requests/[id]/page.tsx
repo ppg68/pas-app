@@ -59,7 +59,7 @@ export default async function RequestDetailPage({
   const roles = new Set((myRoles ?? []).map((r) => r.role as Role));
   const config = procConfigFor(request.proc_code);
   const stageIndex = STAGE_ORDER.indexOf(request.stage as (typeof STAGE_ORDER)[number]);
-  const iCanAct = canSign(userId, request.initiated_by);
+  const iCanAct = !request.initiated_by || canSign(userId, request.initiated_by);
 
   const irSignedRoles = new Map(
     (signatures ?? [])

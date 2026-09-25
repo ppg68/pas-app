@@ -325,6 +325,93 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          balance_due: number | null
+          budget_line: string | null
+          contract_id: string | null
+          contract_number: string | null
+          contract_value: number | null
+          created_at: string
+          cup: string | null
+          currency: string
+          due_date: string | null
+          id: string
+          ir_number: string | null
+          notes: string | null
+          pa_signed: boolean
+          payment_date: string | null
+          payment_note: string | null
+          project_code: string | null
+          protocol: string | null
+          request_id: string | null
+          supplier: string | null
+          withholding: number | null
+        }
+        Insert: {
+          amount?: number
+          balance_due?: number | null
+          budget_line?: string | null
+          contract_id?: string | null
+          contract_number?: string | null
+          contract_value?: number | null
+          created_at?: string
+          cup?: string | null
+          currency?: string
+          due_date?: string | null
+          id?: string
+          ir_number?: string | null
+          notes?: string | null
+          pa_signed?: boolean
+          payment_date?: string | null
+          payment_note?: string | null
+          project_code?: string | null
+          protocol?: string | null
+          request_id?: string | null
+          supplier?: string | null
+          withholding?: number | null
+        }
+        Update: {
+          amount?: number
+          balance_due?: number | null
+          budget_line?: string | null
+          contract_id?: string | null
+          contract_number?: string | null
+          contract_value?: number | null
+          created_at?: string
+          cup?: string | null
+          currency?: string
+          due_date?: string | null
+          id?: string
+          ir_number?: string | null
+          notes?: string | null
+          pa_signed?: boolean
+          payment_date?: string | null
+          payment_note?: string | null
+          project_code?: string | null
+          protocol?: string | null
+          request_id?: string | null
+          supplier?: string | null
+          withholding?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -433,7 +520,12 @@ export type Database = {
           estimated_price: number
           folder_path: string | null
           id: string
-          initiated_by: string
+          initiated_by: string | null
+          is_legacy: boolean
+          legacy_ir_number: string | null
+          legacy_initiator_name: string | null
+          legacy_protocol: string | null
+          legacy_note: string | null
           institutional_activity: boolean
           occasional_collaborator: boolean
           proc_code: Database["public"]["Enums"]["proc_code"]
@@ -457,7 +549,12 @@ export type Database = {
           estimated_price: number
           folder_path?: string | null
           id?: string
-          initiated_by: string
+          initiated_by?: string | null
+          is_legacy?: boolean
+          legacy_ir_number?: string | null
+          legacy_initiator_name?: string | null
+          legacy_protocol?: string | null
+          legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           proc_code: Database["public"]["Enums"]["proc_code"]
@@ -481,7 +578,12 @@ export type Database = {
           estimated_price?: number
           folder_path?: string | null
           id?: string
-          initiated_by?: string
+          initiated_by?: string | null
+          is_legacy?: boolean
+          legacy_ir_number?: string | null
+          legacy_initiator_name?: string | null
+          legacy_protocol?: string | null
+          legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           proc_code?: Database["public"]["Enums"]["proc_code"]

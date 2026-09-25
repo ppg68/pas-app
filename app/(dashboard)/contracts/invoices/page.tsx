@@ -21,7 +21,7 @@ export default async function InvoicesListPage() {
           <Link href="/contracts" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
             ← Back to Contracts
           </Link>
-          <h1 style={{ marginTop: 4 }}>Invoices</h1>
+          <h1 style={{ marginTop: 4 }}>Contract invoices</h1>
         </div>
       </div>
       <InvoicesExplorer invoices={rows} />

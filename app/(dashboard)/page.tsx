@@ -6,12 +6,14 @@ export default async function RequestListPage() {
   const { data: requests } = await supabase
     .from("requests")
     .select(
-      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, created_at, initiated_by"
+      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, created_at, initiated_by, legacy_initiator_name"
     )
     .order("created_at", { ascending: false });
 
   const requestIds = (requests ?? []).map((r) => r.id);
-  const initiatorIds = Array.from(new Set((requests ?? []).map((r) => r.initiated_by)));
+  const initiatorIds = Array.from(
+    new Set((requests ?? []).map((r) => r.initiated_by).filter((id): id is string => !!id))
+  );
 
   const [{ data: initiators }, { data: offers }] = await Promise.all([
     initiatorIds.length
@@ -34,7 +36,8 @@ export default async function RequestListPage() {
     const requestOffers = offersByRequest.get(r.id) ?? [];
     return {
       ...r,
-      initiatedByName: nameById.get(r.initiated_by) ?? "",
+      initiatedByName:
+        (r.initiated_by ? nameById.get(r.initiated_by) : undefined) ?? r.legacy_initiator_name ?? "",
       winnerSupplier: r.winner_offer_id
         ? requestOffers.find((o) => o.id === r.winner_offer_id)?.supplier ?? ""
         : "",
