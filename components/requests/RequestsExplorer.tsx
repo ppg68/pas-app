@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { formatDateIT, formatMoney } from "@/lib/domain/contracts";
 import {
   procConfigFor,
   STAGE_LABELS,
@@ -34,42 +35,84 @@ export type RequestRow = {
   offersCount: number;
 };
 
-type SortBy = "default" | "status" | "project" | "amount" | "code";
+type SortKey =
+  | "created"
+  | "code"
+  | "description"
+  | "project"
+  | "procedure"
+  | "supplier"
+  | "amount"
+  | "stage"
+  | "initiator";
+type SortDir = "asc" | "desc";
+
+/** HQ codes start with the IR number ("790_C_3Q_…"); field-office codes don't. */
+function irNumber(r: RequestRow): string {
+  return r.country === "IT" ? r.code.split("_")[0] : "";
+}
+
+const SORTERS: Record<SortKey, (a: RequestRow, b: RequestRow) => number> = {
+  created: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  code: (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }),
+  description: (a, b) => a.description.localeCompare(b.description),
+  project: (a, b) => (a.project_code || "").localeCompare(b.project_code || ""),
+  procedure: (a, b) => a.proc_code.localeCompare(b.proc_code),
+  supplier: (a, b) => a.winnerSupplier.localeCompare(b.winnerSupplier),
+  amount: (a, b) => (a.estimated_price || 0) - (b.estimated_price || 0),
+  stage: (a, b) => STAGE_LABELS.indexOf(a.stage) - STAGE_LABELS.indexOf(b.stage),
+  initiator: (a, b) => a.initiatedByName.localeCompare(b.initiatedByName),
+};
+
+const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
+  { key: "code", label: "IR" },
+  { key: "created", label: "Date" },
+  { key: "description", label: "Description" },
+  { key: "project", label: "Project" },
+  { key: null, label: "Budget line" },
+  { key: "procedure", label: "Procedure" },
+  { key: "supplier", label: "Supplier" },
+  { key: "amount", label: "Amount", align: "right" },
+  { key: "stage", label: "Stage" },
+  { key: "initiator", label: "Initiated by" },
+  { key: null, label: "CUP / AID" },
+  { key: null, label: "Derog." },
+];
 
 export default function RequestsExplorer({ requests }: { requests: RequestRow[] }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortBy>("default");
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [exporting, setExporting] = useState(false);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir(key === "created" || key === "amount" ? "desc" : "asc");
+    }
+  }
 
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    let list = !q
-      ? [...requests]
-      : requests.filter(
-          (r) =>
-            (r.code || "").toLowerCase().includes(q) ||
-            (r.project_code || "").toLowerCase().includes(q) ||
-            (r.description || "").toLowerCase().includes(q) ||
-            (r.budget_line || "").toLowerCase().includes(q) ||
-            (r.initiatedByName || "").toLowerCase().includes(q) ||
-            (r.cup_code || "").toLowerCase().includes(q)
-        );
-
-    if (sortBy === "status") {
-      list = [...list].sort(
-        (a, b) => STAGE_LABELS.indexOf(a.stage) - STAGE_LABELS.indexOf(b.stage)
-      );
-    } else if (sortBy === "project") {
-      list = [...list].sort((a, b) => (a.project_code || "").localeCompare(b.project_code || ""));
-    } else if (sortBy === "amount") {
-      list = [...list].sort((a, b) => (b.estimated_price || 0) - (a.estimated_price || 0));
-    } else if (sortBy === "code") {
-      list = [...list].sort((a, b) =>
-        (a.code || "").localeCompare(b.code || "", undefined, { numeric: true })
+    let list = requests.filter((r) => stageFilter === "all" || r.stage === stageFilter);
+    if (q) {
+      list = list.filter((r) =>
+        [
+          r.code,
+          r.project_code,
+          r.description,
+          r.budget_line,
+          r.initiatedByName,
+          r.cup_code,
+          r.winnerSupplier,
+        ].some((v) => (v || "").toLowerCase().includes(q))
       );
     }
-    return list;
-  }, [requests, searchQuery, sortBy]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => dir * SORTERS[sortKey](a, b));
+  }, [requests, searchQuery, stageFilter, sortKey, sortDir]);
 
   async function exportExcel() {
     if (requests.length === 0) return;
@@ -112,6 +155,9 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
     }
   }
 
+  const arrow = (key: SortKey | null) =>
+    key && sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "";
+
   return (
     <div>
       <div
@@ -125,9 +171,9 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
         }}
       >
         <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-          {searchQuery
-            ? `Requests (${filteredRequests.length} of ${requests.length})`
-            : `Requests (${requests.length})`}
+          {filteredRequests.length === requests.length
+            ? `Requests (${requests.length})`
+            : `Requests (${filteredRequests.length} of ${requests.length})`}
         </div>
         <button type="button" className="export" onClick={exportExcel} disabled={requests.length === 0 || exporting}>
           {exporting ? "Exporting…" : "Export Excel"}
@@ -138,16 +184,17 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
         <div className="toolbar">
           <input
             type="text"
-            placeholder="Search by IR code, project, or description…"
+            placeholder="Search by IR code, project, supplier, or description…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
-            <option value="default">Sort: most recent</option>
-            <option value="status">Sort: by stage</option>
-            <option value="project">Sort: by project</option>
-            <option value="amount">Sort: by amount</option>
-            <option value="code">Sort: by code</option>
+          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | "all")}>
+            <option value="all">All stages</option>
+            {STAGE_LABELS.map((s) => (
+              <option key={s} value={s}>
+                {STAGE_TITLES[s]}
+              </option>
+            ))}
           </select>
         </div>
       )}
@@ -158,20 +205,63 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
         <p className="empty">No requests match the search.</p>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {filteredRequests.map((r) => (
-          <Link key={r.id} href={`/requests/${r.id}`} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>{r.code}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-                {r.description} · {procConfigFor(r.proc_code).label} · {r.estimated_price}{" "}
-                {r.currency}
-              </div>
-            </div>
-            <span className="stamp brand">{STAGE_TITLES[r.stage]}</span>
-          </Link>
-        ))}
-      </div>
+      {filteredRequests.length > 0 && (
+        <div className="table-wrap">
+          <table style={{ width: "max-content" }}>
+            <thead>
+              <tr>
+                <th></th>
+                {HEADERS.map((h) => (
+                  <th
+                    key={h.label}
+                    className={h.key ? "sortable" : undefined}
+                    style={{ textAlign: h.align ?? "left" }}
+                    onClick={h.key ? () => toggleSort(h.key!) : undefined}
+                  >
+                    {h.label}
+                    {arrow(h.key)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.map((r) => (
+                <tr key={r.id}>
+                  <td className="center">
+                    <Link
+                      href={`/requests/${r.id}`}
+                      title="Open request"
+                      style={{ fontWeight: 600, color: "var(--navy)" }}
+                    >
+                      ↗
+                    </Link>
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }} title={r.code}>
+                    {irNumber(r) || r.code}
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>{formatDateIT(r.created_at.slice(0, 10))}</td>
+                  <td style={{ minWidth: 260, maxWidth: 420 }}>{r.description}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.project_code}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.budget_line}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{procConfigFor(r.proc_code).label}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.winnerSupplier}</td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    {formatMoney(r.estimated_price)} {r.currency}
+                  </td>
+                  <td>
+                    <span className="stamp brand">{STAGE_TITLES[r.stage]}</span>
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.initiatedByName}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.cup_code}</td>
+                  <td className="center" title={r.derogation_reason ?? undefined}>
+                    {r.derogation ? "✓" : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
