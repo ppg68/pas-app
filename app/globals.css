@@ -373,3 +373,14 @@ table input:focus, table select:focus { border-color: var(--navy); background: #
   .nav { flex-direction: row; flex-wrap: wrap; }
   main { padding: 20px; }
 }
+
+/* Text-style button used for the login page mode switches. */
+button.linklike {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--navy);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
