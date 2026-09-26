@@ -9,12 +9,14 @@ export default function Sidebar({
   roles,
   canCreateRequest,
   canSeeContracts,
+  canSeeTeam,
   onSignOut,
 }: {
   fullName: string;
   roles: Role[];
   canCreateRequest: boolean;
   canSeeContracts: boolean;
+  canSeeTeam: boolean;
   onSignOut: () => void;
 }) {
   const pathname = usePathname();
@@ -52,9 +54,11 @@ export default function Sidebar({
             Invoices
           </Link>
         )}
-        <Link href="/settings/team" className={isActive("/settings/team") ? "active" : ""}>
-          Team
-        </Link>
+        {canSeeTeam && (
+          <Link href="/settings/team" className={isActive("/settings/team") ? "active" : ""}>
+            Team
+          </Link>
+        )}
       </nav>
 
       <form action={onSignOut}>

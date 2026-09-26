@@ -30,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const roles = (roleRows ?? []).map((r) => r.role as Role);
   const canCreateRequest = roles.includes("BH");
   const canSeeContracts = roles.includes("CONTRACTS");
+  const canSeeTeam = roles.includes("ADMIN");
 
   return (
     <div className="app">
@@ -38,6 +39,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         roles={roles}
         canCreateRequest={canCreateRequest}
         canSeeContracts={canSeeContracts}
+        canSeeTeam={canSeeTeam}
         onSignOut={signOut}
       />
       <main>{children}</main>

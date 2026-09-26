@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
 import { addRole, removeRole } from "./actions";
@@ -13,7 +14,8 @@ export default async function TeamSettingsPage() {
     .from("user_roles")
     .select("role")
     .eq("user_id", user?.id ?? "");
-  const canManage = (myRoles ?? []).some((r) => r.role === "RAC" || r.role === "CAR");
+  // Team is admin-only: everyone else is sent back to the request list.
+  if (!(myRoles ?? []).some((r) => r.role === "ADMIN")) redirect("/");
 
   const { data: profiles } = await supabase
     .from("profiles")
@@ -36,12 +38,6 @@ export default async function TeamSettingsPage() {
         checked per individual request, not per person (as in the prototype).
       </p>
 
-      {!canManage && (
-        <div className="banner">
-          Only those with the RAC or CAR role can assign roles. You can view the list but
-          changes will be rejected by the database.
-        </div>
-      )}
 
       <div style={{ marginBottom: 24 }}>
         {(profiles ?? []).map((p) => {
@@ -61,7 +57,7 @@ export default async function TeamSettingsPage() {
                     : "no role assigned — cannot sign anything yet"}
                 </div>
               </div>
-              {canManage && roles.length > 0 && (
+              {roles.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {roles.map((r) => (
                     <form key={r} action={removeRole.bind(null, p.id, r)}>
@@ -77,27 +73,25 @@ export default async function TeamSettingsPage() {
         })}
       </div>
 
-      {canManage && (
-        <form action={addRole} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Email address of the person (must have already signed in at least once)</label>
-            <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
-          </div>
-          <div className="field">
-            <label>Role to assign</label>
-            <select name="role">
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className="primary">
-            Assign
-          </button>
-        </form>
-      )}
+      <form action={addRole} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Email address of the person (must have already signed in at least once)</label>
+          <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
+        </div>
+        <div className="field">
+          <label>Role to assign</label>
+          <select name="role">
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" className="primary">
+          Assign
+        </button>
+      </form>
     </div>
   );
 }

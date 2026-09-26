@@ -18,8 +18,8 @@ export async function addRole(formData: FormData) {
     .maybeSingle();
 
   // No account found for this email (they must sign in at least once first), or
-  // RLS ("RAC/CAR manage roles") rejects the insert if the caller doesn't already
-  // have the RAC or CAR role: either way the row doesn't appear and the list stays unchanged.
+  // RLS ("ADMIN manages roles") rejects the insert if the caller isn't an
+  // ADMIN: either way the row doesn't appear and the list stays unchanged.
   if (!profile) return;
 
   await supabase.from("user_roles").insert({ user_id: profile.id, role });
