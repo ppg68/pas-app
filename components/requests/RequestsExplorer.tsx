@@ -34,6 +34,7 @@ export type RequestRow = {
   initiatedByName: string;
   winnerSupplier: string;
   offersCount: number;
+  awaitingMe: boolean;
 };
 
 type SortKey =
@@ -92,6 +93,7 @@ export default function RequestsExplorer({
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
+  const [awaitingOnly, setAwaitingOnly] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   async function handleDelete(r: RequestRow) {
@@ -119,7 +121,9 @@ This permanently removes the request together with its offers, signatures, docum
 
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    let list = requests.filter((r) => stageFilter === "all" || r.stage === stageFilter);
+    let list = requests.filter(
+      (r) => (stageFilter === "all" || r.stage === stageFilter) && (!awaitingOnly || r.awaitingMe)
+    );
     if (q) {
       list = list.filter((r) =>
         [
@@ -135,7 +139,7 @@ This permanently removes the request together with its offers, signatures, docum
     }
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => dir * SORTERS[sortKey](a, b));
-  }, [requests, searchQuery, stageFilter, sortKey, sortDir]);
+  }, [requests, searchQuery, stageFilter, awaitingOnly, sortKey, sortDir]);
 
   async function exportExcel() {
     if (requests.length === 0) return;
@@ -219,6 +223,10 @@ This permanently removes the request together with its offers, signatures, docum
               </option>
             ))}
           </select>
+          <label className="checkbox-row" style={{ whiteSpace: "nowrap" }}>
+            <input type="checkbox" checked={awaitingOnly} onChange={(e) => setAwaitingOnly(e.target.checked)} />{" "}
+            Awaiting my approval ({requests.filter((r) => r.awaitingMe).length})
+          </label>
         </div>
       )}
 

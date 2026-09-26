@@ -19,6 +19,17 @@ export default async function RequestListPage() {
     .eq("user_id", user?.id ?? "");
   const canDelete = (myRoles ?? []).some((r) => r.role === "ADMIN");
 
+  const [{ data: myApprovals }, { data: irSignatures }] = await Promise.all([
+    supabase.from("request_approvers").select("request_id, signer_role").eq("user_id", user?.id ?? ""),
+    supabase.from("signatures").select("request_id, signer_role").eq("phase", "ir_auth"),
+  ]);
+  const signedKeys = new Set((irSignatures ?? []).map((s) => `${s.request_id}:${s.signer_role}`));
+  const awaitingMeIds = new Set(
+    (myApprovals ?? [])
+      .filter((a) => !signedKeys.has(`${a.request_id}:${a.signer_role}`))
+      .map((a) => a.request_id)
+  );
+
   const requestIds = (requests ?? []).map((r) => r.id);
   const initiatorIds = Array.from(
     new Set((requests ?? []).map((r) => r.initiated_by).filter((id): id is string => !!id))
@@ -45,6 +56,7 @@ export default async function RequestListPage() {
     const requestOffers = offersByRequest.get(r.id) ?? [];
     return {
       ...r,
+      awaitingMe: r.stage === "ir_auth" && awaitingMeIds.has(r.id),
       initiatedByName:
         (r.initiated_by ? nameById.get(r.initiated_by) : undefined) ?? r.legacy_initiator_name ?? "",
       winnerSupplier: r.winner_offer_id

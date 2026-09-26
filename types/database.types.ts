@@ -505,6 +505,42 @@ export type Database = {
           },
         ]
       }
+      request_approvers: {
+        Row: {
+          notified_at: string | null
+          request_id: string
+          signer_role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          notified_at?: string | null
+          request_id: string
+          signer_role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          notified_at?: string | null
+          request_id?: string
+          signer_role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_approvers_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_approvers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           budget_line: string

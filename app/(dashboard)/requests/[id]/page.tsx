@@ -56,6 +56,24 @@ export default async function RequestDetailPage({
       supabase.from("request_documents").select("doc_key, checked").eq("request_id", id),
     ]);
 
+  const { data: approverRows } = await supabase
+    .from("request_approvers")
+    .select("signer_role, user_id, notified_at")
+    .eq("request_id", id);
+  const approverIds = (approverRows ?? []).map((a) => a.user_id);
+  const { data: approverProfiles } = approverIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", approverIds)
+    : { data: [] as { id: string; full_name: string }[] };
+  const approverByRole = new Map(
+    (approverRows ?? []).map((a) => [
+      a.signer_role as Role,
+      {
+        name: (approverProfiles ?? []).find((p) => p.id === a.user_id)?.full_name ?? "—",
+        notified: !!a.notified_at,
+      },
+    ])
+  );
+
   const roles = new Set((myRoles ?? []).map((r) => r.role as Role));
   const config = procConfigFor(request.proc_code);
   const stageIndex = STAGE_ORDER.indexOf(request.stage as (typeof STAGE_ORDER)[number]);
@@ -145,6 +163,13 @@ export default async function RequestDetailPage({
             >
               <span>
                 {ROLE_LABEL[role]} — {signed ? "signed" : "pending"}
+                {approverByRole.get(role) && (
+                  <span style={{ color: "var(--ink-soft)" }}>
+                    {" "}
+                    · designated: {approverByRole.get(role)!.name}
+                    {approverByRole.get(role)!.notified ? " (notified by email)" : " (not emailed)"}
+                  </span>
+                )}
               </span>
               {canShowButton && (
                 <form action={signIrAuth.bind(null, request.id, role)}>

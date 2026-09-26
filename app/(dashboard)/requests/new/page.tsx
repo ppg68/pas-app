@@ -1,4 +1,8 @@
-import { createRequest } from "@/lib/domain/workflow";
+import { createClient } from "@/lib/supabase/server";
+import type { Role } from "@/lib/domain/procedures";
+import NewRequestForm, { type Candidate } from "@/components/requests/NewRequestForm";
+
+const APPROVER_ROLES: Role[] = ["PM", "CAR", "RAC"];
 
 export default async function NewRequestPage({
   searchParams,
@@ -7,66 +11,44 @@ export default async function NewRequestPage({
 }) {
   const { error } = await searchParams;
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ data: roleRows }, { data: profiles }, { data: assignmentRows }] = await Promise.all([
+    supabase.from("user_roles").select("user_id, role").in("role", APPROVER_ROLES),
+    supabase.from("profiles").select("id, full_name, email"),
+    supabase.from("project_assignments").select("project_code, pm_user_id, car_user_id"),
+  ]);
+
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const candidates: Partial<Record<Role, Candidate[]>> = {};
+  (roleRows ?? []).forEach((r) => {
+    // The creator can never sign their own request, so they are not offered.
+    if (r.user_id === user?.id) return;
+    const p = profileById.get(r.user_id);
+    if (!p?.email) return;
+    const role = r.role as Role;
+    (candidates[role] ??= []).push({ id: p.id, name: p.full_name, email: p.email });
+  });
+  Object.values(candidates).forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
+
+  const assignments: Record<string, Partial<Record<"PM" | "CAR", string>>> = {};
+  (assignmentRows ?? []).forEach((a) => {
+    assignments[a.project_code] = {
+      ...(a.pm_user_id ? { PM: a.pm_user_id } : {}),
+      ...(a.car_user_id ? { CAR: a.car_user_id } : {}),
+    };
+  });
+
   return (
     <div style={{ maxWidth: 480 }}>
       <h1 style={{ marginBottom: 16 }}>New request</h1>
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
 
-      <form action={createRequest} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div className="field">
-          <label>Country (IT for HQ numbering)</label>
-          <input name="country" defaultValue="IT" required />
-        </div>
-        <div className="field">
-          <label>Project code</label>
-          <input name="project_code" required />
-        </div>
-        <div className="field">
-          <label>Budget line</label>
-          <input name="budget_line" required />
-        </div>
-        <div className="field">
-          <label>Description</label>
-          <input name="description" required />
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Estimated amount</label>
-            <input name="estimated_price" type="number" step="0.01" min="0.01" required />
-          </div>
-          <div className="field" style={{ width: 90 }}>
-            <label>Currency</label>
-            <input name="currency" defaultValue="EUR" />
-          </div>
-        </div>
-        <div className="field">
-          <label>CUP (optional)</label>
-          <input name="cup_code" />
-        </div>
-
-        <label className="checkbox-row">
-          <input type="checkbox" name="derogation" /> Derogation (3Q → SQ)
-        </label>
-        <div className="field">
-          <label>Derogation reason (required if checked above)</label>
-          <input name="derogation_reason" />
-        </div>
-
-        <label className="checkbox-row">
-          <input type="checkbox" name="coordination_cost" /> Coordination cost (no linked project)
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" name="institutional_activity" /> Institutional activity
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" name="occasional_collaborator" /> Occasional collaborator
-        </label>
-
-        <button type="submit" className="primary" style={{ marginTop: 6, width: "fit-content" }}>
-          Create request
-        </button>
-      </form>
+      <NewRequestForm candidates={candidates} assignments={assignments} />
     </div>
   );
 }

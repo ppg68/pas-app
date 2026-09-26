@@ -1,14 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail, escapeHtml } from "@/lib/notify";
 import {
   effectiveProcCode,
   procConfigFor,
   paymentSigners,
   buildRequestCode,
   documentsComplete,
+  ROLE_LABEL,
   type Role,
 } from "@/lib/domain/procedures";
 
@@ -126,8 +129,88 @@ export async function createRequest(formData: FormData) {
     action: "request_created",
   });
 
+  await designateAndNotifyApprovers({
+    supabase,
+    requestId: inserted.id,
+    creatorId: user.id,
+    procCode,
+    formData,
+    code,
+    description,
+    estimatedPrice,
+    currency,
+  });
+
   revalidatePath("/");
   redirect(`/requests/${inserted.id}`);
+}
+
+/**
+ * Optional approvers picked on the form (fields "approver_<ROLE>"): stored on the
+ * request and emailed a link. Never blocks request creation — email problems are
+ * swallowed (the request page shows who was designated and whether they were notified).
+ */
+async function designateAndNotifyApprovers(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  requestId: string;
+  creatorId: string;
+  procCode: ReturnType<typeof effectiveProcCode>;
+  formData: FormData;
+  code: string;
+  description: string;
+  estimatedPrice: number;
+  currency: string;
+}) {
+  const { supabase, requestId, creatorId, procCode, formData } = params;
+
+  const picks: { role: Role; userId: string }[] = [];
+  for (const role of procConfigFor(procCode).signers) {
+    const userId = String(formData.get(`approver_${role}`) || "").trim();
+    if (userId && userId !== creatorId) picks.push({ role, userId });
+  }
+  if (picks.length === 0) return;
+
+  const ids = Array.from(new Set(picks.map((p) => p.userId)));
+  const [{ data: holders }, { data: profiles }] = await Promise.all([
+    supabase.from("user_roles").select("user_id, role").in("user_id", ids),
+    supabase.from("profiles").select("id, full_name, email").in("id", ids),
+  ]);
+  // Only people who really hold the role can be designated for it.
+  const valid = picks.filter((p) =>
+    (holders ?? []).some((h) => h.user_id === p.userId && h.role === p.role)
+  );
+  if (valid.length === 0) return;
+
+  const { error } = await supabase.from("request_approvers").insert(
+    valid.map((p) => ({ request_id: requestId, signer_role: p.role, user_id: p.userId }))
+  );
+  if (error) return;
+
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+
+  for (const userId of ids) {
+    const profile = (profiles ?? []).find((p) => p.id === userId);
+    if (!profile?.email) continue;
+    const roles = valid.filter((v) => v.userId === userId).map((v) => ROLE_LABEL[v.role]);
+    const result = await sendEmail({
+      to: profile.email,
+      subject: `IR ${params.code} is ready for your approval`,
+      html: `<p>Hello ${escapeHtml(profile.full_name)},</p>
+<p>A new internal request is waiting for your approval as <b>${escapeHtml(roles.join(", "))}</b>:</p>
+<p><b>${escapeHtml(params.code)}</b><br>${escapeHtml(params.description)}<br>${params.estimatedPrice} ${escapeHtml(params.currency)}</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+    });
+    if (result.ok) {
+      await supabase
+        .from("request_approvers")
+        .update({ notified_at: new Date().toISOString() })
+        .eq("request_id", requestId)
+        .eq("user_id", userId);
+    }
+  }
 }
 
 export async function signIrAuth(requestId: string, role: Role) {
