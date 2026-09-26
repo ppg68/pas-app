@@ -10,6 +10,15 @@ export default async function RequestListPage() {
     )
     .order("created_at", { ascending: false });
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: myRoles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user?.id ?? "");
+  const canDelete = (myRoles ?? []).some((r) => r.role === "ADMIN");
+
   const requestIds = (requests ?? []).map((r) => r.id);
   const initiatorIds = Array.from(
     new Set((requests ?? []).map((r) => r.initiated_by).filter((id): id is string => !!id))
@@ -48,7 +57,7 @@ export default async function RequestListPage() {
   return (
     <div>
       <h1 style={{ marginBottom: 20 }}>Requests</h1>
-      <RequestsExplorer requests={rows} />
+      <RequestsExplorer requests={rows} canDelete={canDelete} />
     </div>
   );
 }

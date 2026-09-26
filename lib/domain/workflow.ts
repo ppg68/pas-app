@@ -346,3 +346,20 @@ export async function signPayment(requestId: string, role: Role) {
 
   revalidatePath(`/requests/${requestId}`);
 }
+
+/** ADMIN-only hard delete (RLS "ADMIN deletes requests" enforces it too). */
+export async function deleteRequest(requestId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Session expired, please log in again." };
+
+  const { data, error } = await supabase.from("requests").delete().eq("id", requestId).select("id");
+  if (error) return { ok: false, error: error.message };
+  // RLS filters rows silently: zero deleted rows means the caller isn't allowed.
+  if (!data || data.length === 0) return { ok: false, error: "You are not allowed to delete this request." };
+
+  revalidatePath("/");
+  return { ok: true };
+}

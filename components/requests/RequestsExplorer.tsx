@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { deleteRequest } from "@/lib/domain/workflow";
 import { formatDateIT, formatMoney } from "@/lib/domain/contracts";
 import {
   procConfigFor,
@@ -79,12 +80,34 @@ const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: null, label: "Derog." },
 ];
 
-export default function RequestsExplorer({ requests }: { requests: RequestRow[] }) {
+export default function RequestsExplorer({
+  requests: initialRequests,
+  canDelete,
+}: {
+  requests: RequestRow[];
+  canDelete: boolean;
+}) {
+  const [requests, setRequests] = useState(initialRequests);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [exporting, setExporting] = useState(false);
+
+  async function handleDelete(r: RequestRow) {
+    const ok = window.confirm(
+      `Delete request "${r.code}"?
+
+This permanently removes the request together with its offers, signatures, documents and history. This cannot be undone.`
+    );
+    if (!ok) return;
+    const res = await deleteRequest(r.id);
+    if (!res.ok) {
+      window.alert(res.error ?? "Could not delete the request.");
+      return;
+    }
+    setRequests((prev) => prev.filter((x) => x.id !== r.id));
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -211,6 +234,7 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
             <thead>
               <tr>
                 <th></th>
+                {canDelete && <th></th>}
                 {HEADERS.map((h) => (
                   <th
                     key={h.label}
@@ -236,6 +260,24 @@ export default function RequestsExplorer({ requests }: { requests: RequestRow[] 
                       ↗
                     </Link>
                   </td>
+                  {canDelete && (
+                    <td className="center">
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(r)}
+                        title="Delete request"
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "var(--brick)",
+                          cursor: "pointer",
+                          fontSize: 13,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  )}
                   <td style={{ whiteSpace: "nowrap" }} title={r.code}>
                     {irNumber(r) || r.code}
                   </td>
