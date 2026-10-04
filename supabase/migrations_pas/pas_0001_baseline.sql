@@ -338,9 +338,11 @@ create policy "member reads roles" on pas.user_roles for select
 create policy "ADMIN manages roles" on pas.user_roles for all
   using (pas.is_admin(auth.uid()))
   with check (pas.is_admin(auth.uid()));
+-- Differs from legacy 0013/0014: a CONTRACTS holder can only hand the role to users who are
+-- already PAS members (shared project: otherwise they could enrol any user of any app).
 create policy "CONTRACTS role self-manages contracts access" on pas.user_roles for all
   using (role = 'CONTRACTS' and pas.has_contracts_access(auth.uid()))
-  with check (role = 'CONTRACTS' and pas.has_contracts_access(auth.uid()));
+  with check (role = 'CONTRACTS' and pas.has_contracts_access(auth.uid()) and pas.is_member(user_id));
 
 -- project_assignments
 create policy "member reads assignments" on pas.project_assignments for select
@@ -384,6 +386,10 @@ create policy "PM/LOG/CAR update documents" on pas.request_documents for all
 -- audit_log
 create policy "member reads audit" on pas.audit_log for select
   using (pas.is_member(auth.uid()));
+-- Added vs legacy: the old DB had NO insert policy, so the app's audit_log inserts were
+-- silently rejected by RLS (only the 766 imported rows existed). Members log as themselves.
+create policy "member writes own audit" on pas.audit_log for insert
+  with check (pas.is_member(auth.uid()) and user_id = auth.uid());
 
 -- request_approvers
 create policy "member reads approvers" on pas.request_approvers for select
