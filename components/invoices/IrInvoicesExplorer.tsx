@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/domain/contracts";
 import { updateInvoiceField, createInvoice, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
 import type { Database } from "@/types/database.types";
 
-export type IrInvoiceRow = Database["public"]["Tables"]["invoices"]["Row"];
+export type IrInvoiceRow = Database["pas"]["Tables"]["invoices"]["Row"];
 
 type SortBy = "default" | "payment" | "due" | "amount" | "supplier";
 type SortDir = "asc" | "desc";

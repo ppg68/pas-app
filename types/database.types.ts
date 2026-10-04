@@ -12,14 +12,14 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  public: {
+  pas: {
     Tables: {
       audit_log: {
         Row: {
           action: string
           id: string
           request_id: string
-          role: Database["public"]["Enums"]["app_role"] | null
+          role: Database["pas"]["Enums"]["app_role"] | null
           ts: string
           user_id: string | null
         }
@@ -27,7 +27,7 @@ export type Database = {
           action: string
           id?: string
           request_id: string
-          role?: Database["public"]["Enums"]["app_role"] | null
+          role?: Database["pas"]["Enums"]["app_role"] | null
           ts?: string
           user_id?: string | null
         }
@@ -35,7 +35,7 @@ export type Database = {
           action?: string
           id?: string
           request_id?: string
-          role?: Database["public"]["Enums"]["app_role"] | null
+          role?: Database["pas"]["Enums"]["app_role"] | null
           ts?: string
           user_id?: string | null
         }
@@ -130,7 +130,7 @@ export type Database = {
           signed: boolean
           signed_date: string | null
           start_date: string | null
-          status: Database["public"]["Enums"]["contract_status"]
+          status: Database["pas"]["Enums"]["contract_status"]
           subject: string
           technical_requirements_check: boolean
           typology: string | null
@@ -163,7 +163,7 @@ export type Database = {
           signed?: boolean
           signed_date?: string | null
           start_date?: string | null
-          status?: Database["public"]["Enums"]["contract_status"]
+          status?: Database["pas"]["Enums"]["contract_status"]
           subject: string
           technical_requirements_check?: boolean
           typology?: string | null
@@ -196,7 +196,7 @@ export type Database = {
           signed?: boolean
           signed_date?: string | null
           start_date?: string | null
-          status?: Database["public"]["Enums"]["contract_status"]
+          status?: Database["pas"]["Enums"]["contract_status"]
           subject?: string
           technical_requirements_check?: boolean
           typology?: string | null
@@ -509,19 +509,19 @@ export type Database = {
         Row: {
           notified_at: string | null
           request_id: string
-          signer_role: Database["public"]["Enums"]["app_role"]
+          signer_role: Database["pas"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           notified_at?: string | null
           request_id: string
-          signer_role: Database["public"]["Enums"]["app_role"]
+          signer_role: Database["pas"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           notified_at?: string | null
           request_id?: string
-          signer_role?: Database["public"]["Enums"]["app_role"]
+          signer_role?: Database["pas"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: [
@@ -564,9 +564,9 @@ export type Database = {
           legacy_note: string | null
           institutional_activity: boolean
           occasional_collaborator: boolean
-          proc_code: Database["public"]["Enums"]["proc_code"]
+          proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
-          stage: Database["public"]["Enums"]["request_stage"]
+          stage: Database["pas"]["Enums"]["request_stage"]
           updated_at: string
           winner_note: string | null
           winner_offer_id: string | null
@@ -593,9 +593,9 @@ export type Database = {
           legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
-          proc_code: Database["public"]["Enums"]["proc_code"]
+          proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
-          stage?: Database["public"]["Enums"]["request_stage"]
+          stage?: Database["pas"]["Enums"]["request_stage"]
           updated_at?: string
           winner_note?: string | null
           winner_offer_id?: string | null
@@ -622,9 +622,9 @@ export type Database = {
           legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
-          proc_code?: Database["public"]["Enums"]["proc_code"]
+          proc_code?: Database["pas"]["Enums"]["proc_code"]
           project_code?: string
-          stage?: Database["public"]["Enums"]["request_stage"]
+          stage?: Database["pas"]["Enums"]["request_stage"]
           updated_at?: string
           winner_note?: string | null
           winner_offer_id?: string | null
@@ -653,7 +653,7 @@ export type Database = {
           request_id: string
           signed_at: string | null
           signed_by: string | null
-          signer_role: Database["public"]["Enums"]["app_role"]
+          signer_role: Database["pas"]["Enums"]["app_role"]
         }
         Insert: {
           id?: string
@@ -661,7 +661,7 @@ export type Database = {
           request_id: string
           signed_at?: string | null
           signed_by?: string | null
-          signer_role: Database["public"]["Enums"]["app_role"]
+          signer_role: Database["pas"]["Enums"]["app_role"]
         }
         Update: {
           id?: string
@@ -669,7 +669,7 @@ export type Database = {
           request_id?: string
           signed_at?: string | null
           signed_by?: string | null
-          signer_role?: Database["public"]["Enums"]["app_role"]
+          signer_role?: Database["pas"]["Enums"]["app_role"]
         }
         Relationships: [
           {
@@ -690,15 +690,15 @@ export type Database = {
       }
       user_roles: {
         Row: {
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["pas"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["pas"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["pas"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: [
@@ -716,6 +716,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_profile: { Args: never; Returns: undefined }
+      has_contracts_access: { Args: { uid: string }; Returns: boolean }
+      is_admin: { Args: { uid: string }; Returns: boolean }
+      is_member: { Args: { uid: string }; Returns: boolean }
       is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
     }
@@ -740,7 +744,7 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "pas">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -856,7 +860,7 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  public: {
+  pas: {
     Enums: {
       app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG", "CONTRACTS", "ADMIN"],
       contract_status: ["in_corso", "concluso", "annullato"],

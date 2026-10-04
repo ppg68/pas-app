@@ -22,10 +22,22 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: roleRows }] = await Promise.all([
+  const [{ data: existingProfile }, { data: roleRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, email").eq("id", user?.id ?? "").maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", user?.id ?? ""),
   ]);
+
+  // No trigger on auth.users in the shared project: the PAS profile is created lazily on
+  // first login (own row only, name/email taken from auth.users by the DB function).
+  let profile = existingProfile;
+  if (user && !profile) {
+    await supabase.rpc("ensure_profile");
+    ({ data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .maybeSingle());
+  }
 
   const roles = (roleRows ?? []).map((r) => r.role as Role);
   const canCreateRequest = roles.includes("BH");
