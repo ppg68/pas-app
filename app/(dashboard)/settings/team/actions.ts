@@ -1,13 +1,18 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/domain/procedures";
 
+function fail(message: string): never {
+  redirect(`/settings/team?error=${encodeURIComponent(message)}`);
+}
+
 export async function addRole(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const role = String(formData.get("role") || "") as Role;
-  if (!email || !role) return;
+  if (!email || !role) fail("Enter an email address and choose a role.");
 
   const supabase = await createClient();
 
@@ -17,12 +22,15 @@ export async function addRole(formData: FormData) {
     .eq("email", email)
     .maybeSingle();
 
-  // No account found for this email (they must sign in at least once first), or
-  // RLS ("ADMIN manages roles") rejects the insert if the caller isn't an
-  // ADMIN: either way the row doesn't appear and the list stays unchanged.
-  if (!profile) return;
+  if (!profile) {
+    fail("No account found for this email. The person must sign up and sign in to PAS at least once first (check the spelling too).");
+  }
 
-  await supabase.from("user_roles").insert({ user_id: profile.id, role });
+  // RLS ("ADMIN manages roles") rejects the insert if the caller isn't an ADMIN.
+  const { error } = await supabase.from("user_roles").insert({ user_id: profile.id, role });
+  if (error) {
+    fail(error.code === "23505" ? "This person already has that role." : error.message);
+  }
 
   revalidatePath("/settings/team");
 }

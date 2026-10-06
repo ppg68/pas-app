@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
 import { addRole, removeRole } from "./actions";
 
-export default async function TeamSettingsPage() {
+export default async function TeamSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -72,6 +77,8 @@ export default async function TeamSettingsPage() {
           );
         })}
       </div>
+
+      {error && <div className="banner error">{error}</div>}
 
       <form action={addRole} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
         <div className="field" style={{ flex: 1 }}>
