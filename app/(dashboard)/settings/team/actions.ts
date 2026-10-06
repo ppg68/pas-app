@@ -43,3 +43,10 @@ export async function removeRole(userId: string, role: Role) {
 
   revalidatePath("/settings/team");
 }
+
+export async function removePerson(userId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_person", { target: userId });
+  if (error) fail(error.message);
+  revalidatePath("/settings/team");
+}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
 import { addRole, removeRole } from "./actions";
+import RemovePersonButton from "./RemovePersonButton";
 
 export default async function TeamSettingsPage({
   searchParams,
@@ -62,17 +63,16 @@ export default async function TeamSettingsPage({
                     : "no role assigned — cannot sign anything yet"}
                 </div>
               </div>
-              {roles.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {roles.map((r) => (
-                    <form key={r} action={removeRole.bind(null, p.id, r)}>
-                      <button type="submit" className="pill">
-                        {ROLE_LABEL[r]} ×
-                      </button>
-                    </form>
-                  ))}
-                </div>
-              )}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+                {roles.map((r) => (
+                  <form key={r} action={removeRole.bind(null, p.id, r)}>
+                    <button type="submit" className="pill">
+                      {ROLE_LABEL[r]} ×
+                    </button>
+                  </form>
+                ))}
+                {p.id !== user?.id && <RemovePersonButton userId={p.id} name={p.full_name || p.email || "this person"} />}
+              </div>
             </div>
           );
         })}

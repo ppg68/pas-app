@@ -722,6 +722,7 @@ export type Database = {
       is_member: { Args: { uid: string }; Returns: boolean }
       is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
+      remove_person: { Args: { target: string }; Returns: undefined }
     }
     Enums: {
       app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS" | "ADMIN"
