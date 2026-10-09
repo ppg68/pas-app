@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CONTRACT_STATUS_LABEL,
   CONTRACT_KIND_SUGGESTIONS,
+  CONTRACT_UNITS,
   daysUntil,
   formatDateIT,
   formatMoney,
@@ -51,7 +52,7 @@ const COLUMNS: Col[] = [
   { key: "subject", label: "Subject", sort: "subject", type: "text", width: 170 },
   { key: "status", label: "Status", sort: "status", type: "select", options: ["in_corso", "concluso", "annullato"] },
   { key: "typology", label: "Typology", type: "text" },
-  { key: "unit", label: "Unit", type: "text", width: 180 },
+  { key: "unit", label: "Unit", type: "select", options: CONTRACT_UNITS, width: 220 },
   { key: "role_title", label: "Role", type: "text" },
   { key: "activity", label: "Activity", type: "text", width: 180 },
   { key: "country", label: "Country", type: "text" },
@@ -285,10 +286,15 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     if (col.type === "select") {
       return (
         <select
-          defaultValue={c.status}
+          defaultValue={(value as string | null) ?? ""}
           onChange={(e) => saveField(c.id, col.key, e.target.value)}
           style={{ ...cellInputStyle, cursor: "pointer" }}
         >
+          {col.key !== "status" && <option value=""></option>}
+          {/* keep an old free-text value (historic variants) selectable until it is changed */}
+          {col.key !== "status" && value && !(col.options ?? []).includes(value as string) && (
+            <option value={value as string}>{value as string}</option>
+          )}
           {(col.options ?? []).map((o) => (
             <option key={o} value={o}>
               {CONTRACT_STATUS_LABEL[o as ContractStatus] ?? o}

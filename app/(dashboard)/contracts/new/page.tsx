@@ -1,5 +1,5 @@
 import { createContract } from "../actions";
-import { CONTRACT_KIND_SUGGESTIONS } from "@/lib/domain/contracts";
+import { CONTRACT_KIND_SUGGESTIONS, CONTRACT_UNITS } from "@/lib/domain/contracts";
 
 const row: React.CSSProperties = { display: "flex", gap: 12 };
 
@@ -49,7 +49,14 @@ export default async function NewContractPage({
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>Unit (Unità)</label>
-            <input name="unit" />
+            <select name="unit" defaultValue="">
+              <option value=""></option>
+              {CONTRACT_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

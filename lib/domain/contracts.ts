@@ -13,6 +13,13 @@ export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
 // Free text in the DB (the historical sheet has ~18 variants: P.IVA, forfettario,
 // P.IVA 22%, R.A., R.A. esente iva, Estero - Autofattura, ...). These are just the
 // common ones offered as quick picks in the form; any other value can be typed in.
+/** The three organisational units a contract can be assigned to. */
+export const CONTRACT_UNITS = [
+  "Area Programmi ambientali Italia e Europa",
+  "Cooperazione Internazionale",
+  "Comunicazione ed educazione alla sostenibilità",
+];
+
 export const CONTRACT_KIND_SUGGESTIONS = [
   "P.IVA",
   "occasionale",
