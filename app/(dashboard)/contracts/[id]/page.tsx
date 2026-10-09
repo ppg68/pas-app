@@ -14,6 +14,7 @@ import {
   toggleComplianceField,
   addTranche,
   deleteTranche,
+  updateTranche,
   toggleTranchePaid,
   createInvoice,
   deleteInvoice,
@@ -86,7 +87,7 @@ export default async function ContractDetailPage({
   const overdue = dLeft !== null && dLeft < 0 && contract.status === "in_corso";
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div style={{ maxWidth: 1180 }}>
       <Link href="/contracts" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
         ← Back to Contracts
       </Link>
@@ -154,59 +155,127 @@ export default async function ContractDetailPage({
           </div>
         </div>
 
-        {(tranches ?? []).length === 0 && <p className="empty">No tranches yet.</p>}
-
-        <div style={{ marginBottom: 4 }}>
-          {(tranches ?? []).map((t) => (
-            <div key={t.id} style={lineItem}>
-              <div>
-                <div>
-                  #{t.seq} {t.label ? `— ${t.label}` : ""}
-                </div>
-                <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                  {formatMoney(t.amount)} {contract.currency}
-                  {t.due_date ? ` · due ${formatDateIT(t.due_date)}` : ""}
-                  {t.due_condition ? ` · ${t.due_condition}` : ""}
-                  {t.paid && t.paid_date ? ` · paid ${formatDateIT(t.paid_date)}` : ""}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <form action={toggleTranchePaid.bind(null, contract.id, t.id, !t.paid)}>
-                  <button type="submit" className="pill">
-                    {t.paid ? "Mark unpaid" : "Mark paid"}
+        {/* Tranches: spreadsheet-style table. Inputs belong to a per-row <form> declared below
+            the table (form="tr-<id>"), so each row saves with its own Save button. */}
+        <div className="table-wrap" style={{ marginBottom: 4 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Label</th>
+                <th className="num">Amount ({contract.currency})</th>
+                <th>Due date</th>
+                <th>Due condition</th>
+                <th className="center">Status</th>
+                <th className="num">Paid amount</th>
+                <th>Paid date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(tranches ?? []).map((t) => {
+                const late = !t.paid && t.due_date !== null && (daysUntil(t.due_date) ?? 0) < 0;
+                const f = `tr-${t.id}`;
+                return (
+                  <tr key={t.id} className={late ? "overdue" : undefined}>
+                    <td>{t.seq}</td>
+                    <td>
+                      <input form={f} name="label" defaultValue={t.label ?? ""} style={{ minWidth: 130 }} />
+                    </td>
+                    <td className="num">
+                      <input
+                        form={f}
+                        name="amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        defaultValue={t.amount}
+                        style={{ width: 110, textAlign: "right" }}
+                      />
+                    </td>
+                    <td>
+                      <input form={f} name="due_date" type="date" defaultValue={t.due_date ?? ""} />
+                    </td>
+                    <td>
+                      <input form={f} name="due_condition" defaultValue={t.due_condition ?? ""} style={{ minWidth: 150 }} />
+                    </td>
+                    <td className="center">
+                      <span className={t.paid ? "stamp brand" : late ? "stamp warn" : "stamp"}>
+                        {t.paid ? "paid" : late ? "overdue" : "open"}
+                      </span>
+                    </td>
+                    <td className="num">
+                      <input
+                        form={f}
+                        name="paid_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={t.paid_amount ?? ""}
+                        style={{ width: 110, textAlign: "right" }}
+                      />
+                    </td>
+                    <td>
+                      <input form={f} name="paid_date" type="date" defaultValue={t.paid_date ?? ""} />
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button type="submit" form={f} className="pill">
+                          Save
+                        </button>
+                        <form action={toggleTranchePaid.bind(null, contract.id, t.id, !t.paid)}>
+                          <button type="submit" className="pill">
+                            {t.paid ? "Mark unpaid" : "Mark paid"}
+                          </button>
+                        </form>
+                        <form action={deleteTranche.bind(null, contract.id, t.id)}>
+                          <button type="submit" className="pill" style={{ color: "var(--brick)" }}>
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr>
+                <td>+</td>
+                <td>
+                  <input form="tr-new" name="label" placeholder="e.g. upon signature" style={{ minWidth: 130 }} />
+                </td>
+                <td className="num">
+                  <input
+                    form="tr-new"
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="0,00"
+                    style={{ width: 110, textAlign: "right" }}
+                  />
+                </td>
+                <td>
+                  <input form="tr-new" name="due_date" type="date" />
+                </td>
+                <td>
+                  <input form="tr-new" name="due_condition" placeholder="e.g. upon final report" style={{ minWidth: 150 }} />
+                </td>
+                <td colSpan={3}></td>
+                <td>
+                  <button type="submit" form="tr-new" className="primary">
+                    Add tranche
                   </button>
-                </form>
-                <form action={deleteTranche.bind(null, contract.id, t.id)}>
-                  <button type="submit" className="pill" style={{ color: "var(--brick)" }}>
-                    Remove
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
-        <form action={addTranche.bind(null, contract.id)} style={{ ...rowForm, marginTop: 8 }}>
-          <div className="field" style={{ flex: "1 1 140px" }}>
-            <label>Label</label>
-            <input name="label" placeholder="e.g. upon signature" />
-          </div>
-          <div className="field" style={{ width: 120 }}>
-            <label>Amount</label>
-            <input name="amount" type="number" step="0.01" min="0.01" required />
-          </div>
-          <div className="field" style={{ width: 150 }}>
-            <label>Due date</label>
-            <input name="due_date" type="date" />
-          </div>
-          <div className="field" style={{ flex: "1 1 160px" }}>
-            <label>Due condition (if not a fixed date)</label>
-            <input name="due_condition" placeholder="e.g. upon final report" />
-          </div>
-          <button type="submit" className="primary">
-            Add tranche
-          </button>
-        </form>
+        {(tranches ?? []).map((t) => (
+          <form key={t.id} id={`tr-${t.id}`} action={updateTranche.bind(null, contract.id, t.id)} />
+        ))}
+        <form id="tr-new" action={addTranche.bind(null, contract.id)} />
       </div>
 
       {/* Invoices ("Elenco Fatture") — Elisa's actual recorded invoices; their

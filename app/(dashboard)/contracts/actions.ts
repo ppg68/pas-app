@@ -193,6 +193,37 @@ export async function addTranche(contractId: string, formData: FormData) {
   revalidatePath(`/contracts/${contractId}`);
 }
 
+export async function updateTranche(contractId: string, trancheId: string, formData: FormData) {
+  const amount = parseFloat(str(formData, "amount"));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    fail(`/contracts/${contractId}`, "The tranche amount must be a positive number.");
+  }
+  const paidRaw = str(formData, "paid_amount");
+  const paidAmount = paidRaw === "" ? null : parseFloat(paidRaw);
+  if (paidAmount !== null && (!Number.isFinite(paidAmount) || paidAmount < 0)) {
+    fail(`/contracts/${contractId}`, "The paid amount must be a valid number.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("contract_tranches")
+    .update({
+      label: optStr(formData, "label"),
+      amount,
+      due_date: optDate(formData, "due_date"),
+      due_condition: optStr(formData, "due_condition"),
+      paid_date: optDate(formData, "paid_date"),
+      paid_amount: paidAmount,
+    })
+    .eq("id", trancheId)
+    .eq("contract_id", contractId);
+
+  if (error) fail(`/contracts/${contractId}`, error.message);
+
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${contractId}`);
+}
+
 export async function deleteTranche(contractId: string, trancheId: string) {
   const supabase = await createClient();
   await supabase.from("contract_tranches").delete().eq("id", trancheId);
