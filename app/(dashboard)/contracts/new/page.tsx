@@ -95,7 +95,8 @@ export default async function NewContractPage({
         </div>
 
         <p className="subtitle">
-          Project deadline is read automatically from Approved projects, using the Project code.
+          The contract number (N/YY, or NN_YYO for occasional services) is assigned automatically, based on the
+          signed date. Project deadline is read automatically from Approved projects, using the Project code.
         </p>
 
         <div style={row}>

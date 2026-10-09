@@ -92,8 +92,10 @@ export default async function ContractDetailPage({
       <div style={{ margin: "10px 0 20px" }}>
         <h1 style={{ marginBottom: 4 }}>{contract.subject}</h1>
         <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-          {[contract.country, contract.project_code].filter(Boolean).join(" · ")}
-          {(contract.country || contract.project_code) && " · "}
+          {[contract.legacy_id ? `n. ${contract.legacy_id}` : null, contract.country, contract.project_code]
+            .filter(Boolean)
+            .join(" · ")}
+          {(contract.legacy_id || contract.country || contract.project_code) && " · "}
           {formatMoney(contract.amount)} {contract.currency}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
