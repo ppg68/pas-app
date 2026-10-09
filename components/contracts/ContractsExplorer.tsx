@@ -6,6 +6,7 @@ import {
   CONTRACT_STATUS_LABEL,
   CONTRACT_KIND_SUGGESTIONS,
   daysUntil,
+  formatDateIT,
   formatMoney,
   type ContractRow,
   type ContractStatus,
@@ -15,6 +16,7 @@ import { updateContractField } from "@/app/(dashboard)/contracts/actions";
 export type ContractListRow = ContractRow & {
   paid: number;
   tranchesCount: number;
+  alert: "overdue" | "soon" | null;
 };
 
 type SortBy = "default" | "status" | "subject" | "amount" | "deadline";
@@ -72,7 +74,7 @@ const COLUMNS: Col[] = [
   { key: "labor_inspectorate_notice", label: "Labor inspectorate", align: "center", type: "checkbox" },
   { key: "referent", label: "Referent", type: "text" },
   { key: "notes", label: "Notes", type: "text", width: 220 },
-  { key: "project_deadline", label: "Project deadline", type: "date" },
+  { key: "project_deadline", label: "Project deadline (from Approved projects)", type: "readonly" },
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -245,6 +247,28 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     if (col.type === "readonly") {
       if (col.key === "paid") return formatMoney(c.paid);
       if (col.key === "balance") return formatMoney(c.amount - c.paid);
+      if (col.key === "project_deadline") {
+        if (!c.project_deadline) return "—";
+        return (
+          <span
+            title={
+              c.alert === "overdue"
+                ? "Project ended: contract still open with payments pending"
+                : c.alert === "soon"
+                  ? "Project ending soon: contract still open with payments pending"
+                  : undefined
+            }
+            style={{
+              color: c.alert === "overdue" ? "var(--brick)" : undefined,
+              fontWeight: c.alert ? 600 : undefined,
+            }}
+          >
+            {formatDateIT(c.project_deadline)}
+            {c.alert === "overdue" && " ⚠ overdue"}
+            {c.alert === "soon" && " ⚠ soon"}
+          </span>
+        );
+      }
       return value ?? "—";
     }
 
@@ -419,7 +443,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
             <tbody>
               {filtered.map((c) => {
                 const dLeft = daysUntil(c.end_date);
-                const overdue = dLeft !== null && dLeft < 0 && c.status === "in_corso";
+                const overdue = (dLeft !== null && dLeft < 0 && c.status === "in_corso") || c.alert === "overdue";
                 return (
                   <tr key={c.id} className={overdue ? "overdue" : undefined}>
                     <td className="center">

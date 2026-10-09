@@ -94,10 +94,9 @@ export default async function NewContractPage({
           </div>
         </div>
 
-        <div className="field">
-          <label>Project deadline (Scadenza progetto)</label>
-          <input name="project_deadline" type="date" />
-        </div>
+        <p className="subtitle">
+          Project deadline is read automatically from Approved projects, using the Project code.
+        </p>
 
         <div style={row}>
           <div className="field" style={{ flex: 1 }}>

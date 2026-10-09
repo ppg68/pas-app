@@ -8,6 +8,7 @@ import {
   formatDateIT,
   formatMoney,
 } from "@/lib/domain/contracts";
+import { fetchProjectDeadlines, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
 import {
   deleteContract,
   toggleComplianceField,
@@ -74,6 +75,13 @@ export default async function ContractDetailPage({
   const paid = totalPaid(tranches ?? []);
   const scheduled = totalScheduled(tranches ?? []);
   const balance = contract.amount - paid;
+  const projectEnd = deadlineFor(await fetchProjectDeadlines(supabase), contract.project_code);
+  const alert = deadlineAlert({
+    ...contract,
+    project_deadline: projectEnd,
+    paid,
+    unpaidTranches: (tranches ?? []).filter((t) => !t.paid).length,
+  });
   const dLeft = daysUntil(contract.end_date);
   const overdue = dLeft !== null && dLeft < 0 && contract.status === "in_corso";
 
@@ -92,6 +100,11 @@ export default async function ContractDetailPage({
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <span className="stamp brand">{CONTRACT_STATUS_LABEL[contract.status]}</span>
+          {projectEnd && (
+            <span className={alert ? "stamp warn" : "stamp"}>
+              project ends {formatDateIT(projectEnd)}
+            </span>
+          )}
           {contract.end_date && (
             <span className={overdue ? "stamp warn" : "stamp"}>
               ends {formatDateIT(contract.end_date)}
@@ -100,6 +113,14 @@ export default async function ContractDetailPage({
           )}
         </div>
       </div>
+
+      {alert && (
+        <div className="banner error">
+          {alert === "overdue"
+            ? `The project (${contract.project_code}) ended on ${formatDateIT(projectEnd)}, but this contract is still open with payments pending (balance ${formatMoney(balance)} ${contract.currency}).`
+            : `The project (${contract.project_code}) ends on ${formatDateIT(projectEnd)}: this contract is still open with payments pending (balance ${formatMoney(balance)} ${contract.currency}).`}
+        </div>
+      )}
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
 

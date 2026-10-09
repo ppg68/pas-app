@@ -56,7 +56,6 @@ export async function createContract(formData: FormData) {
       signed_date: optDate(formData, "signed_date"),
       start_date: optDate(formData, "start_date"),
       end_date: optDate(formData, "end_date"),
-      project_deadline: optDate(formData, "project_deadline"),
       currency: str(formData, "currency") || "EUR",
       amount,
       payment_terms: optStr(formData, "payment_terms"),
@@ -121,7 +120,7 @@ const TEXT_FIELDS = new Set([
   "notes",
   "legacy_id",
 ]);
-const DATE_FIELDS = new Set(["signed_date", "start_date", "end_date", "project_deadline"]);
+const DATE_FIELDS = new Set(["signed_date", "start_date", "end_date"]);
 const BOOL_FIELDS = new Set([
   "signed",
   "privacy",
