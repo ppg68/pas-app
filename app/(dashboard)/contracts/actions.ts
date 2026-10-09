@@ -193,33 +193,44 @@ export async function addTranche(contractId: string, formData: FormData) {
   revalidatePath(`/contracts/${contractId}`);
 }
 
-export async function updateTranche(contractId: string, trancheId: string, formData: FormData) {
-  const amount = parseFloat(str(formData, "amount"));
-  if (!Number.isFinite(amount) || amount <= 0) {
-    fail(`/contracts/${contractId}`, "The tranche amount must be a positive number.");
-  }
-  const paidRaw = str(formData, "paid_amount");
-  const paidAmount = paidRaw === "" ? null : parseFloat(paidRaw);
-  if (paidAmount !== null && (!Number.isFinite(paidAmount) || paidAmount < 0)) {
-    fail(`/contracts/${contractId}`, "The paid amount must be a valid number.");
+const TRANCHE_TEXT_FIELDS = new Set(["label", "due_condition"]);
+const TRANCHE_DATE_FIELDS = new Set(["due_date", "paid_date"]);
+
+/**
+ * Inline-edit save for a single tranche cell (auto-save on blur). Field names are
+ * whitelisted; invalid values are ignored (the client re-syncs from the server).
+ */
+export async function updateTrancheField(
+  contractId: string,
+  trancheId: string,
+  field: string,
+  rawValue: string
+) {
+  const patch: Record<string, string | number | null> = {};
+  if (field === "amount") {
+    const n = parseFloat(rawValue);
+    if (!Number.isFinite(n) || n <= 0) return;
+    patch.amount = n;
+  } else if (field === "paid_amount") {
+    if (rawValue.trim() === "") patch.paid_amount = null;
+    else {
+      const n = parseFloat(rawValue);
+      if (!Number.isFinite(n) || n < 0) return;
+      patch.paid_amount = n;
+    }
+  } else if (TRANCHE_DATE_FIELDS.has(field) || TRANCHE_TEXT_FIELDS.has(field)) {
+    patch[field] = rawValue.trim() || null;
+  } else {
+    return;
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  await supabase
     .from("contract_tranches")
-    .update({
-      label: optStr(formData, "label"),
-      amount,
-      due_date: optDate(formData, "due_date"),
-      due_condition: optStr(formData, "due_condition"),
-      paid_date: optDate(formData, "paid_date"),
-      paid_amount: paidAmount,
-    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update(patch as any)
     .eq("id", trancheId)
     .eq("contract_id", contractId);
-
-  if (error) fail(`/contracts/${contractId}`, error.message);
-
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${contractId}`);
 }
