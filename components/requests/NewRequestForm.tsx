@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createRequest } from "@/lib/domain/workflow";
+import { cupForProject } from "@/lib/domain/projectCups";
 import {
   effectiveProcCode,
   procConfigFor,
@@ -20,15 +21,18 @@ export type Candidate = { id: string; name: string; email: string };
 export default function NewRequestForm({
   candidates,
   assignments,
+  projectCups,
 }: {
   candidates: Partial<Record<Role, Candidate[]>>;
   assignments: Record<string, Partial<Record<"PM" | "CAR", string>>>;
+  projectCups: Record<string, string>;
 }) {
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
   const [derogation, setDerogation] = useState(false);
   const [chosen, setChosen] = useState<Partial<Record<Role, string>>>({});
 
+  const projectCup = cupForProject(projectCups, project);
   const price = parseFloat(amount);
   const signers =
     Number.isFinite(price) && price > 0
@@ -79,8 +83,12 @@ export default function NewRequestForm({
         </div>
       </div>
       <div className="field">
-        <label>CUP (optional)</label>
-        <input name="cup_code" />
+        <label>CUP{projectCup ? " (from Approved projects)" : " (optional)"}</label>
+        {projectCup ? (
+          <input name="cup_code" value={projectCup} readOnly title="Read from the project in Approved projects" />
+        ) : (
+          <input name="cup_code" />
+        )}
       </div>
 
       <label className="checkbox-row">

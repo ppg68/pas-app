@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/domain/procedures";
+import { fetchProjectCups } from "@/lib/domain/projectCups";
 import NewRequestForm, { type Candidate } from "@/components/requests/NewRequestForm";
 
 const APPROVER_ROLES: Role[] = ["PM", "CAR", "RAC"];
@@ -15,6 +16,8 @@ export default async function NewRequestPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const projectCups = await fetchProjectCups(supabase);
 
   const [{ data: roleRows }, { data: profiles }, { data: assignmentRows }] = await Promise.all([
     supabase.from("user_roles").select("user_id, role").in("role", APPROVER_ROLES),
@@ -48,7 +51,7 @@ export default async function NewRequestPage({
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
 
-      <NewRequestForm candidates={candidates} assignments={assignments} />
+      <NewRequestForm candidates={candidates} assignments={assignments} projectCups={projectCups} />
     </div>
   );
 }

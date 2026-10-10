@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { sendEmail, escapeHtml } from "@/lib/notify";
 import {
   effectiveProcCode,
@@ -111,7 +112,7 @@ export async function createRequest(formData: FormData) {
       derogation,
       derogation_reason: derogation ? derogationReason : null,
       coordination_cost: coordinationCost,
-      cup_code: cupCode || null,
+      cup_code: cupForProject(await fetchProjectCups(supabase), projectCode) ?? (cupCode || null),
       institutional_activity: institutionalActivity,
       occasional_collaborator: occasionalCollaborator,
       initiated_by: user.id,

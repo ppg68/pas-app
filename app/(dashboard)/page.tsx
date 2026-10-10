@@ -1,14 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import RequestsExplorer from "@/components/requests/RequestsExplorer";
+import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 
 export default async function RequestListPage() {
   const supabase = await createClient();
-  const { data: requests } = await supabase
+  const { data: requestsRaw } = await supabase
     .from("requests")
     .select(
       "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, created_at, initiated_by, legacy_initiator_name"
     )
     .order("created_at", { ascending: false });
+
+  // the CUP of the project (Approved projects) wins over what was stored on the request
+  const projectCups = await fetchProjectCups(supabase);
+  const requests = (requestsRaw ?? []).map((r) => ({
+    ...r,
+    cup_code: cupForProject(projectCups, r.project_code) ?? r.cup_code,
+  }));
 
   const {
     data: { user },

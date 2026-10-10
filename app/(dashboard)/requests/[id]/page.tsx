@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import {
   procConfigFor,
   paymentSigners,
@@ -106,6 +107,7 @@ export default async function RequestDetailPage({
   const winnerIndex = STAGE_ORDER.indexOf("winner");
   const documentsIndex = STAGE_ORDER.indexOf("documents");
   const paymentIndex = STAGE_ORDER.indexOf("payment");
+  const effectiveCup = cupForProject(await fetchProjectCups(supabase), request.project_code) ?? request.cup_code;
 
   return (
     <div style={{ maxWidth: 700 }}>
@@ -113,6 +115,7 @@ export default async function RequestDetailPage({
         <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{request.code}</h1>
         <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {request.description} · {config.label} · {request.estimated_price} {request.currency}
+          {effectiveCup ? ` · CUP ${effectiveCup}` : ""}
         </div>
         <div
           style={{
