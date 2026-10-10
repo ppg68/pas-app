@@ -57,6 +57,13 @@ export default async function ContractDetailPage({
     .eq("contract_id", id)
     .order("invoice_date", { ascending: false, nullsFirst: false });
 
+  // Invoices of the IR register ("Fatture", managed by Elisa) linked to this contract.
+  const { data: irInvoices } = await supabase
+    .from("invoices")
+    .select("id, request_id, ir_number, protocol, supplier, due_date, payment_date, payment_note, currency, amount, withholding, balance_due, notes")
+    .eq("contract_id", id)
+    .order("due_date", { ascending: true, nullsFirst: false });
+
   const paid = totalPaid(tranches ?? []);
   const scheduled = totalScheduled(tranches ?? []);
   const balance = contract.amount - paid;
@@ -182,6 +189,82 @@ export default async function ContractDetailPage({
             payment_note: inv.payment_note,
           }))}
         />
+      </div>
+
+      {/* Invoices of the IR register (read-only here; edited in the Invoices page) */}
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <h2 style={{ fontSize: 14, margin: 0 }}>Invoices from the IR register</h2>
+          <Link href="/invoices" style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+            Open Invoices to edit →
+          </Link>
+        </div>
+        {(irInvoices ?? []).length === 0 ? (
+          <p className="empty">No IR-register invoices linked to this contract.</p>
+        ) : (
+          <>
+            <div className="table-wrap" style={{ marginBottom: 8 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>IR</th>
+                    <th>Protocol</th>
+                    <th>Due date</th>
+                    <th>Payment date</th>
+                    <th className="num">Amount</th>
+                    <th>Cur.</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(irInvoices ?? []).map((inv) => (
+                    <tr key={inv.id}>
+                      <td>
+                        {inv.request_id ? (
+                          <Link href={`/requests/${inv.request_id}`} style={{ color: "var(--navy)", fontWeight: 600 }}>
+                            {inv.ir_number ?? "IR"} ↗
+                          </Link>
+                        ) : (
+                          (inv.ir_number ?? "")
+                        )}
+                      </td>
+                      <td>{inv.protocol ?? ""}</td>
+                      <td>{formatDateIT(inv.due_date)}</td>
+                      <td>
+                        {inv.payment_date ? formatDateIT(inv.payment_date) : inv.payment_note ?? <span style={{ color: "var(--brick)" }}>unpaid</span>}
+                      </td>
+                      <td className="num">{formatMoney(inv.amount)}</td>
+                      <td>{inv.currency}</td>
+                      <td>{inv.notes ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 600 }}>
+                    <td colSpan={4} style={{ padding: "8px 10px" }}>
+                      Total ({(irInvoices ?? []).filter((i) => i.payment_date).length} paid of {(irInvoices ?? []).length})
+                    </td>
+                    <td className="num" style={{ padding: "8px 10px" }}>
+                      {formatMoney((irInvoices ?? []).reduce((sum, i) => sum + (i.amount ?? 0), 0))}
+                    </td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p className="subtitle" style={{ margin: 0 }}>
+              Paid so far:{" "}
+              {formatMoney(
+                (irInvoices ?? []).filter((i) => i.payment_date).reduce((sum, i) => sum + (i.amount ?? 0), 0)
+              )}{" "}
+              · Still to invoice vs contract:{" "}
+              {formatMoney(
+                contract.amount - (irInvoices ?? []).reduce((sum, i) => sum + (i.amount ?? 0), 0)
+              )}{" "}
+              {contract.currency}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Compliance checklist */}
