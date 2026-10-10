@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { normalizeContractNumber } from "@/lib/domain/contracts";
+import { fetchProjectCups } from "@/lib/domain/projectCups";
 import IrInvoicesExplorer, {
   type IrInvoiceListRow,
   type ContractRef,
@@ -32,6 +33,8 @@ export default async function InvoicesPage() {
     oldInvoiced: oldSum.get(c.id) ?? 0,
   }));
 
+  const projectCups = await fetchProjectCups(supabase);
+
   const byNumber = new Map<string, string>();
   contractRefs.forEach((c) => {
     if (c.number) byNumber.set(normalizeContractNumber(c.number), c.id);
@@ -49,7 +52,7 @@ export default async function InvoicesPage() {
       <div className="page-header">
         <h1>Invoices</h1>
       </div>
-      <IrInvoicesExplorer invoices={rows} contracts={contractRefs} />
+      <IrInvoicesExplorer invoices={rows} contracts={contractRefs} projectCups={projectCups} />
     </div>
   );
 }

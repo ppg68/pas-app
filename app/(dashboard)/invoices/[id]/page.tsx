@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import InvoiceDetail, { type DetailContract, type InvoiceRecord } from "@/components/invoices/InvoiceDetail";
+import { fetchProjectCups } from "@/lib/domain/projectCups";
 import ConfirmForm from "@/components/ConfirmForm";
 import { deleteInvoiceAndGoBack } from "../actions";
 
@@ -17,6 +18,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     );
   }
 
+  const projectCups = await fetchProjectCups(supabase);
   const [{ data: contracts }, { data: oldInvoices }, { data: irInvoices }] = await Promise.all([
     supabase.from("contracts").select("id, legacy_id, subject, amount, currency, project_code"),
     supabase.from("contract_invoices").select("contract_id, amount"),
@@ -79,7 +81,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           .join(" · ") || "Changes are saved automatically."}
       </p>
 
-      <InvoiceDetail record={record} contracts={detailContracts} />
+      <InvoiceDetail record={record} contracts={detailContracts} projectCups={projectCups} />
 
       <div style={{ marginTop: 16 }}>
         <ConfirmForm

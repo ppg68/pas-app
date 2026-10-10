@@ -10,6 +10,7 @@ import {
 } from "@/lib/domain/contracts";
 import { fetchProjectDeadlines, fetchWarnDays, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
 import ConfirmForm from "@/components/ConfirmForm";
+import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import TranchesTable from "@/components/contracts/TranchesTable";
 import ContractInvoicesTable from "@/components/contracts/ContractInvoicesTable";
 import {
@@ -109,6 +110,7 @@ export default async function ContractDetailPage({
           : `Invoiced exceeds the contract by ${formatMoney(-toInvoice)} ${contract.currency}`,
     },
   ];
+  const projectCup = cupForProject(await fetchProjectCups(supabase), contract.project_code);
   const projectEnd = deadlineFor(await fetchProjectDeadlines(supabase), contract.project_code);
   const alert = deadlineAlert(
     {
@@ -214,7 +216,8 @@ export default async function ContractDetailPage({
             {nextTranche ? ` · next due ${formatDateIT(nextTranche.due_date)} (${formatMoney(nextTranche.amount)} ${contract.currency})` : ""}
           </div>
           <div>
-            Project{contract.project_code ? ` ${contract.project_code}` : ""}:{" "}
+            Project{contract.project_code ? ` ${contract.project_code}` : ""}
+            {projectCup ? ` · CUP ${projectCup}` : ""}:{" "}
             {projectEnd ? `ends ${formatDateIT(projectEnd)}` : "no deadline found in Approved projects"}
             {contract.end_date ? ` · contract ends ${formatDateIT(contract.end_date)}` : ""}
           </div>

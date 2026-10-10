@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
+import { cupForProject } from "@/lib/domain/projectCups";
 import { updateInvoiceField, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
 import type { Database } from "@/types/database.types";
 
@@ -61,11 +62,15 @@ const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balanc
 export default function IrInvoicesExplorer({
   invoices,
   contracts,
+  projectCups,
 }: {
   invoices: IrInvoiceListRow[];
   contracts: ContractRef[];
+  projectCups: Record<string, string>;
 }) {
   const [rows, setRows] = useState(invoices);
+  /** CUP of the invoice's project from Approved projects (wins over the value typed on the invoice). */
+  const projectCupOf = (r: IrInvoiceListRow) => cupForProject(projectCups, r.project_code);
   const contractById = useMemo(() => new Map(contracts.map((c) => [c.id, c])), [contracts]);
   const contractByNumber = useMemo(() => {
     const m = new Map<string, ContractRef>();
@@ -152,7 +157,7 @@ This cannot be undone.`)) return;
     if (paFilter === "unsigned") list = list.filter((r) => !r.pa_signed);
     if (q) {
       list = list.filter((r) =>
-        [r.supplier, r.ir_number, r.protocol, r.contract_number, r.project_code, r.cup, r.notes].some(
+        [r.supplier, r.ir_number, r.protocol, r.contract_number, r.project_code, cupForProject(projectCups, r.project_code) ?? r.cup, r.notes].some(
           (v) => (v || "").toLowerCase().includes(q)
         )
       );
@@ -167,7 +172,7 @@ This cannot be undone.`)) return;
       sorted.sort((a, b) => dir * (a.supplier || "").localeCompare(b.supplier || ""));
     else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return sorted;
-  }, [rows, searchQuery, paidFilter, paFilter, sortBy, sortDir]);
+  }, [rows, searchQuery, paidFilter, paFilter, sortBy, sortDir, projectCups]);
 
   async function exportExcel() {
     if (rows.length === 0) return;
@@ -188,7 +193,7 @@ This cannot be undone.`)) return;
         "PA signed": r.pa_signed ? "OK" : "",
         Project: r.project_code || "",
         "Budget line": r.budget_line || "",
-        "CUP / AID": r.cup || "",
+        "CUP / AID": projectCupOf(r) ?? r.cup ?? "",
         "Contract value": contractFigures(r)?.value ?? "",
         "Balance due": contractFigures(r)?.balance ?? "",
         Notes: r.notes || "",
@@ -244,6 +249,13 @@ This cannot be undone.`)) return;
           style={cellInputStyle}
           title={value && !r.contractUuid ? "No matching contract found" : undefined}
         />
+      );
+    }
+    if (col.key === "cup" && projectCupOf(r)) {
+      return (
+        <span title={`From Approved projects (project ${r.project_code})`} style={{ fontWeight: 500 }}>
+          {projectCupOf(r)}
+        </span>
       );
     }
     if (col.key === "contract_value" || col.key === "balance_due") {

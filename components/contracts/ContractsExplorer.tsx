@@ -18,6 +18,7 @@ import { updateContractField, updateWarnDays } from "@/app/(dashboard)/contracts
 export type ContractListRow = ContractRow & {
   paid: number;
   tranchesCount: number;
+  project_cup: string | null;
   alert: "overdue" | "soon" | null;
 };
 
@@ -65,6 +66,7 @@ const COLUMNS: Col[] = [
   { key: "paid", label: "Paid", align: "right", type: "readonly" },
   { key: "balance", label: "Balance", align: "right", type: "readonly" },
   { key: "project_code", label: "Project", type: "text" },
+  { key: "project_cup", label: "CUP (from project)", type: "readonly" },
   { key: "ir_code", label: "IR", type: "text" },
   { key: "payment_terms", label: "Payment terms", type: "text", width: 220 },
   { key: "signed", label: "Signed", align: "center", type: "checkbox" },
@@ -242,6 +244,7 @@ export default function ContractsExplorer({
         Paid: c.paid,
         Balance: c.amount - c.paid,
         Project: c.project_code || "",
+        "CUP (project)": c.project_cup || "",
         IR: c.ir_code || "",
         "Payment terms": c.payment_terms || "",
         Signed: c.signed ? "x" : "",

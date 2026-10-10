@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { updateInvoiceField } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
+import { cupForProject } from "@/lib/domain/projectCups";
 
 export type InvoiceRecord = {
   id: string;
@@ -54,9 +55,11 @@ type DateKey = "due_date" | "payment_date";
 export default function InvoiceDetail({
   record,
   contracts,
+  projectCups,
 }: {
   record: InvoiceRecord;
   contracts: DetailContract[];
+  projectCups: Record<string, string>;
 }) {
   const [r, setR] = useState(record);
   const [saved, setSaved] = useState<string | null>(null);
@@ -67,6 +70,7 @@ export default function InvoiceDetail({
     return m;
   }, [contracts]);
 
+  const projectCup = cupForProject(projectCups, r.project_code);
   const match = r.contract_number?.trim() ? byNumber.get(normalizeContractNumber(r.contract_number)) : undefined;
   const sameCurrency = match ? match.currency === (r.currency || "EUR").toUpperCase() : true;
   const invoicedWithThis = match ? match.invoicedOthers + (sameCurrency ? r.amount || 0 : 0) : 0;
@@ -231,7 +235,14 @@ export default function InvoiceDetail({
       <div style={row}>
         {textField("Project", "project_code", { minWidth: 130 })}
         {textField("Budget line", "budget_line", { minWidth: 130 })}
-        {textField("CUP / AID", "cup", { flex: 2, minWidth: 220 })}
+        {projectCup ? (
+          <div className="field" style={{ flex: 2, minWidth: 220 }}>
+            <label>CUP / AID (from Approved projects)</label>
+            <input value={projectCup} readOnly title="Read from the project in Approved projects" />
+          </div>
+        ) : (
+          textField("CUP / AID", "cup", { flex: 2, minWidth: 220 })
+        )}
       </div>
 
       {textField("Notes", "notes", { flex: 1, minWidth: 220 })}

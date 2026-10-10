@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { normalizeContractNumber } from "@/lib/domain/contracts";
+import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { createClient } from "@/lib/supabase/server";
 
 const TEXT_FIELDS = new Set([
@@ -98,6 +99,10 @@ export async function createInvoiceFromForm(formData: FormData) {
     requestId = req?.[0]?.id ?? null;
   }
 
+  // the CUP of the project (Approved projects) wins over what was typed
+  const projectCode = str(formData, "project_code") || null;
+  const cup = cupForProject(await fetchProjectCups(supabase), projectCode) ?? (str(formData, "cup") || null);
+
   const num = (k: string) => {
     const v = str(formData, k).replace(",", ".");
     return v === "" ? null : Number.isFinite(parseFloat(v)) ? parseFloat(v) : null;
@@ -119,9 +124,9 @@ export async function createInvoiceFromForm(formData: FormData) {
       amount,
       withholding: num("withholding"),
       pa_signed: formData.get("pa_signed") === "on",
-      project_code: str(formData, "project_code") || null,
+      project_code: projectCode,
       budget_line: str(formData, "budget_line") || null,
-      cup: str(formData, "cup") || null,
+      cup,
       notes: str(formData, "notes") || null,
     })
     .select("id")

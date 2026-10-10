@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createInvoiceFromForm } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
+import { cupForProject } from "@/lib/domain/projectCups";
 
 export type FormContract = {
   number: string;
@@ -15,7 +16,13 @@ export type FormContract = {
 
 const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
 
-export default function NewInvoiceForm({ contracts }: { contracts: FormContract[] }) {
+export default function NewInvoiceForm({
+  contracts,
+  projectCups,
+}: {
+  contracts: FormContract[];
+  projectCups: Record<string, string>;
+}) {
   const [contractNumber, setContractNumber] = useState("");
   const [supplier, setSupplier] = useState("");
   const [project, setProject] = useState("");
@@ -32,6 +39,7 @@ export default function NewInvoiceForm({ contracts }: { contracts: FormContract[
     return m;
   }, [contracts]);
 
+  const projectCup = cupForProject(projectCups, project);
   const match = contractNumber.trim() ? byNumber.get(normalizeContractNumber(contractNumber)) : undefined;
   const amountNum = parseFloat(amount.replace(",", "."));
   const sameCurrency = match ? match.currency === currency.trim().toUpperCase() : true;
@@ -176,8 +184,12 @@ export default function NewInvoiceForm({ contracts }: { contracts: FormContract[
           <input name="budget_line" />
         </div>
         <div className="field" style={{ flex: 2, minWidth: 220 }}>
-          <label>CUP / AID</label>
-          <input name="cup" />
+          <label>CUP / AID{projectCup ? " (from Approved projects)" : ""}</label>
+          {projectCup ? (
+            <input name="cup" value={projectCup} readOnly title="Read from the project in Approved projects" />
+          ) : (
+            <input name="cup" />
+          )}
         </div>
       </div>
 
