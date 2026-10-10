@@ -49,8 +49,13 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
 
 export async function createInvoice() {
   const supabase = await createClient();
-  await supabase.from("invoices").insert({ supplier: "New invoice" });
+  const { data, error } = await supabase
+    .from("invoices")
+    .insert({ supplier: "New invoice" })
+    .select("*")
+    .single();
   revalidatePath("/invoices");
+  return { row: data ?? null, error: error?.message ?? null };
 }
 
 export async function deleteInvoice(invoiceId: string) {

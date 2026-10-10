@@ -53,6 +53,7 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
   const [editingContract, setEditingContract] = useState<string | null>(null);
   useRowFlash();
   const [searchQuery, setSearchQuery] = useState("");
+  const [adding, setAdding] = useState(false);
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [paFilter, setPaFilter] = useState<PaFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -81,6 +82,34 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
       })
     );
     void updateInvoiceField(id, key, raw);
+  }
+
+  // Adds the new row locally (no full page reload) and brings it into view.
+  async function addInvoice() {
+    if (adding) return;
+    setAdding(true);
+    try {
+      const res = await createInvoice();
+      if (!res.row) {
+        window.alert(res.error ?? "Could not create the invoice.");
+        return;
+      }
+      const row = { ...res.row, contractUuid: null } as IrInvoiceListRow;
+      setRows((prev) => [row, ...prev]);
+      setSearchQuery("");
+      setPaidFilter("all");
+      setPaFilter("all");
+      window.setTimeout(() => {
+        const el = document.getElementById(`inv-${row.id}`);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          el.classList.add("row-flash");
+          window.setTimeout(() => el.classList.remove("row-flash"), 4000);
+        }
+      }, 50);
+    } finally {
+      setAdding(false);
+    }
   }
 
   function removeRow(id: string) {
@@ -262,9 +291,10 @@ This cannot be undone.`)) return;
           <button
             type="button"
             className="ghost"
-            onClick={() => void createInvoice().then(() => window.location.reload())}
+            onClick={() => void addInvoice()}
+            disabled={adding}
           >
-            + New invoice
+            {adding ? "Adding…" : "+ New invoice"}
           </button>
           <button type="button" className="export" onClick={exportExcel} disabled={rows.length === 0 || exporting}>
             {exporting ? "Exporting…" : "Export Excel"}
