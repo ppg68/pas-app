@@ -83,6 +83,17 @@ function cellValue(row: ContractListRow, key: string): any {
   return (row as unknown as Record<string, unknown>)[key];
 }
 
+/** Why a contract is flagged (null = no alert). Same rules that colour the row. */
+function alertReason(c: ContractListRow): string | null {
+  const d = daysUntil(c.end_date);
+  if (c.status === "in_corso" && d !== null && d < 0) {
+    return `Contract end date passed ${Math.abs(d)} day${Math.abs(d) === 1 ? "" : "s"} ago, still "In corso"`;
+  }
+  if (c.alert === "overdue") return "Project has ended and this contract still has payments pending";
+  if (c.alert === "soon") return "Project ends soon and this contract still has payments pending";
+  return null;
+}
+
 export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
   const [rows, setRows] = useState(contracts);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -122,6 +133,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [statusFilter, setStatusFilter] = useState<"all" | ContractStatus>("in_corso");
+  const [alertsOnly, setAlertsOnly] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   function toggleSort(col: SortBy) {
@@ -159,6 +171,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = rows.filter((c) => statusFilter === "all" || c.status === statusFilter);
+    if (alertsOnly) list = list.filter((c) => alertReason(c) !== null);
     if (q) {
       list = list.filter(
         (c) =>
@@ -172,7 +185,10 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
     }
 
     const dir = sortDir === "asc" ? 1 : -1;
-    if (sortBy === "status") {
+    if (alertsOnly && sortBy === "default") {
+      // most urgent first: earliest end date on top
+      list = [...list].sort((a, b) => (a.end_date || "9999").localeCompare(b.end_date || "9999"));
+    } else if (sortBy === "status") {
       list = [...list].sort((a, b) => dir * a.status.localeCompare(b.status));
     } else if (sortBy === "subject") {
       list = [...list].sort((a, b) => dir * (a.subject || "").localeCompare(b.subject || ""));
@@ -186,7 +202,12 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
       });
     }
     return list;
-  }, [rows, searchQuery, sortBy, sortDir, statusFilter]);
+  }, [rows, searchQuery, sortBy, sortDir, statusFilter, alertsOnly]);
+
+  const alertCount = useMemo(
+    () => rows.filter((c) => (statusFilter === "all" || c.status === statusFilter) && alertReason(c) !== null).length,
+    [rows, statusFilter]
+  );
 
   async function exportExcel() {
     if (rows.length === 0) return;
@@ -403,6 +424,15 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
           <option value="concluso">Concluso</option>
           <option value="annullato">Annullato</option>
         </select>
+        <button
+          type="button"
+          className={alertsOnly ? "primary" : "ghost"}
+          onClick={() => setAlertsOnly((v) => !v)}
+          title="Show only contracts with an alert, most urgent first"
+          style={{ whiteSpace: "nowrap" }}
+        >
+          ⚠ With alert ({alertCount})
+        </button>
       </div>
 
       {filtered.length === 0 && <p className="empty">No contracts match.</p>}
@@ -451,7 +481,7 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
                 const dLeft = daysUntil(c.end_date);
                 const overdue = (dLeft !== null && dLeft < 0 && c.status === "in_corso") || c.alert === "overdue";
                 return (
-                  <tr key={c.id} className={overdue ? "overdue" : undefined}>
+                  <tr key={c.id} className={overdue ? "overdue" : undefined} title={alertReason(c) ?? undefined}>
                     <td className="center">
                       <Link
                         href={`/contracts/${c.id}`}
