@@ -21,6 +21,10 @@ export default function NewInvoiceForm({ contracts }: { contracts: FormContract[
   const [project, setProject] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [amount, setAmount] = useState("");
+  // last values filled in automatically from a contract: they are replaced when the contract changes,
+  // unless the user typed something different in the meantime
+  const [autoSupplier, setAutoSupplier] = useState("");
+  const [autoProject, setAutoProject] = useState("");
 
   const byNumber = useMemo(() => {
     const m = new Map<string, FormContract>();
@@ -38,9 +42,15 @@ export default function NewInvoiceForm({ contracts }: { contracts: FormContract[
     setContractNumber(v);
     const c = v.trim() ? byNumber.get(normalizeContractNumber(v)) : undefined;
     if (c) {
-      // convenience: pre-fill empty fields from the contract
-      if (!supplier.trim()) setSupplier(c.subject);
-      if (!project.trim() && c.project) setProject(c.project);
+      // fill supplier / project from the contract when empty or still holding the previous automatic value
+      if (!supplier.trim() || supplier === autoSupplier) {
+        setSupplier(c.subject);
+        setAutoSupplier(c.subject);
+      }
+      if (!project.trim() || project === autoProject) {
+        setProject(c.project ?? "");
+        setAutoProject(c.project ?? "");
+      }
       setCurrency(c.currency);
     }
   }
