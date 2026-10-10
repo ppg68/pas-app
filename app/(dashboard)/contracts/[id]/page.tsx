@@ -67,6 +67,47 @@ export default async function ContractDetailPage({
   const paid = totalPaid(tranches ?? []);
   const scheduled = totalScheduled(tranches ?? []);
   const balance = contract.amount - paid;
+
+  // Overall situation: invoices of both sources ("Elenco Fatture" = older ones, IR register = current ones).
+  // Only invoices in the contract currency are summed; others are counted separately.
+  const oldInv = invoices ?? [];
+  const irAll = irInvoices ?? [];
+  const irSame = irAll.filter((i) => i.currency === contract.currency);
+  const irOther = irAll.length - irSame.length;
+  const invoicedOld = oldInv.reduce((sum, i) => sum + (i.amount ?? 0), 0);
+  const invoicedIr = irSame.reduce((sum, i) => sum + (i.amount ?? 0), 0);
+  const invoiced = invoicedOld + invoicedIr;
+  const paidOld = oldInv
+    .filter((i) => i.paid_amount != null || i.payment_date)
+    .reduce((sum, i) => sum + (i.amount ?? 0), 0);
+  const paidIr = irSame.filter((i) => i.payment_date).reduce((sum, i) => sum + (i.amount ?? 0), 0);
+  const invoicedPaid = paidOld + paidIr;
+  const invoicedUnpaid = Math.max(invoiced - invoicedPaid, 0);
+  const toInvoice = contract.amount - invoiced;
+  const pct = (v: number) =>
+    contract.amount > 0 ? Math.min(Math.max((v / contract.amount) * 100, 0), 100) : 0;
+  const unpaidTranches = (tranches ?? []).filter((t) => !t.paid);
+  const nextTranche = unpaidTranches
+    .filter((t) => t.due_date)
+    .sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string))[0];
+  const checks: { ok: boolean; text: string }[] = [
+    {
+      ok: Math.abs(contract.amount - scheduled) < 0.005 || (tranches ?? []).length === 0,
+      text:
+        (tranches ?? []).length === 0
+          ? "No tranches defined"
+          : Math.abs(contract.amount - scheduled) < 0.005
+            ? "Tranches match the contract amount"
+            : `Tranches total ${formatMoney(scheduled)} vs contract ${formatMoney(contract.amount)}`,
+    },
+    {
+      ok: toInvoice >= -0.005,
+      text:
+        toInvoice >= -0.005
+          ? "Invoiced within the contract amount"
+          : `Invoiced exceeds the contract by ${formatMoney(-toInvoice)} ${contract.currency}`,
+    },
+  ];
   const projectEnd = deadlineFor(await fetchProjectDeadlines(supabase), contract.project_code);
   const alert = deadlineAlert({
     ...contract,
@@ -117,6 +158,69 @@ export default async function ContractDetailPage({
       )}
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+
+      {/* Overall situation */}
+      <div className="card">
+        <h2 style={{ fontSize: 14, marginBottom: 10 }}>Overall situation</h2>
+        <div style={{ display: "flex", gap: 22, fontSize: 13, marginBottom: 12, flexWrap: "wrap" }}>
+          {[
+            ["Contract amount", contract.amount],
+            ["Invoiced", invoiced],
+            ["Paid (invoices)", invoicedPaid],
+            ["Invoiced, not yet paid", invoicedUnpaid],
+            ["Still to invoice", toInvoice],
+          ].map(([label, value]) => (
+            <div key={label as string}>
+              <div style={{ color: "var(--ink-soft)", fontSize: 11 }}>{label as string}</div>
+              <div className="value" style={{ fontWeight: 600 }}>
+                {formatMoney(value as number)} {contract.currency}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          title="Paid / invoiced not yet paid / still to invoice"
+          style={{
+            display: "flex",
+            height: 10,
+            borderRadius: 5,
+            overflow: "hidden",
+            background: "var(--line)",
+            marginBottom: 6,
+          }}
+        >
+          <div style={{ width: `${pct(invoicedPaid)}%`, background: "var(--navy)" }} />
+          <div style={{ width: `${pct(invoicedUnpaid)}%`, background: "#D9A441" }} />
+        </div>
+        <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--ink-soft)", flexWrap: "wrap", marginBottom: 12 }}>
+          <span>■ paid {pct(invoicedPaid).toFixed(0)}%</span>
+          <span style={{ color: "#B8862B" }}>■ invoiced, not paid {pct(invoicedUnpaid).toFixed(0)}%</span>
+          <span>□ to invoice {Math.max(100 - pct(invoiced), 0).toFixed(0)}%</span>
+        </div>
+
+        <div style={{ fontSize: 12, color: "var(--ink-soft)", display: "grid", gap: 3 }}>
+          <div>
+            Invoices: {oldInv.length} in &quot;Elenco Fatture&quot; ({formatMoney(invoicedOld)}) + {irSame.length} in the IR
+            register ({formatMoney(invoicedIr)})
+            {irOther > 0 ? ` · ${irOther} in another currency not included` : ""}
+          </div>
+          <div>
+            Tranches: {(tranches ?? []).length - unpaidTranches.length} paid, {unpaidTranches.length} open
+            {nextTranche ? ` · next due ${formatDateIT(nextTranche.due_date)} (${formatMoney(nextTranche.amount)} ${contract.currency})` : ""}
+          </div>
+          <div>
+            Project{contract.project_code ? ` ${contract.project_code}` : ""}:{" "}
+            {projectEnd ? `ends ${formatDateIT(projectEnd)}` : "no deadline found in Approved projects"}
+            {contract.end_date ? ` · contract ends ${formatDateIT(contract.end_date)}` : ""}
+          </div>
+          {checks.map((c) => (
+            <div key={c.text} style={{ color: c.ok ? "var(--ink-soft)" : "var(--brick)", fontWeight: c.ok ? 400 : 600 }}>
+              {c.ok ? "✓" : "⚠"} {c.text}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Payment summary */}
       <div className="card">
