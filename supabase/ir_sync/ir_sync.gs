@@ -11,7 +11,7 @@
  */
 
 var IR_SHEET_ID = 1583820415; // gid della scheda IR
-var FIRST_DATA_ROW = 4;       // le prime 3 righe sono intestazioni
+var FIRST_DATA_ROW = 1;       // si legge tutta la scheda: le intestazioni vengono scartate dal filtro sul numero IR
 var BATCH = 200;
 
 function syncIrRegister() {
@@ -50,10 +50,14 @@ function syncIrRegister() {
 }
 
 function callRpc_(url, key, token, rows) {
+  // Le chiavi nuove (sb_publishable_...) vanno solo nell'intestazione apikey; la chiave "anon" JWT
+  // (eyJ...) può andare anche come Bearer.
+  var headers = { apikey: key, 'Content-Profile': 'pas', 'Accept-Profile': 'pas' };
+  if (key.indexOf('eyJ') === 0) headers.Authorization = 'Bearer ' + key;
   var resp = UrlFetchApp.fetch(url + '/rest/v1/rpc/sync_ir_register', {
     method: 'post',
     contentType: 'application/json',
-    headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Profile': 'pas', 'Accept-Profile': 'pas' },
+    headers: headers,
     payload: JSON.stringify({ p_token: token, p_rows: rows }),
     muteHttpExceptions: true,
   });
@@ -96,6 +100,7 @@ function rowToRequest_(r, prevDate) {
   var ir = clean_(r[0]);
   var description = ws_(r[11]);
   if (!ir || !description) return null;
+  if (!/^\d+(_[A-Za-z0-9]+)?$/.test(ir)) return null; // scarta intestazioni e righe non IR
 
   var proc = null;
   var m = clean_(r[8]).match(/^([A-Z])\)\s*(\S+)/);
