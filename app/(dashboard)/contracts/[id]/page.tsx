@@ -10,25 +10,12 @@ import {
 } from "@/lib/domain/contracts";
 import { fetchProjectDeadlines, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
 import TranchesTable from "@/components/contracts/TranchesTable";
+import ContractInvoicesTable from "@/components/contracts/ContractInvoicesTable";
 import {
   deleteContract,
   toggleComplianceField,
-  createInvoice,
-  deleteInvoice,
 } from "../actions";
 
-const rowForm: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
-const lineItem: React.CSSProperties = {
-  border: "1px solid var(--line)",
-  borderRadius: 8,
-  padding: "8px 10px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  fontSize: 13,
-  gap: 8,
-  marginBottom: 8,
-};
 
 const COMPLIANCE_FIELDS = [
   { key: "signed", label: "Firmato" },
@@ -178,70 +165,23 @@ export default async function ContractDetailPage({
       <div className="card">
         <h2 style={{ fontSize: 14, marginBottom: 10 }}>Invoices</h2>
 
-        {(invoices ?? []).length === 0 && <p className="empty">No invoices yet.</p>}
-
-        <div style={{ marginBottom: 4 }}>
-          {(invoices ?? []).map((inv) => (
-            <div key={inv.id} style={lineItem}>
-              <div>
-                <div>
-                  {inv.invoice_number ? `#${inv.invoice_number}` : "Invoice"}
-                  {inv.protocol ? ` · prot. ${inv.protocol}` : ""}
-                </div>
-                <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                  {formatMoney(inv.amount)} {contract.currency}
-                  {inv.invoice_date ? ` · ${formatDateIT(inv.invoice_date)}` : ""}
-                  {inv.description ? ` · ${inv.description}` : ""}
-                  {inv.paid_amount != null
-                    ? ` · paid ${formatMoney(inv.paid_amount)}${inv.payment_date ? ` (${formatDateIT(inv.payment_date)})` : ""}${inv.payment_note ? ` — ${inv.payment_note}` : ""}`
-                    : ""}
-                </div>
-              </div>
-              <form action={deleteInvoice.bind(null, inv.id)}>
-                <button type="submit" className="pill" style={{ color: "var(--brick)" }}>
-                  Remove
-                </button>
-              </form>
-            </div>
-          ))}
-        </div>
-
-        <form
-          action={createInvoice.bind(null, contract.id, contract.legacy_id ?? "")}
-          style={{ ...rowForm, marginTop: 8 }}
-        >
-          <div className="field" style={{ width: 110 }}>
-            <label>Invoice #</label>
-            <input name="invoice_number" />
-          </div>
-          <div className="field" style={{ width: 140 }}>
-            <label>Invoice date</label>
-            <input name="invoice_date" type="date" />
-          </div>
-          <div className="field" style={{ width: 120 }}>
-            <label>Amount</label>
-            <input name="amount" type="number" step="0.01" min="0" required />
-          </div>
-          <div className="field" style={{ width: 100 }}>
-            <label>Protocol</label>
-            <input name="protocol" />
-          </div>
-          <div className="field" style={{ flex: "1 1 160px" }}>
-            <label>Description</label>
-            <input name="description" />
-          </div>
-          <div className="field" style={{ width: 120 }}>
-            <label>Paid amount</label>
-            <input name="paid_amount" type="number" step="0.01" />
-          </div>
-          <div className="field" style={{ width: 140 }}>
-            <label>Payment date</label>
-            <input name="payment_date" type="date" />
-          </div>
-          <button type="submit" className="primary">
-            Add invoice
-          </button>
-        </form>
+        <ContractInvoicesTable
+          contractId={contract.id}
+          legacyId={contract.legacy_id ?? ""}
+          currency={contract.currency}
+          contractAmount={contract.amount}
+          invoices={(invoices ?? []).map((inv) => ({
+            id: inv.id,
+            invoice_number: inv.invoice_number,
+            invoice_date: inv.invoice_date,
+            amount: inv.amount,
+            protocol: inv.protocol,
+            description: inv.description,
+            paid_amount: inv.paid_amount,
+            payment_date: inv.payment_date,
+            payment_note: inv.payment_note,
+          }))}
+        />
       </div>
 
       {/* Compliance checklist */}
