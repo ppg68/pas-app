@@ -9,6 +9,7 @@ import {
   formatMoney,
 } from "@/lib/domain/contracts";
 import { fetchProjectDeadlines, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
+import ConfirmForm from "@/components/ConfirmForm";
 import TranchesTable from "@/components/contracts/TranchesTable";
 import ContractInvoicesTable from "@/components/contracts/ContractInvoicesTable";
 import {
@@ -416,11 +417,18 @@ export default async function ContractDetailPage({
         directly from the Contracts table — click any cell there.
       </p>
 
-      <form action={deleteContract.bind(null, contract.id)}>
+      <ConfirmForm
+        action={deleteContract.bind(null, contract.id)}
+        message={`Delete contract ${contract.legacy_id ?? ""} — ${contract.subject}?
+
+Its tranches and checklist are deleted with it. Invoices stay in the lists but are no longer linked to a contract.
+
+This cannot be undone.`}
+      >
         <button type="submit" className="ghost danger">
           Delete contract
         </button>
-      </form>
+      </ConfirmForm>
     </div>
   );
 }

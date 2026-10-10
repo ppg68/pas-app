@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { grantContractsAccess, revokeContractsAccess } from "./actions";
+import ConfirmForm from "@/components/ConfirmForm";
 
 export default async function ContractsAccessPage({
   searchParams,
@@ -58,11 +59,16 @@ export default async function ContractsAccessPage({
               <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{p.email}</div>
             </div>
             {iHaveAccess && (
-              <form action={revokeContractsAccess.bind(null, p.id)}>
+              <ConfirmForm
+                action={revokeContractsAccess.bind(null, p.id)}
+                message={`Remove ${p.full_name || p.email}'s access to Contracts?
+
+They will no longer see or edit contracts and invoices.`}
+              >
                 <button type="submit" className="pill">
                   Remove ×
                 </button>
-              </form>
+              </ConfirmForm>
             )}
           </div>
         ))}

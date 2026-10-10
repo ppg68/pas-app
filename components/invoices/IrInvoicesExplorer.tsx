@@ -82,7 +82,18 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
   }
 
   function removeRow(id: string) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
+    const r = rows.find((x) => x.id === id);
+    const label = r
+      ? [r.supplier, r.protocol && `prot. ${r.protocol}`, r.amount != null && `${r.amount} ${r.currency}`]
+          .filter(Boolean)
+          .join(" · ")
+      : "this invoice";
+    if (!window.confirm(`Delete this invoice?
+
+${label}
+
+This cannot be undone.`)) return;
+    setRows((prev) => prev.filter((x) => x.id !== id));
     void deleteInvoice(id);
   }
 

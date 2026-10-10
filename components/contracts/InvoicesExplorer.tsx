@@ -71,7 +71,18 @@ export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRo
   }
 
   function removeRow(id: string) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
+    const r = rows.find((x) => x.id === id);
+    const label = r
+      ? [r.legacy_contract_id && `contract ${r.legacy_contract_id}`, r.subject, r.invoice_number && `invoice ${r.invoice_number}`, r.amount != null && String(r.amount)]
+          .filter(Boolean)
+          .join(" · ")
+      : "this invoice";
+    if (!window.confirm(`Delete this invoice?
+
+${label}
+
+This cannot be undone.`)) return;
+    setRows((prev) => prev.filter((x) => x.id !== id));
     void deleteInvoice(id);
   }
 

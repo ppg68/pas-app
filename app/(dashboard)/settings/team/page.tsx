@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
 import { addRole, removeRole } from "./actions";
 import RemovePersonButton from "./RemovePersonButton";
+import ConfirmForm from "@/components/ConfirmForm";
 
 export default async function TeamSettingsPage({
   searchParams,
@@ -65,11 +66,15 @@ export default async function TeamSettingsPage({
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
                 {roles.map((r) => (
-                  <form key={r} action={removeRole.bind(null, p.id, r)}>
+                  <ConfirmForm
+                    key={r}
+                    action={removeRole.bind(null, p.id, r)}
+                    message={`Remove the role "${ROLE_LABEL[r]}" from ${p.full_name || p.email || "this person"}?`}
+                  >
                     <button type="submit" className="pill">
                       {ROLE_LABEL[r]} ×
                     </button>
-                  </form>
+                  </ConfirmForm>
                 ))}
                 {p.id !== user?.id && <RemovePersonButton userId={p.id} name={p.full_name || p.email || "this person"} />}
               </div>
