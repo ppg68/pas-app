@@ -207,6 +207,7 @@ export default async function ContractDetailPage({
               <table>
                 <thead>
                   <tr>
+                    <th></th>
                     <th>IR</th>
                     <th>Protocol</th>
                     <th>Due date</th>
@@ -219,6 +220,15 @@ export default async function ContractDetailPage({
                 <tbody>
                   {(irInvoices ?? []).map((inv) => (
                     <tr key={inv.id}>
+                      <td className="center">
+                        <Link
+                          href={`/invoices#inv-${inv.id}`}
+                          title="Open this invoice in the Invoices page"
+                          style={{ fontWeight: 600, color: "var(--navy)" }}
+                        >
+                          ↗
+                        </Link>
+                      </td>
                       <td>
                         {inv.request_id ? (
                           <Link href={`/requests/${inv.request_id}`} style={{ color: "var(--navy)", fontWeight: 600 }}>
@@ -241,7 +251,7 @@ export default async function ContractDetailPage({
                 </tbody>
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={4} style={{ padding: "8px 10px" }}>
+                    <td colSpan={5} style={{ padding: "8px 10px" }}>
                       Total ({(irInvoices ?? []).filter((i) => i.payment_date).length} paid of {(irInvoices ?? []).length})
                     </td>
                     <td className="num" style={{ padding: "8px 10px" }}>

@@ -388,3 +388,7 @@ button.linklike {
 /* Tables that must fit the card width (no horizontal scroll): wrap headers, shrink inputs. */
 table.fit thead th { white-space: normal; }
 table.fit input, table.fit select { min-width: 0; padding-left: 4px; padding-right: 4px; font-size: 0.8rem; }
+
+/* Row reached from a link (#inv-<id>): short highlight */
+@keyframes row-flash { 0%, 60% { background: #FFF3C4; } 100% { background: transparent; } }
+tbody tr.row-flash { animation: row-flash 4s ease-out; }

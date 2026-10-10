@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/domain/contracts";
 import {
@@ -126,11 +127,11 @@ export default function ContractInvoicesTable({
             <col style={{ width: "14%" }} />
             <col style={{ width: "10%" }} />
             <col style={{ width: "8%" }} />
-            <col style={{ width: "15%" }} />
+            <col style={{ width: "13%" }} />
             <col style={{ width: "10%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "14%" }} />
-            <col style={{ width: "6%" }} />
+            <col style={{ width: "8%" }} />
           </colgroup>
           <thead>
             <tr>
@@ -178,7 +179,14 @@ export default function ContractInvoicesTable({
                 </td>
                 <td style={cell}>{dateInput(r, "payment_date")}</td>
                 <td style={cell}>{textInput(r, "payment_note")}</td>
-                <td className="center" style={cell}>
+                <td className="center" style={{ ...cell, whiteSpace: "nowrap" }}>
+                  <Link
+                    href={`/contracts/invoices#inv-${r.id}`}
+                    title="Open this invoice in the Contract invoices list"
+                    style={{ fontWeight: 600, color: "var(--navy)", marginRight: 6 }}
+                  >
+                    ↗
+                  </Link>
                   <button
                     type="button"
                     className="pill"

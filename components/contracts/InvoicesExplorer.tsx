@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
 import { formatMoney, type InvoiceRow } from "@/lib/domain/contracts";
 import { updateInvoiceField, deleteInvoice } from "@/app/(dashboard)/contracts/actions";
@@ -40,6 +41,7 @@ const COLUMNS: Col[] = [
 ];
 
 export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRow[] }) {
+  useRowFlash();
   const [rows, setRows] = useState(invoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -225,7 +227,7 @@ export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRo
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} id={`inv-${r.id}`}>
                   <td className="center">
                     {r.contractUuid ? (
                       <Link

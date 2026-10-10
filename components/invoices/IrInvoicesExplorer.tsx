@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
 import { formatMoney } from "@/lib/domain/contracts";
 import { updateInvoiceField, createInvoice, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
@@ -49,6 +50,7 @@ const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balanc
 export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceListRow[] }) {
   const [rows, setRows] = useState(invoices);
   const [editingContract, setEditingContract] = useState<string | null>(null);
+  useRowFlash();
   const [searchQuery, setSearchQuery] = useState("");
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -294,7 +296,7 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} id={`inv-${r.id}`}>
                   <td className="center" style={{ whiteSpace: "nowrap" }}>
                     {r.request_id && (
                       <Link
