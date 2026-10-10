@@ -8,7 +8,7 @@ import {
   formatDateIT,
   formatMoney,
 } from "@/lib/domain/contracts";
-import { fetchProjectDeadlines, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
+import { fetchProjectDeadlines, fetchWarnDays, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
 import ConfirmForm from "@/components/ConfirmForm";
 import TranchesTable from "@/components/contracts/TranchesTable";
 import ContractInvoicesTable from "@/components/contracts/ContractInvoicesTable";
@@ -110,12 +110,15 @@ export default async function ContractDetailPage({
     },
   ];
   const projectEnd = deadlineFor(await fetchProjectDeadlines(supabase), contract.project_code);
-  const alert = deadlineAlert({
-    ...contract,
-    project_deadline: projectEnd,
-    paid,
-    unpaidTranches: (tranches ?? []).filter((t) => !t.paid).length,
-  });
+  const alert = deadlineAlert(
+    {
+      ...contract,
+      project_deadline: projectEnd,
+      paid,
+      unpaidTranches: (tranches ?? []).filter((t) => !t.paid).length,
+    },
+    await fetchWarnDays(supabase)
+  );
   const dLeft = daysUntil(contract.end_date);
   const overdue = dLeft !== null && dLeft < 0 && contract.status === "in_corso";
 

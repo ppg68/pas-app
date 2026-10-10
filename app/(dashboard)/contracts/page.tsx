@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { totalPaid } from "@/lib/domain/contracts";
-import { fetchProjectDeadlines, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
+import { fetchProjectDeadlines, fetchWarnDays, deadlineFor, deadlineAlert } from "@/lib/domain/projectDeadlines";
 import ContractsExplorer, { type ContractListRow } from "@/components/contracts/ContractsExplorer";
 
 export default async function ContractsListPage() {
@@ -12,6 +12,7 @@ export default async function ContractsListPage() {
     .order("created_at", { ascending: false });
 
   const deadlines = await fetchProjectDeadlines(supabase);
+  const warnDays = await fetchWarnDays(supabase);
 
   const contractIds = (contracts ?? []).map((c) => c.id);
   const { data: tranches } = contractIds.length
@@ -38,7 +39,7 @@ export default async function ContractsListPage() {
       project_deadline,
       paid,
       tranchesCount: ts.length,
-      alert: deadlineAlert({ ...c, project_deadline, paid, unpaidTranches }),
+      alert: deadlineAlert({ ...c, project_deadline, paid, unpaidTranches }, warnDays),
     };
   });
 
@@ -64,7 +65,7 @@ export default async function ContractsListPage() {
           </Link>
         </div>
       </div>
-      <ContractsExplorer contracts={rows} />
+      <ContractsExplorer contracts={rows} warnDays={warnDays} />
     </div>
   );
 }

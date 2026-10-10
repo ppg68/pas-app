@@ -328,3 +328,22 @@ export async function deleteInvoice(invoiceId: string) {
   revalidatePath("/contracts/invoices");
   revalidatePath("/contracts", "layout");
 }
+
+/** Shared setting: days before the end of a project from which an open contract with payments pending is flagged. */
+export async function updateWarnDays(days: number): Promise<{ ok: boolean; error?: string }> {
+  const n = Math.round(Number(days));
+  if (!Number.isFinite(n) || n < 0 || n > 730) {
+    return { ok: false, error: "Enter a number of days between 0 and 730." };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("settings" as never)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .upsert({ key: "deadline_warn_days", value: String(n), updated_by: user?.id ?? null, updated_at: new Date().toISOString() } as any);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/contracts", "layout");
+  return { ok: true };
+}

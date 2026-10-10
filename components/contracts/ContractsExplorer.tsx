@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CONTRACT_STATUS_LABEL,
   CONTRACT_KIND_SUGGESTIONS,
@@ -12,7 +13,7 @@ import {
   type ContractRow,
   type ContractStatus,
 } from "@/lib/domain/contracts";
-import { updateContractField } from "@/app/(dashboard)/contracts/actions";
+import { updateContractField, updateWarnDays } from "@/app/(dashboard)/contracts/actions";
 
 export type ContractListRow = ContractRow & {
   paid: number;
@@ -94,8 +95,17 @@ function alertReason(c: ContractListRow): string | null {
   return null;
 }
 
-export default function ContractsExplorer({ contracts }: { contracts: ContractListRow[] }) {
+export default function ContractsExplorer({
+  contracts,
+  warnDays,
+}: {
+  contracts: ContractListRow[];
+  warnDays: number;
+}) {
+  const router = useRouter();
   const [rows, setRows] = useState(contracts);
+  const [warnInput, setWarnInput] = useState(String(warnDays));
+  const [warnError, setWarnError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hoveringRef = useRef(false);
 
@@ -433,6 +443,34 @@ export default function ContractsExplorer({ contracts }: { contracts: ContractLi
         >
           ⚠ With alert ({alertCount})
         </button>
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-soft)", whiteSpace: "nowrap" }}
+          title="Number of days before the end of a project from which an open contract with payments pending is flagged. Shared by everyone."
+        >
+          Project-end alert from
+          <input
+            type="number"
+            min={0}
+            max={730}
+            value={warnInput}
+            onChange={(e) => setWarnInput(e.target.value)}
+            onBlur={async () => {
+              if (warnInput === String(warnDays)) return;
+              const res = await updateWarnDays(Number(warnInput));
+              if (!res.ok) {
+                setWarnError(res.error ?? "Could not save.");
+                setWarnInput(String(warnDays));
+                return;
+              }
+              setWarnError(null);
+              router.refresh();
+            }}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+            style={{ width: 64 }}
+          />
+          days before
+        </label>
+        {warnError && <span style={{ color: "var(--brick)", fontSize: 12 }}>{warnError}</span>}
       </div>
 
       {filtered.length === 0 && <p className="empty">No contracts match.</p>}
