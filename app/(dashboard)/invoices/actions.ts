@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { normalizeContractNumber } from "@/lib/domain/contracts";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
+import { irKey } from "@/lib/domain/irRefs";
 import { createClient } from "@/lib/supabase/server";
 
 const TEXT_FIELDS = new Set([
@@ -44,6 +45,26 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
     else patch[field] = v || null;
   } else {
     return;
+  }
+
+  // IR number: link the request and take project code and budget line from it.
+  if (field === "ir_number") {
+    const ir = irKey(String(patch.ir_number ?? ""));
+    let requestId: string | null = null;
+    if (ir) {
+      const { data: req } = await supabase
+        .from("requests")
+        .select("id, project_code, budget_line")
+        .eq("legacy_ir_number", ir)
+        .limit(1);
+      const r = req?.[0];
+      if (r) {
+        requestId = r.id;
+        if (r.project_code) patch.project_code = r.project_code;
+        if (r.budget_line) patch.budget_line = r.budget_line;
+      }
+    }
+    patch.request_id = requestId;
   }
 
   // Keep the real link to the contract in sync with the typed contract number.
@@ -94,13 +115,21 @@ export async function createInvoiceFromForm(formData: FormData) {
   // IR request (historic requests are matched on their IR number)
   const irNumber = str(formData, "ir_number") || null;
   let requestId: string | null = null;
+  let reqProject: string | null = null;
+  let reqBudget: string | null = null;
   if (irNumber) {
-    const { data: req } = await supabase.from("requests").select("id").eq("legacy_ir_number", irNumber).limit(1);
+    const { data: req } = await supabase
+      .from("requests")
+      .select("id, project_code, budget_line")
+      .eq("legacy_ir_number", irNumber)
+      .limit(1);
     requestId = req?.[0]?.id ?? null;
+    reqProject = req?.[0]?.project_code ?? null;
+    reqBudget = req?.[0]?.budget_line ?? null;
   }
 
   // the CUP of the project (Approved projects) wins over what was typed
-  const projectCode = str(formData, "project_code") || null;
+  const projectCode = str(formData, "project_code") || reqProject;
   const cup = cupForProject(await fetchProjectCups(supabase), projectCode) ?? (str(formData, "cup") || null);
 
   const num = (k: string) => {
@@ -125,7 +154,7 @@ export async function createInvoiceFromForm(formData: FormData) {
       withholding: num("withholding"),
       pa_signed: formData.get("pa_signed") === "on",
       project_code: projectCode,
-      budget_line: str(formData, "budget_line") || null,
+      budget_line: str(formData, "budget_line") || reqBudget,
       cup,
       notes: str(formData, "notes") || null,
     })

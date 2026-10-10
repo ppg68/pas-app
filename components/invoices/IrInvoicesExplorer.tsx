@@ -5,6 +5,7 @@ import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
+import { irKey, type IrRef } from "@/lib/domain/irRefs";
 import { updateInvoiceField, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
 import type { Database } from "@/types/database.types";
 
@@ -63,10 +64,12 @@ export default function IrInvoicesExplorer({
   invoices,
   contracts,
   projectCups,
+  irRefs,
 }: {
   invoices: IrInvoiceListRow[];
   contracts: ContractRef[];
   projectCups: Record<string, string>;
+  irRefs: Record<string, IrRef>;
 }) {
   const [rows, setRows] = useState(invoices);
   /** CUP of the invoice's project from Approved projects (wins over the value typed on the invoice). */
@@ -117,6 +120,16 @@ export default function IrInvoicesExplorer({
       prev.map((r) => {
         if (r.id !== id) return r;
         if (key === "pa_signed") return { ...r, pa_signed: raw === "true" };
+        if (key === "ir_number") {
+          // the IR request gives the project code and the budget line (also saved on the server)
+          const ref = raw.trim() ? irRefs[irKey(raw)] : undefined;
+          return {
+            ...r,
+            ir_number: raw.trim() || null,
+            ...(ref?.project ? { project_code: ref.project } : {}),
+            ...(ref?.budget ? { budget_line: ref.budget } : {}),
+          };
+        }
         if (key === "contract_number") {
           const found = raw.trim() ? contractByNumber.get(normalizeContractNumber(raw)) : undefined;
           return { ...r, contract_number: raw.trim() || null, contractUuid: found?.id ?? null, contract_id: found?.id ?? null };

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { updateInvoiceField } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
+import { irKey, type IrRef } from "@/lib/domain/irRefs";
 
 export type InvoiceRecord = {
   id: string;
@@ -56,10 +57,12 @@ export default function InvoiceDetail({
   record,
   contracts,
   projectCups,
+  irRefs,
 }: {
   record: InvoiceRecord;
   contracts: DetailContract[];
   projectCups: Record<string, string>;
+  irRefs: Record<string, IrRef>;
 }) {
   const [r, setR] = useState(record);
   const [saved, setSaved] = useState<string | null>(null);
@@ -174,7 +177,30 @@ export default function InvoiceDetail({
 
       <div style={row}>
         {textField("Supplier", "supplier", { flex: 2, minWidth: 220 })}
-        {textField("IR #", "ir_number", { minWidth: 120 })}
+        <div className="field" style={{ flex: 1, minWidth: 120 }}>
+          <label>
+            IR # (fills project and budget line)
+            {saved === "ir_number" && <span style={{ color: "var(--navy)", marginLeft: 8, textTransform: "none" }}>saved ✓</span>}
+          </label>
+          <input
+            value={r.ir_number ?? ""}
+            onChange={(e) => setR({ ...r, ir_number: e.target.value })}
+            onBlur={(e) => {
+              const ref = e.target.value.trim() ? irRefs[irKey(e.target.value)] : undefined;
+              if (ref) {
+                setR((cur) => ({
+                  ...cur,
+                  project_code: ref.project ?? cur.project_code,
+                  budget_line: ref.budget ?? cur.budget_line,
+                }));
+              }
+              void save("ir_number", e.target.value);
+            }}
+          />
+          {r.ir_number?.trim() && !irRefs[irKey(r.ir_number)] && (
+            <div style={{ fontSize: 12, marginTop: 4, color: "var(--ink-soft)" }}>IR not found in the app</div>
+          )}
+        </div>
         {textField("Protocol", "protocol")}
       </div>
 

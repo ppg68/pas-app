@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createInvoiceFromForm } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
+import { irKey, type IrRef } from "@/lib/domain/irRefs";
 
 export type FormContract = {
   number: string;
@@ -19,9 +20,11 @@ const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
 export default function NewInvoiceForm({
   contracts,
   projectCups,
+  irRefs,
 }: {
   contracts: FormContract[];
   projectCups: Record<string, string>;
+  irRefs: Record<string, IrRef>;
 }) {
   const [contractNumber, setContractNumber] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -32,6 +35,20 @@ export default function NewInvoiceForm({
   // unless the user typed something different in the meantime
   const [autoSupplier, setAutoSupplier] = useState("");
   const [autoProject, setAutoProject] = useState("");
+  const [irNumber, setIrNumber] = useState("");
+  const [budget, setBudget] = useState("");
+  const irRef = irNumber.trim() ? irRefs[irKey(irNumber)] : undefined;
+
+  function onIrChange(v: string) {
+    setIrNumber(v);
+    const ref = v.trim() ? irRefs[irKey(v)] : undefined;
+    // the IR request is the source of project and budget line: they follow it
+    if (ref?.project) {
+      setProject(ref.project);
+      setAutoProject(ref.project);
+    }
+    if (ref?.budget) setBudget(ref.budget);
+  }
 
   const byNumber = useMemo(() => {
     const m = new Map<string, FormContract>();
@@ -122,8 +139,15 @@ export default function NewInvoiceForm({
           <input name="supplier" required value={supplier} onChange={(e) => setSupplier(e.target.value)} />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 140 }}>
-          <label>IR #</label>
-          <input name="ir_number" />
+          <label>IR # (fills project and budget line)</label>
+          <input name="ir_number" value={irNumber} onChange={(e) => onIrChange(e.target.value)} />
+          {irNumber.trim() && (
+            <div style={{ fontSize: 12, marginTop: 4, color: irRef ? "var(--ink-soft)" : "var(--ink-soft)" }}>
+              {irRef
+                ? `✓ request found${irRef.project ? ` · project ${irRef.project}` : ""}${irRef.budget ? ` · budget line ${irRef.budget}` : ""}`
+                : "IR not found in the app (type project and budget line by hand)"}
+            </div>
+          )}
         </div>
         <div className="field" style={{ flex: 1, minWidth: 160 }}>
           <label>Protocol</label>
@@ -181,7 +205,7 @@ export default function NewInvoiceForm({
         </div>
         <div className="field" style={{ flex: 1, minWidth: 130 }}>
           <label>Budget line</label>
-          <input name="budget_line" />
+          <input name="budget_line" value={budget} onChange={(e) => setBudget(e.target.value)} />
         </div>
         <div className="field" style={{ flex: 2, minWidth: 220 }}>
           <label>CUP / AID{projectCup ? " (from Approved projects)" : ""}</label>

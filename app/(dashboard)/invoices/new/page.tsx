@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchProjectCups } from "@/lib/domain/projectCups";
+import { fetchIrRefs } from "@/lib/domain/irRefs";
 import NewInvoiceForm, { type FormContract } from "@/components/invoices/NewInvoiceForm";
 
 export default async function NewInvoicePage({
@@ -12,6 +13,7 @@ export default async function NewInvoicePage({
   const supabase = await createClient();
 
   const projectCups = await fetchProjectCups(supabase);
+  const irRefs = await fetchIrRefs(supabase);
   const [{ data: contracts }, { data: oldInvoices }, { data: irInvoices }] = await Promise.all([
     supabase.from("contracts").select("id, legacy_id, subject, amount, currency, project_code"),
     supabase.from("contract_invoices").select("contract_id, amount"),
@@ -47,7 +49,7 @@ export default async function NewInvoicePage({
       </Link>
       <h1 style={{ margin: "10px 0 16px" }}>New invoice</h1>
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
-      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} />
+      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} />
     </div>
   );
 }
