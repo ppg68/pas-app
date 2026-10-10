@@ -50,6 +50,9 @@ export default async function ContractsListPage() {
           <p className="subtitle">{rows.length} records</p>
         </div>
         <div className="page-actions">
+          <Link href="/contracts/schedule" className="ghost">
+            Schedule
+          </Link>
           <Link href="/contracts/invoices" className="ghost">
             Invoices
           </Link>
