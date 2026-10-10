@@ -7,6 +7,7 @@ import { updateInvoiceField, createInvoice, deleteInvoice } from "@/app/(dashboa
 import type { Database } from "@/types/database.types";
 
 export type IrInvoiceRow = Database["pas"]["Tables"]["invoices"]["Row"];
+export type IrInvoiceListRow = IrInvoiceRow & { contractUuid: string | null };
 
 type SortBy = "default" | "payment" | "due" | "amount" | "supplier";
 type SortDir = "asc" | "desc";
@@ -45,8 +46,9 @@ const COLUMNS: Col[] = [
 
 const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balance_due"]);
 
-export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceRow[] }) {
+export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceListRow[] }) {
   const [rows, setRows] = useState(invoices);
+  const [editingContract, setEditingContract] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -69,9 +71,9 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceRo
         if (NUMERIC_KEYS.has(key)) {
           const n = raw.trim() ? parseFloat(raw) : null;
           if (key === "amount") return { ...r, amount: n ?? r.amount };
-          return { ...r, [key]: n } as IrInvoiceRow;
+          return { ...r, [key]: n } as IrInvoiceListRow;
         }
-        return { ...r, [key]: raw.trim() || null } as IrInvoiceRow;
+        return { ...r, [key]: raw.trim() || null } as IrInvoiceListRow;
       })
     );
     void updateInvoiceField(id, key, raw);
@@ -145,8 +147,44 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceRo
     return sortDir === "asc" ? " ↑" : " ↓";
   }
 
-  function renderCell(r: IrInvoiceRow, col: Col) {
+  function renderCell(r: IrInvoiceListRow, col: Col) {
     const value = r[col.key];
+    // Contract #: shown as a link to the contract record; the pencil switches to editing the number.
+    if (col.key === "contract_number" && r.contractUuid && editingContract !== r.id) {
+      return (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Link
+            href={`/contracts/${r.contractUuid}`}
+            title="Open contract"
+            style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "underline" }}
+          >
+            {(value as string) || "—"}
+          </Link>
+          <button
+            type="button"
+            title="Edit contract number"
+            onClick={() => setEditingContract(r.id)}
+            style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-soft)", fontSize: 12 }}
+          >
+            ✎
+          </button>
+        </span>
+      );
+    }
+    if (col.key === "contract_number") {
+      return (
+        <input
+          autoFocus={editingContract === r.id}
+          defaultValue={(value as string) ?? ""}
+          onBlur={(e) => {
+            saveField(r.id, col.key, e.target.value);
+            setEditingContract(null);
+          }}
+          style={cellInputStyle}
+          title={value && !r.contractUuid ? "No matching contract found" : undefined}
+        />
+      );
+    }
     if (col.type === "checkbox") {
       return (
         <input
@@ -267,9 +305,9 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceRo
                         IR↗
                       </Link>
                     )}{" "}
-                    {r.contract_id && (
+                    {r.contractUuid && (
                       <Link
-                        href={`/contracts/${r.contract_id}`}
+                        href={`/contracts/${r.contractUuid}`}
                         title="Open contract"
                         style={{ fontWeight: 600, color: "var(--navy)" }}
                       >
