@@ -92,15 +92,15 @@ export default function ContractInvoicesTable({
   const toInvoice = Math.round((contractAmount - invoiced) * 100) / 100;
 
   const cell: React.CSSProperties = { padding: "3px 4px" };
-  const money: React.CSSProperties = { width: 95, textAlign: "right" };
+  const money: React.CSSProperties = { width: "100%", textAlign: "right" };
 
-  function textInput(r: ContractInvoiceRow, field: "invoice_number" | "protocol" | "description" | "payment_note", width: number) {
+  function textInput(r: ContractInvoiceRow, field: "invoice_number" | "protocol" | "description" | "payment_note") {
     return (
       <input
         value={r[field] ?? ""}
         onChange={(e) => edit(r.id, { [field]: e.target.value })}
         onBlur={(e) => save(r.id, field, e.target.value)}
-        style={{ width }}
+        style={{ width: "100%" }}
       />
     );
   }
@@ -112,7 +112,7 @@ export default function ContractInvoicesTable({
         value={r[field] ?? ""}
         onChange={(e) => edit(r.id, { [field]: e.target.value || null })}
         onBlur={(e) => save(r.id, field, e.target.value)}
-        style={{ width: 135 }}
+        style={{ width: "100%" }}
       />
     );
   }
@@ -120,7 +120,18 @@ export default function ContractInvoicesTable({
   return (
     <div>
       <div className="table-wrap" style={{ marginBottom: 8 }}>
-        <table>
+        <table className="fit" style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "15%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "6%" }} />
+          </colgroup>
           <thead>
             <tr>
               <th>Invoice #</th>
@@ -137,7 +148,7 @@ export default function ContractInvoicesTable({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td style={cell}>{textInput(r, "invoice_number", 80)}</td>
+                <td style={cell}>{textInput(r, "invoice_number")}</td>
                 <td style={cell}>{dateInput(r, "invoice_date")}</td>
                 <td className="num" style={cell}>
                   <input
@@ -150,8 +161,8 @@ export default function ContractInvoicesTable({
                     style={money}
                   />
                 </td>
-                <td style={cell}>{textInput(r, "protocol", 80)}</td>
-                <td style={cell}>{textInput(r, "description", 150)}</td>
+                <td style={cell}>{textInput(r, "protocol")}</td>
+                <td style={cell}>{textInput(r, "description")}</td>
                 <td className="num" style={cell}>
                   <input
                     type="number"
@@ -166,7 +177,7 @@ export default function ContractInvoicesTable({
                   />
                 </td>
                 <td style={cell}>{dateInput(r, "payment_date")}</td>
-                <td style={cell}>{textInput(r, "payment_note", 130)}</td>
+                <td style={cell}>{textInput(r, "payment_note")}</td>
                 <td className="center" style={cell}>
                   <button
                     type="button"
@@ -186,7 +197,7 @@ export default function ContractInvoicesTable({
                   placeholder="new invoice #"
                   value={draft.invoice_number}
                   onChange={(e) => setDraft({ ...draft, invoice_number: e.target.value })}
-                  style={{ width: 80 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td style={cell}>
@@ -194,7 +205,7 @@ export default function ContractInvoicesTable({
                   type="date"
                   value={draft.invoice_date}
                   onChange={(e) => setDraft({ ...draft, invoice_date: e.target.value })}
-                  style={{ width: 135 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td className="num" style={cell}>
@@ -213,14 +224,14 @@ export default function ContractInvoicesTable({
                 <input
                   value={draft.protocol}
                   onChange={(e) => setDraft({ ...draft, protocol: e.target.value })}
-                  style={{ width: 80 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td style={cell}>
                 <input
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  style={{ width: 150 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td className="num" style={cell}>
@@ -238,14 +249,14 @@ export default function ContractInvoicesTable({
                   type="date"
                   value={draft.payment_date}
                   onChange={(e) => setDraft({ ...draft, payment_date: e.target.value })}
-                  style={{ width: 135 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td style={cell}>
                 <input
                   value={draft.payment_note}
                   onChange={(e) => setDraft({ ...draft, payment_note: e.target.value })}
-                  style={{ width: 130 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td className="center" style={cell}>

@@ -384,3 +384,7 @@ button.linklike {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Tables that must fit the card width (no horizontal scroll): wrap headers, shrink inputs. */
+table.fit thead th { white-space: normal; }
+table.fit input, table.fit select { min-width: 0; padding-left: 4px; padding-right: 4px; font-size: 0.8rem; }

@@ -92,7 +92,18 @@ export default function TranchesTable({
   return (
     <div>
       <div className="table-wrap" style={{ marginBottom: 8 }}>
-        <table>
+        <table className="fit" style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "4%" }} />
+            <col style={{ width: "17%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "7%" }} />
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -117,7 +128,7 @@ export default function TranchesTable({
                       value={t.label ?? ""}
                       onChange={(e) => edit(t.id, { label: e.target.value })}
                       onBlur={(e) => save(t.id, "label", e.target.value)}
-                      style={{ width: 130 }}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td className="num" style={cell}>
@@ -128,7 +139,7 @@ export default function TranchesTable({
                       value={t.amount}
                       onChange={(e) => edit(t.id, { amount: parseFloat(e.target.value) || 0 })}
                       onBlur={(e) => save(t.id, "amount", e.target.value)}
-                      style={{ width: 95, textAlign: "right" }}
+                      style={{ width: "100%", textAlign: "right" }}
                     />
                   </td>
                   <td style={cell}>
@@ -137,7 +148,7 @@ export default function TranchesTable({
                       value={t.due_date ?? ""}
                       onChange={(e) => edit(t.id, { due_date: e.target.value || null })}
                       onBlur={(e) => save(t.id, "due_date", e.target.value)}
-                      style={{ width: 135 }}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td style={cell}>
@@ -145,7 +156,7 @@ export default function TranchesTable({
                       value={t.due_condition ?? ""}
                       onChange={(e) => edit(t.id, { due_condition: e.target.value })}
                       onBlur={(e) => save(t.id, "due_condition", e.target.value)}
-                      style={{ width: 130 }}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td className="center" style={cell}>
@@ -166,7 +177,7 @@ export default function TranchesTable({
                         edit(t.id, { paid_amount: e.target.value === "" ? null : parseFloat(e.target.value) })
                       }
                       onBlur={(e) => save(t.id, "paid_amount", e.target.value)}
-                      style={{ width: 95, textAlign: "right" }}
+                      style={{ width: "100%", textAlign: "right" }}
                     />
                   </td>
                   <td style={cell}>
@@ -175,7 +186,7 @@ export default function TranchesTable({
                       value={t.paid_date ?? ""}
                       onChange={(e) => edit(t.id, { paid_date: e.target.value || null })}
                       onBlur={(e) => save(t.id, "paid_date", e.target.value)}
-                      style={{ width: 135 }}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td className="center" style={cell}>
@@ -199,7 +210,7 @@ export default function TranchesTable({
                   placeholder="new tranche label"
                   value={draft.label}
                   onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-                  style={{ width: 130 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td className="num" style={cell}>
@@ -211,7 +222,7 @@ export default function TranchesTable({
                   value={draft.amount}
                   onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
                   onKeyDown={(e) => e.key === "Enter" && add()}
-                  style={{ width: 95, textAlign: "right" }}
+                  style={{ width: "100%", textAlign: "right" }}
                 />
               </td>
               <td style={cell}>
@@ -219,7 +230,7 @@ export default function TranchesTable({
                   type="date"
                   value={draft.due_date}
                   onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
-                  style={{ width: 135 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td style={cell}>
@@ -227,7 +238,7 @@ export default function TranchesTable({
                   placeholder="e.g. upon final report"
                   value={draft.due_condition}
                   onChange={(e) => setDraft({ ...draft, due_condition: e.target.value })}
-                  style={{ width: 130 }}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td colSpan={3}></td>
