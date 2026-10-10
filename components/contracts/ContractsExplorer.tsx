@@ -421,7 +421,7 @@ export default function ContractsExplorer({
         </button>
       </div>
 
-      <div className="toolbar" style={{ maxWidth: 700 }}>
+      <div className="toolbar" style={{ maxWidth: "none" }}>
         <input
           type="text"
           placeholder="Search by subject, project, IR, country, or referent…"
@@ -443,11 +443,21 @@ export default function ContractsExplorer({
         >
           ⚠ With alert ({alertCount})
         </button>
-        <label
-          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-soft)", whiteSpace: "nowrap" }}
-          title="Number of days before the end of a project from which an open contract with payments pending is flagged. Shared by everyone."
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            fontWeight: 400,
+            textTransform: "none",
+            letterSpacing: 0,
+            color: "var(--ink-soft)",
+            whiteSpace: "nowrap",
+          }}
+          title="Number of days before the end of a project from which an open contract with payments pending is flagged (shared by everyone)."
         >
-          Project-end alert from
+          Alert: project ends in
           <input
             type="number"
             min={0}
@@ -466,10 +476,10 @@ export default function ContractsExplorer({
               router.refresh();
             }}
             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            style={{ width: 64 }}
+            style={{ width: 56, padding: "4px 6px" }}
           />
-          days before
-        </label>
+          days
+        </span>
         {warnError && <span style={{ color: "var(--brick)", fontSize: 12 }}>{warnError}</span>}
       </div>
 
