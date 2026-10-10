@@ -13,6 +13,7 @@ export type IrInvoiceListRow = IrInvoiceRow & { contractUuid: string | null };
 type SortBy = "default" | "payment" | "due" | "amount" | "supplier";
 type SortDir = "asc" | "desc";
 type PaidFilter = "all" | "unpaid" | "paid";
+type PaFilter = "all" | "signed" | "unsigned";
 
 const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
@@ -53,6 +54,7 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
   useRowFlash();
   const [searchQuery, setSearchQuery] = useState("");
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
+  const [paFilter, setPaFilter] = useState<PaFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [exporting, setExporting] = useState(false);
@@ -102,6 +104,8 @@ This cannot be undone.`)) return;
     let list = rows;
     if (paidFilter === "unpaid") list = list.filter((r) => !r.payment_date);
     if (paidFilter === "paid") list = list.filter((r) => !!r.payment_date);
+    if (paFilter === "signed") list = list.filter((r) => r.pa_signed);
+    if (paFilter === "unsigned") list = list.filter((r) => !r.pa_signed);
     if (q) {
       list = list.filter((r) =>
         [r.supplier, r.ir_number, r.protocol, r.contract_number, r.project_code, r.cup, r.notes].some(
@@ -119,7 +123,7 @@ This cannot be undone.`)) return;
       sorted.sort((a, b) => dir * (a.supplier || "").localeCompare(b.supplier || ""));
     else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return sorted;
-  }, [rows, searchQuery, paidFilter, sortBy, sortDir]);
+  }, [rows, searchQuery, paidFilter, paFilter, sortBy, sortDir]);
 
   async function exportExcel() {
     if (rows.length === 0) return;
@@ -276,10 +280,25 @@ This cannot be undone.`)) return;
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ maxWidth: 420 }}
         />
-        <select value={paidFilter} onChange={(e) => setPaidFilter(e.target.value as PaidFilter)}>
-          <option value="all">All</option>
+        <select
+          value={paidFilter}
+          onChange={(e) => setPaidFilter(e.target.value as PaidFilter)}
+          style={{ width: "auto", minWidth: 150 }}
+          title="Filter by payment"
+        >
+          <option value="all">All payments</option>
           <option value="unpaid">Unpaid (no payment date)</option>
           <option value="paid">Paid</option>
+        </select>
+        <select
+          value={paFilter}
+          onChange={(e) => setPaFilter(e.target.value as PaFilter)}
+          style={{ width: "auto", minWidth: 150 }}
+          title="Filter by PA signed"
+        >
+          <option value="all">PA: all</option>
+          <option value="signed">PA signed</option>
+          <option value="unsigned">PA not signed</option>
         </select>
       </div>
 
