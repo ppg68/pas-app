@@ -3,12 +3,22 @@
 import { useMemo, useState } from "react";
 import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
-import { formatMoney } from "@/lib/domain/contracts";
-import { updateInvoiceField, createInvoice, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
+import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
+import { updateInvoiceField, deleteInvoice } from "@/app/(dashboard)/invoices/actions";
 import type { Database } from "@/types/database.types";
 
 export type IrInvoiceRow = Database["pas"]["Tables"]["invoices"]["Row"];
 export type IrInvoiceListRow = IrInvoiceRow & { contractUuid: string | null };
+/** Minimal contract data used to compute "Contract value" and "Balance due" on each invoice. */
+export type ContractRef = {
+  id: string;
+  number: string;
+  subject: string;
+  amount: number;
+  currency: string;
+  /** sum of the invoices of the older "Elenco Fatture" list for this contract */
+  oldInvoiced: number;
+};
 
 type SortBy = "default" | "payment" | "due" | "amount" | "supplier";
 type SortDir = "asc" | "desc";
@@ -48,12 +58,41 @@ const COLUMNS: Col[] = [
 
 const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balance_due"]);
 
-export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceListRow[] }) {
+export default function IrInvoicesExplorer({
+  invoices,
+  contracts,
+}: {
+  invoices: IrInvoiceListRow[];
+  contracts: ContractRef[];
+}) {
   const [rows, setRows] = useState(invoices);
+  const contractById = useMemo(() => new Map(contracts.map((c) => [c.id, c])), [contracts]);
+  const contractByNumber = useMemo(() => {
+    const m = new Map<string, ContractRef>();
+    contracts.forEach((c) => c.number && m.set(normalizeContractNumber(c.number), c));
+    return m;
+  }, [contracts]);
+  // invoiced so far per contract: older list + IR-register invoices in the contract currency
+  const invoicedByContract = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => {
+      if (!r.contractUuid) return;
+      const c = contractById.get(r.contractUuid);
+      if (c && c.currency === r.currency) m.set(c.id, (m.get(c.id) ?? 0) + (r.amount ?? 0));
+    });
+    return m;
+  }, [rows, contractById]);
+
+  /** Contract value / balance due, computed from the linked contract (null when no contract is linked). */
+  function contractFigures(r: IrInvoiceListRow): { value: number; cur: string; balance: number } | null {
+    const c = r.contractUuid ? contractById.get(r.contractUuid) : undefined;
+    if (!c) return null;
+    const invoiced = c.oldInvoiced + (invoicedByContract.get(c.id) ?? 0);
+    return { value: c.amount, cur: c.currency, balance: c.amount - invoiced };
+  }
   const [editingContract, setEditingContract] = useState<string | null>(null);
   useRowFlash();
   const [searchQuery, setSearchQuery] = useState("");
-  const [adding, setAdding] = useState(false);
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [paFilter, setPaFilter] = useState<PaFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
@@ -73,6 +112,10 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
       prev.map((r) => {
         if (r.id !== id) return r;
         if (key === "pa_signed") return { ...r, pa_signed: raw === "true" };
+        if (key === "contract_number") {
+          const found = raw.trim() ? contractByNumber.get(normalizeContractNumber(raw)) : undefined;
+          return { ...r, contract_number: raw.trim() || null, contractUuid: found?.id ?? null, contract_id: found?.id ?? null };
+        }
         if (NUMERIC_KEYS.has(key)) {
           const n = raw.trim() ? parseFloat(raw) : null;
           if (key === "amount") return { ...r, amount: n ?? r.amount };
@@ -82,34 +125,6 @@ export default function IrInvoicesExplorer({ invoices }: { invoices: IrInvoiceLi
       })
     );
     void updateInvoiceField(id, key, raw);
-  }
-
-  // Adds the new row locally (no full page reload) and brings it into view.
-  async function addInvoice() {
-    if (adding) return;
-    setAdding(true);
-    try {
-      const res = await createInvoice();
-      if (!res.row) {
-        window.alert(res.error ?? "Could not create the invoice.");
-        return;
-      }
-      const row = { ...res.row, contractUuid: null } as IrInvoiceListRow;
-      setRows((prev) => [row, ...prev]);
-      setSearchQuery("");
-      setPaidFilter("all");
-      setPaFilter("all");
-      window.setTimeout(() => {
-        const el = document.getElementById(`inv-${row.id}`);
-        if (el) {
-          el.scrollIntoView({ block: "center" });
-          el.classList.add("row-flash");
-          window.setTimeout(() => el.classList.remove("row-flash"), 4000);
-        }
-      }, 50);
-    } finally {
-      setAdding(false);
-    }
   }
 
   function removeRow(id: string) {
@@ -174,8 +189,8 @@ This cannot be undone.`)) return;
         Project: r.project_code || "",
         "Budget line": r.budget_line || "",
         "CUP / AID": r.cup || "",
-        "Contract value": r.contract_value ?? "",
-        "Balance due": r.balance_due ?? "",
+        "Contract value": contractFigures(r)?.value ?? "",
+        "Balance due": contractFigures(r)?.balance ?? "",
         Notes: r.notes || "",
       }));
       const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -229,6 +244,24 @@ This cannot be undone.`)) return;
           style={cellInputStyle}
           title={value && !r.contractUuid ? "No matching contract found" : undefined}
         />
+      );
+    }
+    if (col.key === "contract_value" || col.key === "balance_due") {
+      const f = contractFigures(r);
+      if (!f) return <span style={{ color: "var(--ink-soft)" }}>—</span>;
+      const v = col.key === "contract_value" ? f.value : f.balance;
+      return (
+        <span
+          title={
+            col.key === "contract_value"
+              ? "Value of the linked contract"
+              : "Contract value minus all invoices recorded for the contract"
+          }
+          style={{ color: col.key === "balance_due" && v < -0.005 ? "var(--brick)" : undefined, fontWeight: 500 }}
+        >
+          {formatMoney(v)}
+          {f.cur !== r.currency ? ` ${f.cur}` : ""}
+        </span>
       );
     }
     if (col.type === "checkbox") {
@@ -288,14 +321,9 @@ This cannot be undone.`)) return;
           {`Invoices (${filtered.length}) · EUR total ${formatMoney(totalAmount)} (other currencies excluded)`}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => void addInvoice()}
-            disabled={adding}
-          >
-            {adding ? "Adding…" : "+ New invoice"}
-          </button>
+          <Link href="/invoices/new" className="ghost">
+            + New invoice
+          </Link>
           <button type="button" className="export" onClick={exportExcel} disabled={rows.length === 0 || exporting}>
             {exporting ? "Exporting…" : "Export Excel"}
           </button>

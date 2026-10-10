@@ -128,3 +128,8 @@ export function formatMoney(n: number): string {
     useGrouping: true,
   });
 }
+
+/** "07/25" and "7/25" are the same contract number (leading zeros are ignored, case-insensitive). */
+export function normalizeContractNumber(n: string): string {
+  return n.trim().toUpperCase().replace(/(^|\/)0+(\d)/g, "$1$2");
+}

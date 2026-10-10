@@ -1,10 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import IrInvoicesExplorer, { type IrInvoiceListRow } from "@/components/invoices/IrInvoicesExplorer";
-
-/** Same normalisation used when the historic data was imported: "07/25" and "7/25" are the same contract. */
-function normalizeContractNumber(n: string): string {
-  return n.trim().toUpperCase().replace(/(^|\/)0+(\d)/g, "$1$2");
-}
+import { normalizeContractNumber } from "@/lib/domain/contracts";
+import IrInvoicesExplorer, {
+  type IrInvoiceListRow,
+  type ContractRef,
+} from "@/components/invoices/IrInvoicesExplorer";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
@@ -13,11 +12,29 @@ export default async function InvoicesPage() {
     .select("*")
     .order("payment_date", { ascending: false, nullsFirst: true });
 
-  // Contract access is limited to the CONTRACTS role: without it the map is empty and no link is shown.
-  const { data: contracts } = await supabase.from("contracts").select("id, legacy_id");
+  // Contract access is limited to the CONTRACTS role: without it the list is empty and no link/value is shown.
+  const [{ data: contracts }, { data: oldInvoices }] = await Promise.all([
+    supabase.from("contracts").select("id, legacy_id, subject, amount, currency"),
+    supabase.from("contract_invoices").select("contract_id, amount"),
+  ]);
+
+  const oldSum = new Map<string, number>();
+  (oldInvoices ?? []).forEach((i) => {
+    if (i.contract_id) oldSum.set(i.contract_id, (oldSum.get(i.contract_id) ?? 0) + (i.amount ?? 0));
+  });
+
+  const contractRefs: ContractRef[] = (contracts ?? []).map((c) => ({
+    id: c.id,
+    number: c.legacy_id ?? "",
+    subject: c.subject,
+    amount: c.amount,
+    currency: c.currency,
+    oldInvoiced: oldSum.get(c.id) ?? 0,
+  }));
+
   const byNumber = new Map<string, string>();
-  (contracts ?? []).forEach((c) => {
-    if (c.legacy_id) byNumber.set(normalizeContractNumber(c.legacy_id), c.id);
+  contractRefs.forEach((c) => {
+    if (c.number) byNumber.set(normalizeContractNumber(c.number), c.id);
   });
 
   const rows: IrInvoiceListRow[] = (invoices ?? []).map((inv) => ({
@@ -32,7 +49,7 @@ export default async function InvoicesPage() {
       <div className="page-header">
         <h1>Invoices</h1>
       </div>
-      <IrInvoicesExplorer invoices={rows} />
+      <IrInvoicesExplorer invoices={rows} contracts={contractRefs} />
     </div>
   );
 }
