@@ -24,6 +24,20 @@ import {
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
 
+/** Date and time of a signature, always in Italian time with seconds (audit trail). */
+function fmtWhen(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(iso));
+}
+
 export default async function RequestDetailPage({
   params,
   searchParams,
@@ -74,6 +88,16 @@ export default async function RequestDetailPage({
       },
     ])
   );
+
+  // names of the people who signed (audit trail shown on the page)
+  const signerIds = Array.from(
+    new Set((signatures ?? []).map((s) => s.signed_by).filter((v): v is string => !!v))
+  );
+  const { data: signerProfiles } = signerIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", signerIds)
+    : { data: [] as { id: string; full_name: string }[] };
+  const signerName = (uid: string | null | undefined) =>
+    (signerProfiles ?? []).find((p) => p.id === uid)?.full_name ?? "—";
 
   const roles = new Set((myRoles ?? []).map((r) => r.role as Role));
   const config = procConfigFor(request.proc_code);
@@ -165,7 +189,15 @@ export default async function RequestDetailPage({
               }}
             >
               <span>
-                {ROLE_LABEL[role]} — {signed ? "signed" : "pending"}
+                {ROLE_LABEL[role]} —{" "}
+                {signed ? (
+                  <>
+                    signed by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
+                    <b>{fmtWhen(signed.signed_at)}</b>
+                  </>
+                ) : (
+                  "pending"
+                )}
                 {approverByRole.get(role) && (
                   <span style={{ color: "var(--ink-soft)" }}>
                     {" "}
@@ -184,6 +216,25 @@ export default async function RequestDetailPage({
             </div>
           );
         })}
+        {config.signers.length > 0 && config.signers.every((r) => irSignedRoles.has(r)) && (
+          <p style={{ fontSize: 13, marginTop: 8, fontWeight: 600, color: "var(--navy)" }}>
+            Authorized on{" "}
+            {fmtWhen(
+              [...irSignedRoles.values()]
+                .map((x) => x.signed_at)
+                .filter((v): v is string => !!v)
+                .sort()
+                .slice(-1)[0]
+            )}{" "}
+            (all required IR signatures present)
+          </p>
+        )}
+        {request.is_legacy && irSignedRoles.size === 0 && paySignedRoles.size === 0 && (
+          <p style={{ fontSize: 12, marginTop: 8, color: "var(--ink-soft)" }}>
+            Historical request imported from the IR register: the authorization evidence is outside the app
+            {request.legacy_protocol ? ` (protocol ${request.legacy_protocol})` : ""}.
+          </p>
+        )}
         {!iCanAct && request.stage === "ir_auth" && (
           <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
             Whoever created this request cannot sign it (segregation of duties).
@@ -365,7 +416,15 @@ export default async function RequestDetailPage({
                 }}
               >
                 <span>
-                  {ROLE_LABEL[role]} — {signed ? "signed" : "pending"}
+                  {ROLE_LABEL[role]} —{" "}
+                  {signed ? (
+                    <>
+                      signed by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
+                      <b>{fmtWhen(signed.signed_at)}</b>
+                    </>
+                  ) : (
+                    "pending"
+                  )}
                 </span>
                 {canShowButton && (
                   <form action={signPayment.bind(null, request.id, role)}>
