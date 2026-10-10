@@ -369,6 +369,7 @@ This cannot be undone.`)) return;
               <tr>
                 <th></th>
                 <th></th>
+                <th></th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key}
@@ -385,6 +386,15 @@ This cannot be undone.`)) return;
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} id={`inv-${r.id}`}>
+                  <td className="center">
+                    <Link
+                      href={`/invoices/${r.id}`}
+                      title="Open the full record"
+                      style={{ fontWeight: 600, color: "var(--navy)" }}
+                    >
+                      ↗
+                    </Link>
+                  </td>
                   <td className="center" style={{ whiteSpace: "nowrap" }}>
                     {r.request_id && (
                       <Link

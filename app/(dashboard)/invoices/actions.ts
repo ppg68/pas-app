@@ -135,6 +135,14 @@ export async function createInvoiceFromForm(formData: FormData) {
   redirect(`/invoices#inv-${data.id}`);
 }
 
+/** Delete from the invoice detail page, then go back to the list. */
+export async function deleteInvoiceAndGoBack(invoiceId: string) {
+  const supabase = await createClient();
+  await supabase.from("invoices").delete().eq("id", invoiceId);
+  revalidatePath("/invoices");
+  redirect("/invoices");
+}
+
 export async function deleteInvoice(invoiceId: string) {
   const supabase = await createClient();
   await supabase.from("invoices").delete().eq("id", invoiceId);
