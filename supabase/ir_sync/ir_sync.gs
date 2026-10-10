@@ -16,9 +16,9 @@ var BATCH = 200;
 
 function syncIrRegister() {
   var props = PropertiesService.getScriptProperties();
-  var url = props.getProperty('SUPABASE_URL');
-  var key = props.getProperty('SUPABASE_KEY');
-  var token = props.getProperty('SYNC_TOKEN');
+  var url = clean_(props.getProperty('SUPABASE_URL')).replace(/\/+$/, '');
+  var key = clean_(props.getProperty('SUPABASE_KEY'));
+  var token = clean_(props.getProperty('SYNC_TOKEN'));
   if (!url || !key || !token) throw new Error('Mancano SUPABASE_URL / SUPABASE_KEY / SYNC_TOKEN nelle proprietà dello script');
 
   var sheet = SpreadsheetApp.getActive().getSheets().filter(function (s) {
@@ -138,4 +138,20 @@ function installHourlyTrigger() {
     if (t.getHandlerFunction() === 'syncIrRegister') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('syncIrRegister').timeBased().everyHours(1).create();
+}
+
+/**
+ * Controllo delle proprietà SENZA mostrare i segreti: stampa solo lunghezza e prime lettere.
+ * La chiave "publishable" deve iniziare con sb_publishable_ (circa 46 caratteri);
+ * quella "anon" JWT inizia con eyJ (oltre 200 caratteri). Il token deve essere di 64 caratteri.
+ */
+function checkProperties() {
+  var props = PropertiesService.getScriptProperties();
+  var url = props.getProperty('SUPABASE_URL') || '';
+  var key = props.getProperty('SUPABASE_KEY') || '';
+  var token = props.getProperty('SYNC_TOKEN') || '';
+  console.log('SUPABASE_URL: "' + url + '" (lunghezza ' + url.length + ')');
+  console.log('SUPABASE_KEY: inizia con "' + key.substring(0, 15) + '", lunghezza ' + key.length +
+              ', spazi/a capo ai bordi: ' + (key !== key.trim()));
+  console.log('SYNC_TOKEN: lunghezza ' + token.length + ' (attesa 64), spazi/a capo ai bordi: ' + (token !== token.trim()));
 }
