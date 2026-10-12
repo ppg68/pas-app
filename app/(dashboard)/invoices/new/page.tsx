@@ -7,9 +7,9 @@ import NewInvoiceForm, { type FormContract } from "@/components/invoices/NewInvo
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; contract?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, contract } = await searchParams;
   const supabase = await createClient();
 
   const projectCups = await fetchProjectCups(supabase);
@@ -49,7 +49,7 @@ export default async function NewInvoicePage({
       </Link>
       <h1 style={{ margin: "10px 0 16px" }}>New invoice</h1>
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
-      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} />
+      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} initialContract={contract} />
     </div>
   );
 }

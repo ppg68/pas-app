@@ -21,20 +21,26 @@ export default function NewInvoiceForm({
   contracts,
   projectCups,
   irRefs,
+  initialContract,
 }: {
   contracts: FormContract[];
   projectCups: Record<string, string>;
   irRefs: Record<string, IrRef>;
+  /** Contract number to start from (e.g. when coming from the contract page). */
+  initialContract?: string;
 }) {
-  const [contractNumber, setContractNumber] = useState("");
-  const [supplier, setSupplier] = useState("");
-  const [project, setProject] = useState("");
-  const [currency, setCurrency] = useState("EUR");
+  const start = initialContract
+    ? contracts.find((c) => normalizeContractNumber(c.number) === normalizeContractNumber(initialContract))
+    : undefined;
+  const [contractNumber, setContractNumber] = useState(start?.number ?? "");
+  const [supplier, setSupplier] = useState(start?.subject ?? "");
+  const [project, setProject] = useState(start?.project ?? "");
+  const [currency, setCurrency] = useState(start?.currency ?? "EUR");
   const [amount, setAmount] = useState("");
   // last values filled in automatically from a contract: they are replaced when the contract changes,
   // unless the user typed something different in the meantime
-  const [autoSupplier, setAutoSupplier] = useState("");
-  const [autoProject, setAutoProject] = useState("");
+  const [autoSupplier, setAutoSupplier] = useState(start?.subject ?? "");
+  const [autoProject, setAutoProject] = useState(start?.project ?? "");
   const [irNumber, setIrNumber] = useState("");
   const [budget, setBudget] = useState("");
   const irRef = irNumber.trim() ? irRefs[irKey(irNumber)] : undefined;
