@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { grantContractsAccess, revokeContractsAccess } from "./actions";
+import { grantContractsAccess, revokeContractsAccess, cancelPendingContracts } from "./actions";
 import ConfirmForm from "@/components/ConfirmForm";
 
 export default async function ContractsAccessPage({
@@ -15,10 +15,11 @@ export default async function ContractsAccessPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: myRoles }, { data: contractRoles }, { data: profiles }] = await Promise.all([
+  const [{ data: myRoles }, { data: contractRoles }, { data: profiles }, { data: pending }] = await Promise.all([
     supabase.from("user_roles").select("role").eq("user_id", user?.id ?? ""),
     supabase.from("user_roles").select("user_id").eq("role", "CONTRACTS"),
     supabase.from("profiles").select("id, full_name, email"),
+    supabase.from("pending_roles").select("email").eq("role", "CONTRACTS").order("email"),
   ]);
 
   const iHaveAccess = (myRoles ?? []).some((r) => r.role === "CONTRACTS");
@@ -74,10 +75,32 @@ They will no longer see or edit contracts and invoices.`}
         ))}
       </div>
 
+      {(pending ?? []).length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 8 }}>Pending — not signed in yet</h2>
+          {(pending ?? []).map((p) => (
+            <div key={p.email} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.email}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>Access applied automatically at first sign-in</div>
+              </div>
+              {iHaveAccess && (
+                <ConfirmForm
+                  action={cancelPendingContracts.bind(null, p.email)}
+                  message={`Cancel the pending Contracts access for ${p.email}?`}
+                >
+                  <button type="submit" className="pill">Cancel ×</button>
+                </ConfirmForm>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {iHaveAccess && (
         <form action={grantContractsAccess} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Email address of the person (must have already signed in to PAS at least once)</label>
+            <label>Email address of the person (if they have not signed in yet, access stays pending)</label>
             <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
           </div>
           <button type="submit" className="primary">

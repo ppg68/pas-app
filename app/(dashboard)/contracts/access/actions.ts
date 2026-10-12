@@ -21,7 +21,11 @@ export async function grantContractsAccess(formData: FormData) {
     .maybeSingle();
 
   if (!profile) {
-    fail("/contracts/access", "No account found for this email — they need to sign in to PAS at least once first.");
+    // Not signed in yet: keep it as a pending role, applied automatically at their first sign-in.
+    const { error: pErr } = await supabase.from("pending_roles").insert({ email, role: "CONTRACTS" });
+    if (pErr && pErr.code !== "23505") fail("/contracts/access", pErr.message);
+    revalidatePath("/contracts/access");
+    return;
   }
 
   const { error } = await supabase.from("user_roles").insert({ user_id: profile.id, role: "CONTRACTS" });
@@ -33,5 +37,11 @@ export async function grantContractsAccess(formData: FormData) {
 export async function revokeContractsAccess(userId: string) {
   const supabase = await createClient();
   await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "CONTRACTS");
+  revalidatePath("/contracts/access");
+}
+
+export async function cancelPendingContracts(email: string) {
+  const supabase = await createClient();
+  await supabase.from("pending_roles").delete().eq("email", email).eq("role", "CONTRACTS");
   revalidatePath("/contracts/access");
 }

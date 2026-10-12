@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
-import { addRole, removeRole } from "./actions";
+import { addRole, removeRole, cancelPending } from "./actions";
 import RemovePersonButton from "./RemovePersonButton";
 import ConfirmForm from "@/components/ConfirmForm";
 
@@ -29,6 +29,11 @@ export default async function TeamSettingsPage({
     .select("id, full_name, email")
     .order("full_name");
   const { data: allRoles } = await supabase.from("user_roles").select("user_id, role");
+
+  const { data: pending } = await supabase
+    .from("pending_roles")
+    .select("email, role")
+    .order("email");
 
   const rolesByUser = new Map<string, Role[]>();
   (allRoles ?? []).forEach((r) => {
@@ -83,11 +88,37 @@ export default async function TeamSettingsPage({
         })}
       </div>
 
+      {(pending ?? []).length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 8 }}>Pending — not signed in yet</h2>
+          {(pending ?? []).map((p) => (
+            <div
+              key={`${p.email}-${p.role}`}
+              className="card"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.email}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                  {ROLE_LABEL[p.role as Role]} — applied automatically at first sign-in
+                </div>
+              </div>
+              <ConfirmForm
+                action={cancelPending.bind(null, p.email, p.role as Role)}
+                message={`Cancel the pending role "${ROLE_LABEL[p.role as Role]}" for ${p.email}?`}
+              >
+                <button type="submit" className="pill">Cancel ×</button>
+              </ConfirmForm>
+            </div>
+          ))}
+        </div>
+      )}
+
       {error && <div className="banner error">{error}</div>}
 
       <form action={addRole} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
         <div className="field" style={{ flex: 1 }}>
-          <label>Email address of the person (must have already signed in at least once)</label>
+          <label>Email address of the person (if they have not signed in yet, the role stays pending)</label>
           <input name="email" type="email" required placeholder="firstname.lastname@istituto-oikos.org" />
         </div>
         <div className="field">

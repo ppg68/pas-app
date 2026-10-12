@@ -23,7 +23,11 @@ export async function addRole(formData: FormData) {
     .maybeSingle();
 
   if (!profile) {
-    fail("No account found for this email. The person must sign up and sign in to PAS at least once first (check the spelling too).");
+    // Not signed in yet: keep it as a pending role, applied automatically at their first sign-in.
+    const { error: pErr } = await supabase.from("pending_roles").insert({ email, role });
+    if (pErr && pErr.code !== "23505") fail(pErr.message);
+    revalidatePath("/settings/team");
+    return;
   }
 
   // RLS ("ADMIN manages roles") rejects the insert if the caller isn't an ADMIN.
@@ -48,5 +52,11 @@ export async function removePerson(userId: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("remove_person", { target: userId });
   if (error) fail(error.message);
+  revalidatePath("/settings/team");
+}
+
+export async function cancelPending(email: string, role: Role) {
+  const supabase = await createClient();
+  await supabase.from("pending_roles").delete().eq("email", email).eq("role", role);
   revalidatePath("/settings/team");
 }
