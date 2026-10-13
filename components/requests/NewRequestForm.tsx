@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import SubmitButton from "@/components/SubmitButton";
 import { createRequest } from "@/lib/domain/workflow";
 import { cupForProject } from "@/lib/domain/projectCups";
@@ -81,15 +82,7 @@ export default function NewRequestForm({
       <div style={{ display: "flex", gap: 10 }}>
         <div className="field" style={{ flex: 1 }}>
           <label>Estimated amount</label>
-          <input
-            name="estimated_price"
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          <MoneyInput name="estimated_price" required value={amount} onValueChange={(v) => setAmount(v)} />
         </div>
         <div className="field" style={{ width: 90 }}>
           <label>Currency</label>

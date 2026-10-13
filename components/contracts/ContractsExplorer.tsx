@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -367,12 +368,10 @@ export default function ContractsExplorer({
     if (col.type === "number") {
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-          <input
-            type="number"
-            step="0.01"
+          <MoneyInput
             defaultValue={value as number}
-            onBlur={(e) => saveField(c.id, col.key, e.target.value)}
-            style={{ ...cellInputStyle, textAlign: "right", minWidth: 90 }}
+            onCommit={(v) => saveField(c.id, col.key, v)}
+            style={{ ...cellInputStyle, minWidth: 110, width: 120 }}
           />
           <span style={{ color: "var(--ink-soft)" }}>{c.currency}</span>
         </div>

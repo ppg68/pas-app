@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import { useRowFlash } from "@/lib/useRowFlash";
 import Link from "next/link";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
@@ -322,12 +323,10 @@ This cannot be undone.`)) return;
     }
     if (col.type === "number") {
       return (
-        <input
-          type="number"
-          step="0.01"
+        <MoneyInput
           defaultValue={value === null || value === undefined ? "" : (value as number)}
-          onBlur={(e) => saveField(r.id, col.key, e.target.value)}
-          style={{ ...cellInputStyle, textAlign: "right" }}
+          onCommit={(v) => saveField(r.id, col.key, v)}
+          style={{ ...cellInputStyle, minWidth: 110 }}
         />
       );
     }

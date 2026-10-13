@@ -1,4 +1,5 @@
 import { createContract } from "../actions";
+import MoneyInput from "@/components/MoneyInput";
 import { CONTRACT_KIND_SUGGESTIONS, CONTRACT_UNITS } from "@/lib/domain/contracts";
 
 const row: React.CSSProperties = { display: "flex", gap: 12 };
@@ -109,7 +110,7 @@ export default async function NewContractPage({
         <div style={row}>
           <div className="field" style={{ flex: 1 }}>
             <label>Amount, VAT included (importo contratto)</label>
-            <input name="amount" type="number" step="0.01" min="0" required />
+            <MoneyInput name="amount" required />
           </div>
           <div className="field" style={{ width: 90 }}>
             <label>Currency</label>

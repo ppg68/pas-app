@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import SubmitButton from "@/components/SubmitButton";
 import { createPaymentAuthorization } from "@/lib/domain/workflow";
 
@@ -148,15 +149,7 @@ export default function PaymentAuthorizationForm({
       <div style={rowStyle}>
         <div className="field" style={{ flex: 1 }}>
           <label>Amount to be paid</label>
-          <input
-            name="amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            value={amount}
-            onChange={(e) => onAmount(e.target.value)}
-          />
+          <MoneyInput name="amount" required value={amount} onValueChange={(v) => onAmount(v)} />
         </div>
         <div className="field" style={{ width: 90 }}>
           <label>Currency</label>
@@ -164,20 +157,18 @@ export default function PaymentAuthorizationForm({
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Balance still to be paid</label>
-          <input
+          <MoneyInput
             name="balance_after"
-            type="number"
-            step="0.01"
             value={balance}
-            onChange={(e) => {
-              setBalance(e.target.value);
+            onValueChange={(v) => {
+              setBalance(v);
               setBalanceTouched(true);
             }}
           />
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Euro equivalent (InforEuro)</label>
-          <input name="euro_equivalent" type="number" step="0.01" min="0" />
+          <MoneyInput name="euro_equivalent" />
         </div>
       </div>
 

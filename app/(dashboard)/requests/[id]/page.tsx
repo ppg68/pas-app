@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import MoneyInput from "@/components/MoneyInput";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import {
   procConfigFor,
@@ -386,7 +387,7 @@ export default async function RequestDetailPage({
                   <label>
                     Price
                   </label>
-                  <input name="price" type="number" step="0.01" min="0.01" required />
+                  <MoneyInput name="price" required />
                 </div>
                 <button type="submit" className="primary">
                   Add

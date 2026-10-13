@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import Link from "next/link";
 import { updateInvoiceField } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
@@ -211,13 +212,10 @@ export default function InvoiceDetail({
             Amount
             {saved === "amount" && <span style={{ color: "var(--navy)", marginLeft: 8, textTransform: "none" }}>saved ✓</span>}
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
+          <MoneyInput
             value={r.amount}
-            onChange={(e) => setR({ ...r, amount: parseFloat(e.target.value) || 0 })}
-            onBlur={(e) => void save("amount", e.target.value)}
+            onValueChange={(v) => setR({ ...r, amount: parseFloat(v) || 0 })}
+            onCommit={(v) => void save("amount", v)}
           />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 150 }}>
@@ -227,13 +225,10 @@ export default function InvoiceDetail({
               <span style={{ color: "var(--navy)", marginLeft: 8, textTransform: "none" }}>saved ✓</span>
             )}
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
+          <MoneyInput
             value={r.withholding ?? ""}
-            onChange={(e) => setR({ ...r, withholding: e.target.value === "" ? null : parseFloat(e.target.value) })}
-            onBlur={(e) => void save("withholding", e.target.value)}
+            onValueChange={(v) => setR({ ...r, withholding: v === "" ? null : parseFloat(v) })}
+            onCommit={(v) => void save("withholding", v)}
           />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 130, justifyContent: "flex-end" }}>

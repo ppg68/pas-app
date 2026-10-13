@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/domain/contracts";
@@ -152,28 +153,20 @@ export default function ContractInvoicesTable({
                 <td style={cell}>{textInput(r, "invoice_number")}</td>
                 <td style={cell}>{dateInput(r, "invoice_date")}</td>
                 <td className="num" style={cell}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <MoneyInput
                     value={r.amount}
-                    onChange={(e) => edit(r.id, { amount: parseFloat(e.target.value) || 0 })}
-                    onBlur={(e) => save(r.id, "amount", e.target.value)}
+                    onValueChange={(v) => edit(r.id, { amount: parseFloat(v) || 0 })}
+                    onCommit={(v) => save(r.id, "amount", v)}
                     style={money}
                   />
                 </td>
                 <td style={cell}>{textInput(r, "protocol")}</td>
                 <td style={cell}>{textInput(r, "description")}</td>
                 <td className="num" style={cell}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <MoneyInput
                     value={r.paid_amount ?? ""}
-                    onChange={(e) =>
-                      edit(r.id, { paid_amount: e.target.value === "" ? null : parseFloat(e.target.value) })
-                    }
-                    onBlur={(e) => save(r.id, "paid_amount", e.target.value)}
+                    onValueChange={(v) => edit(r.id, { paid_amount: v === "" ? null : parseFloat(v) })}
+                    onCommit={(v) => save(r.id, "paid_amount", v)}
                     style={money}
                   />
                 </td>
@@ -217,14 +210,11 @@ export default function ContractInvoicesTable({
                 />
               </td>
               <td className="num" style={cell}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <MoneyInput
                   placeholder="0,00"
                   value={draft.amount}
-                  onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && add()}
+                  onValueChange={(v) => setDraft({ ...draft, amount: v })}
+                  onEnter={() => add()}
                   style={money}
                 />
               </td>
@@ -243,12 +233,9 @@ export default function ContractInvoicesTable({
                 />
               </td>
               <td className="num" style={cell}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <MoneyInput
                   value={draft.paid_amount}
-                  onChange={(e) => setDraft({ ...draft, paid_amount: e.target.value })}
+                  onValueChange={(v) => setDraft({ ...draft, paid_amount: v })}
                   style={money}
                 />
               </td>

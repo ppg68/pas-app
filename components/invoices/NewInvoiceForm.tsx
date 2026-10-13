@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import SubmitButton from "@/components/SubmitButton";
 import { createInvoiceFromForm } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
@@ -234,19 +235,11 @@ export default function NewInvoiceForm({
         </div>
         <div className="field" style={{ flex: 1, minWidth: 150 }}>
           <label>Amount</label>
-          <input
-            name="amount"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          <MoneyInput name="amount" required value={amount} onValueChange={(v) => setAmount(v)} />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 150 }}>
           <label>Withholding</label>
-          <input name="withholding" type="number" step="0.01" min="0" />
+          <MoneyInput name="withholding" />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 130, justifyContent: "flex-end" }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MoneyInput from "@/components/MoneyInput";
 import { useRouter } from "next/navigation";
 import { daysUntil, formatMoney } from "@/lib/domain/contracts";
 import {
@@ -132,14 +133,11 @@ export default function TranchesTable({
                     />
                   </td>
                   <td className="num" style={cell}>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       value={t.amount}
-                      onChange={(e) => edit(t.id, { amount: parseFloat(e.target.value) || 0 })}
-                      onBlur={(e) => save(t.id, "amount", e.target.value)}
-                      style={{ width: "100%", textAlign: "right" }}
+                      onValueChange={(v) => edit(t.id, { amount: parseFloat(v) || 0 })}
+                      onCommit={(v) => save(t.id, "amount", v)}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td style={cell}>
@@ -168,16 +166,11 @@ export default function TranchesTable({
                     />
                   </td>
                   <td className="num" style={cell}>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                    <MoneyInput
                       value={t.paid_amount ?? ""}
-                      onChange={(e) =>
-                        edit(t.id, { paid_amount: e.target.value === "" ? null : parseFloat(e.target.value) })
-                      }
-                      onBlur={(e) => save(t.id, "paid_amount", e.target.value)}
-                      style={{ width: "100%", textAlign: "right" }}
+                      onValueChange={(v) => edit(t.id, { paid_amount: v === "" ? null : parseFloat(v) })}
+                      onCommit={(v) => save(t.id, "paid_amount", v)}
+                      style={{ width: "100%" }}
                     />
                   </td>
                   <td style={cell}>
@@ -214,15 +207,12 @@ export default function TranchesTable({
                 />
               </td>
               <td className="num" style={cell}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                <MoneyInput
                   placeholder="0,00"
                   value={draft.amount}
-                  onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && add()}
-                  style={{ width: "100%", textAlign: "right" }}
+                  onValueChange={(v) => setDraft({ ...draft, amount: v })}
+                  onEnter={() => add()}
+                  style={{ width: "100%" }}
                 />
               </td>
               <td style={cell}>
