@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SubmitButton from "@/components/SubmitButton";
 import { createRequest } from "@/lib/domain/workflow";
 import { cupForProject } from "@/lib/domain/projectCups";
 import ApprovalLevelsTable from "@/components/requests/ApprovalLevelsTable";
@@ -164,9 +165,7 @@ export default function NewRequestForm({
         </div>
       )}
 
-      <button type="submit" className="primary" style={{ marginTop: 6, width: "fit-content" }}>
-        Create request
-      </button>
+      <SubmitButton style={{ marginTop: 6, width: "fit-content" }}>Create request</SubmitButton>
     </form>
     </>
   );

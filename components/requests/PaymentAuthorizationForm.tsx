@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SubmitButton from "@/components/SubmitButton";
 import { createPaymentAuthorization } from "@/lib/domain/workflow";
 
 export type PaInvoiceOption = {
@@ -174,9 +175,9 @@ export default function PaymentAuthorizationForm({
         </div>
       </div>
 
-      <button type="submit" className="primary" style={{ width: "fit-content" }}>
+      <SubmitButton style={{ width: "fit-content" }}>
         {direct ? "Submit payment data" : "Submit for authorization"}
-      </button>
+      </SubmitButton>
     </form>
   );
 }

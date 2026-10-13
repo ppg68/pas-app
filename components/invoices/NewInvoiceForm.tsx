@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import SubmitButton from "@/components/SubmitButton";
 import { createInvoiceFromForm } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
@@ -223,9 +224,7 @@ export default function NewInvoiceForm({
       </div>
 
       <div>
-        <button type="submit" className="primary">
-          Create invoice
-        </button>
+        <SubmitButton>Create invoice</SubmitButton>
       </div>
     </form>
   );
