@@ -307,6 +307,50 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   }
 }
 
+/**
+ * Tells everyone who manages Contracts (role CONTRACTS) that a request is ready to be paid:
+ * its payment is fully authorized, or it is a direct purchase closed without authorization.
+ * Best effort — an email problem never blocks the workflow.
+ */
+async function notifyContractsOfPayment(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  requestId: string;
+  excludeUserId?: string;
+  directPurchase: boolean;
+  req: { code: string; description: string; estimated_price: number; currency: string };
+}) {
+  const { supabase, requestId, excludeUserId, directPurchase, req } = params;
+  try {
+    const { data: holders } = await supabase.from("user_roles").select("user_id").eq("role", "CONTRACTS");
+    const ids = Array.from(new Set((holders ?? []).map((h) => h.user_id))).filter((id) => id !== excludeUserId);
+    if (ids.length === 0) return;
+    const { data: profiles } = await supabase.from("profiles").select("full_name, email").in("id", ids);
+
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+
+    for (const p of profiles ?? []) {
+      if (!p.email) continue;
+      await sendEmail({
+        to: p.email,
+        subject: `IR ${req.code}: ready for payment`,
+        html: `<p>Hello ${escapeHtml(p.full_name)},</p>
+<p>${
+          directPurchase
+            ? "A direct purchase (no authorization required) has all its documents and is ready for payment:"
+            : "The payment of this request has been authorized and is ready to be paid:"
+        }</p>
+<p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${req.estimated_price} ${escapeHtml(req.currency)}</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+      });
+    }
+  } catch {
+    // notification is best effort
+  }
+}
+
 export async function signIrAuth(requestId: string, role: Role) {
   const supabase = await createClient();
   const {
@@ -452,7 +496,7 @@ export async function advanceToPayment(requestId: string) {
   const supabase = await createClient();
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage, coordination_cost")
+    .select("proc_code, stage, coordination_cost, code, description, estimated_price, currency")
     .eq("id", requestId)
     .single();
   if (!req || req.stage !== "documents") {
@@ -473,16 +517,17 @@ export async function advanceToPayment(requestId: string) {
     fail(`/requests/${requestId}`, "Required documents are missing.");
   }
 
+  const noAuthorization =
+    paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0;
   await supabase
     .from("requests")
-    .update({
-      // no payment authorization required (DIR): the request closes once its documents are complete
-      stage:
-        paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0
-          ? "completed"
-          : "payment",
-    })
+    // no payment authorization required (DIR): the request closes once its documents are complete
+    .update({ stage: noAuthorization ? "completed" : "payment" })
     .eq("id", requestId);
+
+  if (noAuthorization) {
+    await notifyContractsOfPayment({ supabase, requestId, directPurchase: true, req });
+  }
 
   revalidatePath(`/requests/${requestId}`);
   redirect(`/requests/${requestId}`);
@@ -548,6 +593,16 @@ export async function signPayment(requestId: string, role: Role) {
       pending: required.filter((r) => !signedRoles.has(r)),
       req,
     });
+
+    if (allSigned) {
+      await notifyContractsOfPayment({
+        supabase,
+        requestId,
+        excludeUserId: user.id,
+        directPurchase: false,
+        req,
+      });
+    }
   }
 
   revalidatePath(`/requests/${requestId}`);
