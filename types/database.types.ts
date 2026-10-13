@@ -807,6 +807,7 @@ export type Database = {
       is_member: { Args: { uid: string }; Returns: boolean }
       is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
+      record_direct_payment: { Args: { pa_id: string }; Returns: undefined }
       remove_person: { Args: { target: string }; Returns: undefined }
     }
     Enums: {

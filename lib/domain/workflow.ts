@@ -496,7 +496,7 @@ export async function advanceToPayment(requestId: string) {
   const supabase = await createClient();
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage, coordination_cost, code, description, estimated_price, currency")
+    .select("proc_code, stage")
     .eq("id", requestId)
     .single();
   if (!req || req.stage !== "documents") {
@@ -517,17 +517,9 @@ export async function advanceToPayment(requestId: string) {
     fail(`/requests/${requestId}`, "Required documents are missing.");
   }
 
-  const noAuthorization =
-    paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0;
-  await supabase
-    .from("requests")
-    // no payment authorization required (DIR): the request closes once its documents are complete
-    .update({ stage: noAuthorization ? "completed" : "payment" })
-    .eq("id", requestId);
-
-  if (noAuthorization) {
-    await notifyContractsOfPayment({ supabase, requestId, directPurchase: true, req });
-  }
+  // DIR too goes through the payment stage: the Budget Holder fills in the payment data (PA),
+  // which needs no approval and closes the request.
+  await supabase.from("requests").update({ stage: "payment" }).eq("id", requestId);
 
   revalidatePath(`/requests/${requestId}`);
   redirect(`/requests/${requestId}`);
@@ -583,7 +575,7 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
   const invoiceId = text("invoice_id") || null;
   const currency = (text("currency") || req.currency || "EUR").toUpperCase();
 
-  const { error } = await supabase.from("payment_authorizations").insert({
+  const { data: created, error } = await supabase.from("payment_authorizations").insert({
     request_id: requestId,
     invoice_id: invoiceId,
     description,
@@ -599,8 +591,8 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     currency,
     euro_equivalent: euro,
     prepared_by: user.id,
-  });
-  if (error) fail(path, error.message);
+  }).select("id").single();
+  if (error || !created) fail(path, error?.message ?? "Unable to save the payment authorization.");
 
   await supabase.from("audit_log").insert({
     request_id: requestId,
@@ -608,15 +600,33 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     action: "payment_authorization_prepared",
   });
 
-  await notifyPaymentAuthorizers({
-    supabase,
-    requestId,
-    preparerId: user.id,
-    req,
-    amount,
-    currency,
-    beneficiary,
-  });
+  if (req.proc_code === "DIR") {
+    // direct purchase: no approval; the data is recorded, the request closes and Contracts can pay
+    const { error: recordError } = await supabase.rpc("record_direct_payment", { pa_id: created.id });
+    if (recordError) fail(path, recordError.message);
+    await notifyContractsOfPayment({
+      supabase,
+      requestId,
+      excludeUserId: user.id,
+      directPurchase: true,
+      req: {
+        code: req.code,
+        description: `${req.description} — payment of ${amount} ${currency} to ${beneficiary}`,
+        estimated_price: amount,
+        currency,
+      },
+    });
+  } else {
+    await notifyPaymentAuthorizers({
+      supabase,
+      requestId,
+      preparerId: user.id,
+      req,
+      amount,
+      currency,
+      beneficiary,
+    });
+  }
 
   revalidatePath(path);
   redirect(path);

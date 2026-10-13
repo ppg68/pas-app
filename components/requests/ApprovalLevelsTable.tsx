@@ -69,7 +69,7 @@ export default function ApprovalLevelsTable({ current }: { current?: ProcCode | 
         </table>
       </div>
       <ul style={{ fontSize: 12, color: "var(--ink-soft)", margin: "10px 0 0", paddingLeft: 18 }}>
-        <li>Direct purchase: the IR only provides the number for archiving; no approval and no payment authorization.</li>
+        <li>Direct purchase: no IR approval (the IR only provides the number for archiving). Only the payment authorization form (PA) is filled in, with no approval.</li>
         <li>Coordination cost (no linked project): RAC alone, for IR approval and payment.</li>
         <li>Derogation 3Q → SQ: the RAC also signs the IR approval (prior authorization).</li>
         <li>The Budget Holder is the PM: only CAR / RAC sign. Whoever creates the request cannot sign it.</li>

@@ -222,7 +222,7 @@ export default async function RequestDetailPage({
         <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>IR approval</h2>
         {irRoles.length === 0 && (
           <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-            Direct purchase: no approval required. This IR number is used to archive the documents.
+            Direct purchase: no IR approval required. This IR number is used to archive the documents; the payment data is filled in with the payment authorization form.
           </p>
         )}
         {irRoles.map((role) => {
@@ -438,9 +438,16 @@ export default async function RequestDetailPage({
       )}
 
       {/* Payment: one payment authorization (PR04.AA05) per payment, approved by CAR / RAC */}
-      {stageIndex >= paymentIndex && (paySigners.length > 0 || (payAuths ?? []).length > 0) && (
+      {stageIndex >= paymentIndex &&
+        (paySigners.length > 0 || request.proc_code === "DIR" || (payAuths ?? []).length > 0) && (
         <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment authorizations</h2>
+          {request.proc_code === "DIR" && (
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
+              Direct purchase: fill in the payment data below. No approval is required; once submitted the
+              request is closed and Contracts is notified.
+            </p>
+          )}
 
           {winnerOffer && (
             <p style={{ fontSize: 13, marginBottom: 10 }}>
@@ -500,6 +507,7 @@ export default async function RequestDetailPage({
                           {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
                         </>
                       )}
+                      {a.status === "recorded" && " · recorded (no approval required)"}
                       {a.status === "pending" && " · waiting for authorization"}
                     </div>
                   </div>
@@ -549,6 +557,7 @@ export default async function RequestDetailPage({
                 authorizedTotal={authorizedTotal}
                 currency={request.currency}
                 defaultBankDescription={effectiveCup ?? request.project_code}
+                direct={request.proc_code === "DIR"}
               />
             </details>
           )}

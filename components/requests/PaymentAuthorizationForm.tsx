@@ -24,6 +24,7 @@ export default function PaymentAuthorizationForm({
   authorizedTotal,
   currency,
   defaultBankDescription,
+  direct = false,
 }: {
   requestId: string;
   fixed: { ir: string; project: string; budgetLine: string; procedure: string; projectName?: string };
@@ -33,6 +34,8 @@ export default function PaymentAuthorizationForm({
   authorizedTotal: number;
   currency: string;
   defaultBankDescription: string;
+  /** Direct purchase: recorded without approval. */
+  direct?: boolean;
 }) {
   const [invoiceId, setInvoiceId] = useState("");
   const [beneficiary, setBeneficiary] = useState(winnerSupplier ?? "");
@@ -182,7 +185,7 @@ export default function PaymentAuthorizationForm({
       </div>
 
       <button type="submit" className="primary" style={{ width: "fit-content" }}>
-        Submit for authorization
+        {direct ? "Submit payment data" : "Submit for authorization"}
       </button>
     </form>
   );
