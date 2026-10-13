@@ -380,17 +380,8 @@ export default async function RequestDetailPage({
           {request.stage === "documents" ? (
             <form
               action={advanceToPayment.bind(null, request.id)}
-              style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "flex-end" }}
+              style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}
             >
-              <div style={{ flex: 1 }}>
-                <label>
-                  Folder path (optional)
-                </label>
-                <input
-                  name="folder_path"
-                  defaultValue={request.folder_path ?? ""}
-                />
-              </div>
               <button type="submit" disabled={!docsOk} className="primary">
                 Go to payment
               </button>

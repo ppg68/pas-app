@@ -373,9 +373,7 @@ export async function toggleDoc(requestId: string, docKey: string, checked: bool
   revalidatePath(`/requests/${requestId}`);
 }
 
-export async function advanceToPayment(requestId: string, formData: FormData) {
-  const folderPath = String(formData.get("folder_path") || "").trim();
-
+export async function advanceToPayment(requestId: string) {
   const supabase = await createClient();
   const { data: req } = await supabase
     .from("requests")
@@ -403,7 +401,6 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
   await supabase
     .from("requests")
     .update({
-      folder_path: folderPath || null,
       // no payment authorization required (DIR): the request closes once its documents are complete
       stage:
         paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0
