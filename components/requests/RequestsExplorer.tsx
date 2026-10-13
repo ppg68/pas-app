@@ -87,16 +87,8 @@ const W_DELETE = 30;
 const W_IR = 70;
 const W_DESC = 280;
 
-function frozen(left: number, width: number, header: boolean): React.CSSProperties {
-  return {
-    position: "sticky",
-    left,
-    width,
-    minWidth: width,
-    maxWidth: width,
-    zIndex: header ? 4 : 2,
-    background: "var(--panel)",
-  };
+function frozen(left: number, width: number): React.CSSProperties {
+  return { left, width, minWidth: width, maxWidth: width };
 }
 
 export default function RequestsExplorer({
@@ -261,16 +253,20 @@ This permanently removes the request together with its offers, signatures, docum
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th style={frozen(0, W_LINK, true)}></th>
-                {canDelete && <th style={frozen(W_LINK, W_DELETE, true)}></th>}
+                <th className="col-frozen" style={frozen(0, W_LINK)}></th>
+                {canDelete && <th className="col-frozen" style={frozen(W_LINK, W_DELETE)}></th>}
                 {HEADERS.map((h, i) => (
                   <th
                     key={h.label}
-                    className={h.key ? "sortable" : undefined}
+                    className={
+                      [h.key ? "sortable" : "", i < 2 ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
                     style={{
                       textAlign: h.align ?? "left",
-                      ...(i === 0 ? frozen(irLeft, W_IR, true) : {}),
-                      ...(i === 1 ? { ...frozen(descLeft, W_DESC, true), boxShadow: "2px 0 0 var(--line)" } : {}),
+                      ...(i === 0 ? frozen(irLeft, W_IR) : {}),
+                      ...(i === 1 ? frozen(descLeft, W_DESC) : {}),
                     }}
                     onClick={h.key ? () => toggleSort(h.key!) : undefined}
                   >
@@ -283,7 +279,7 @@ This permanently removes the request together with its offers, signatures, docum
             <tbody>
               {filteredRequests.map((r) => (
                 <tr key={r.id}>
-                  <td className="center" style={frozen(0, W_LINK, false)}>
+                  <td className="center col-frozen" style={frozen(0, W_LINK)}>
                     <Link
                       href={`/requests/${r.id}`}
                       title="Open request"
@@ -293,7 +289,7 @@ This permanently removes the request together with its offers, signatures, docum
                     </Link>
                   </td>
                   {canDelete && (
-                    <td className="center" style={frozen(W_LINK, W_DELETE, false)}>
+                    <td className="center col-frozen" style={frozen(W_LINK, W_DELETE)}>
                       <button
                         type="button"
                         onClick={() => void handleDelete(r)}
@@ -310,10 +306,10 @@ This permanently removes the request together with its offers, signatures, docum
                       </button>
                     </td>
                   )}
-                  <td style={{ ...frozen(irLeft, W_IR, false), whiteSpace: "nowrap" }} title={r.code}>
+                  <td className="col-frozen" style={{ ...frozen(irLeft, W_IR), whiteSpace: "nowrap" }} title={r.code}>
                     {irNumber(r) || r.code}
                   </td>
-                  <td style={{ ...frozen(descLeft, W_DESC, false), boxShadow: "2px 0 0 var(--line)" }}>
+                  <td className="col-frozen col-frozen-edge" style={frozen(descLeft, W_DESC)}>
                     {r.description}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{formatDateIT(r.created_at.slice(0, 10))}</td>

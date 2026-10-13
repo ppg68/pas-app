@@ -40,6 +40,19 @@ const COLUMNS: Col[] = [
   { key: "notes", label: "Notes", type: "text", width: 180 },
 ];
 
+// Frozen columns: link, delete, Contract ID, Subject (they stay in view while scrolling to the right).
+const W_LINK = 34;
+const W_DELETE = 30;
+const W_ID = 96;
+const W_SUBJECT = 200;
+const FROZEN_COLS = 2;
+const frozenStyle = (left: number, width: number): React.CSSProperties => ({
+  left,
+  width,
+  minWidth: width,
+  maxWidth: width,
+});
+
 export default function InvoicesExplorer({ invoices }: { invoices: InvoiceListRow[] }) {
   useRowFlash();
   const [rows, setRows] = useState(invoices);
@@ -217,17 +230,28 @@ This cannot be undone.`)) return;
       {filtered.length === 0 && <p className="empty">No invoices match.</p>}
 
       {filtered.length > 0 && (
-        <div className="table-wrap">
+        <div className="table-wrap fit-screen">
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th></th>
-                <th></th>
-                {COLUMNS.map((col) => (
+                <th className="col-frozen" style={frozenStyle(0, W_LINK)}></th>
+                <th className="col-frozen" style={frozenStyle(W_LINK, W_DELETE)}></th>
+                {COLUMNS.map((col, i) => (
                   <th
                     key={col.key}
-                    className={col.sort ? "sortable" : undefined}
-                    style={col.align === "right" ? thRight : th}
+                    className={
+                      [col.sort ? "sortable" : "", i < FROZEN_COLS ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    style={{
+                      ...(col.align === "right" ? thRight : th),
+                      ...(i === 0
+                        ? frozenStyle(W_LINK + W_DELETE, W_ID)
+                        : i === 1
+                          ? frozenStyle(W_LINK + W_DELETE + W_ID, W_SUBJECT)
+                          : {}),
+                    }}
                     onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
                   >
                     {col.label}
@@ -239,7 +263,7 @@ This cannot be undone.`)) return;
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} id={`inv-${r.id}`}>
-                  <td className="center">
+                  <td className="center col-frozen" style={frozenStyle(0, W_LINK)}>
                     {r.contractUuid ? (
                       <Link
                         href={`/contracts/${r.contractUuid}`}
@@ -254,7 +278,7 @@ This cannot be undone.`)) return;
                       </span>
                     )}
                   </td>
-                  <td className="center">
+                  <td className="center col-frozen" style={frozenStyle(W_LINK, W_DELETE)}>
                     <button
                       type="button"
                       onClick={() => removeRow(r.id)}
@@ -270,10 +294,23 @@ This cannot be undone.`)) return;
                       ×
                     </button>
                   </td>
-                  {COLUMNS.map((col) => (
+                  {COLUMNS.map((col, i) => (
                     <td
                       key={col.key}
-                      style={col.align === "right" ? tdRight : { ...td, minWidth: col.width ?? 110 }}
+                      className={
+                        [i < FROZEN_COLS ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                          .filter(Boolean)
+                          .join(" ") || undefined
+                      }
+                      style={
+                        i === 0
+                          ? { ...td, ...frozenStyle(W_LINK + W_DELETE, W_ID) }
+                          : i === 1
+                            ? { ...td, ...frozenStyle(W_LINK + W_DELETE + W_ID, W_SUBJECT) }
+                            : col.align === "right"
+                              ? tdRight
+                              : { ...td, minWidth: col.width ?? 110 }
+                      }
                     >
                       {renderCell(r, col)}
                     </td>

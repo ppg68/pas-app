@@ -295,6 +295,12 @@ button.export:disabled { opacity: 0.5; cursor: not-allowed; }
   max-height: calc(100vh - 230px);
   overflow: auto;
 }
+/* Frozen columns: stay in view while scrolling horizontally (left/width set inline on each cell). */
+.col-frozen { position: sticky; z-index: 2; background: var(--panel); }
+thead th.col-frozen { z-index: 4; }
+tbody tr:hover .col-frozen { background: #FAFBFC; }
+tbody tr.overdue .col-frozen { background: var(--brick-soft); }
+.col-frozen-edge { box-shadow: 2px 0 0 var(--line); }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 thead th {
   text-align: left;

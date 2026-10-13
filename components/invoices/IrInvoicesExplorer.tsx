@@ -40,9 +40,9 @@ type Col = {
 
 const COLUMNS: Col[] = [
   { key: "ir_number", label: "IR", type: "text", width: 70 },
+  { key: "supplier", label: "Supplier", sort: "supplier", type: "text", width: 200 },
   { key: "protocol", label: "Protocol", type: "text", width: 130 },
   { key: "contract_number", label: "Contract #", type: "text", width: 90 },
-  { key: "supplier", label: "Supplier", sort: "supplier", type: "text", width: 200 },
   { key: "due_date", label: "Due date", sort: "due", type: "date" },
   { key: "payment_date", label: "Payment date", sort: "payment", type: "date" },
   { key: "payment_note", label: "Payment note", type: "text", width: 130 },
@@ -57,6 +57,18 @@ const COLUMNS: Col[] = [
   { key: "balance_due", label: "Balance due", align: "right", type: "number" },
   { key: "notes", label: "Notes", type: "text", width: 200 },
 ];
+
+// Frozen columns: link, IR, Supplier (they stay in view while scrolling to the right).
+const FROZEN_COLS = 2;
+const W_LINK = 34;
+const W_IR = 96;
+const W_SUPPLIER = 220;
+const frozenStyle = (left: number, width: number): React.CSSProperties => ({
+  left,
+  width,
+  minWidth: width,
+  maxWidth: width,
+});
 
 const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balance_due"]);
 
@@ -388,14 +400,30 @@ This cannot be undone.`)) return;
       {filtered.length === 0 && <p className="empty">No invoices match.</p>}
 
       {filtered.length > 0 && (
-        <div className="table-wrap">
+        <div className="table-wrap fit-screen">
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>
+                <th className="col-frozen" style={frozenStyle(0, W_LINK)}></th>
+                {COLUMNS.slice(0, FROZEN_COLS).map((col, i) => (
+                  <th
+                    key={col.key}
+                    className={[col.sort ? "sortable" : "", "col-frozen", i === 1 ? "col-frozen-edge" : ""]
+                      .filter(Boolean)
+                      .join(" ")}
+                    style={{
+                      textAlign: "left",
+                      ...(i === 0 ? frozenStyle(W_LINK, W_IR) : frozenStyle(W_LINK + W_IR, W_SUPPLIER)),
+                    }}
+                    onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
+                  >
+                    {col.label}
+                    {col.sort ? sortArrow(col.sort) : ""}
+                  </th>
+                ))}
                 <th></th>
                 <th></th>
-                <th></th>
-                {COLUMNS.map((col) => (
+                {COLUMNS.slice(FROZEN_COLS).map((col) => (
                   <th
                     key={col.key}
                     className={col.sort ? "sortable" : undefined}
@@ -411,7 +439,7 @@ This cannot be undone.`)) return;
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} id={`inv-${r.id}`}>
-                  <td className="center">
+                  <td className="center col-frozen" style={frozenStyle(0, W_LINK)}>
                     <Link
                       href={`/invoices/${r.id}`}
                       title="Open the full record"
@@ -420,6 +448,18 @@ This cannot be undone.`)) return;
                       ↗
                     </Link>
                   </td>
+                  {COLUMNS.slice(0, FROZEN_COLS).map((col, i) => (
+                    <td
+                      key={col.key}
+                      className={["col-frozen", i === 1 ? "col-frozen-edge" : ""].filter(Boolean).join(" ")}
+                      style={{
+                        whiteSpace: "nowrap",
+                        ...(i === 0 ? frozenStyle(W_LINK, W_IR) : frozenStyle(W_LINK + W_IR, W_SUPPLIER)),
+                      }}
+                    >
+                      {renderCell(r, col)}
+                    </td>
+                  ))}
                   <td className="center" style={{ whiteSpace: "nowrap" }}>
                     {r.request_id && (
                       <Link
@@ -456,7 +496,7 @@ This cannot be undone.`)) return;
                       ×
                     </button>
                   </td>
-                  {COLUMNS.map((col) => (
+                  {COLUMNS.slice(FROZEN_COLS).map((col) => (
                     <td
                       key={col.key}
                       style={

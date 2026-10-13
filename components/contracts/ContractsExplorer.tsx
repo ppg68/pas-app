@@ -34,6 +34,18 @@ const tdRight: React.CSSProperties = { textAlign: "right", whiteSpace: "nowrap" 
 const tdCheck: React.CSSProperties = { textAlign: "center" };
 const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
+// Frozen columns: link, ID, Subject (they stay in view while scrolling to the right).
+const W_LINK = 34;
+const W_ID = 84;
+const W_SUBJECT = 220;
+const frozenStyle = (left: number, width: number): React.CSSProperties => ({
+  left,
+  width,
+  minWidth: width,
+  maxWidth: width,
+});
+const FROZEN_COLS = 2;
+
 // Columns, in the same left-to-right order as the original "Elenco contratti"
 // Google Sheet, so the shape is familiar even though this now scrolls.
 // `type` drives which inline-editable control the cell renders as — every
@@ -513,12 +525,19 @@ export default function ContractsExplorer({
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th></th>
-                {COLUMNS.map((col) => (
+                <th className="col-frozen" style={frozenStyle(0, W_LINK)}></th>
+                {COLUMNS.map((col, i) => (
                   <th
                     key={col.key}
-                    className={col.sort ? "sortable" : undefined}
-                    style={col.align === "right" ? thRight : col.align === "center" ? thCenter : th}
+                    className={
+                      [col.sort ? "sortable" : "", i < FROZEN_COLS ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    style={{
+                      ...(col.align === "right" ? thRight : col.align === "center" ? thCenter : th),
+                      ...(i === 0 ? frozenStyle(W_LINK, W_ID) : i === 1 ? frozenStyle(W_LINK + W_ID, W_SUBJECT) : {}),
+                    }}
                     onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
                   >
                     {col.label}
@@ -533,7 +552,7 @@ export default function ContractsExplorer({
                 const overdue = (dLeft !== null && dLeft < 0 && c.status === "in_corso") || c.alert === "overdue";
                 return (
                   <tr key={c.id} className={overdue ? "overdue" : undefined} title={alertReason(c) ?? undefined}>
-                    <td className="center">
+                    <td className="center col-frozen" style={frozenStyle(0, W_LINK)}>
                       <Link
                         href={`/contracts/${c.id}`}
                         title="Open full record"
@@ -542,15 +561,24 @@ export default function ContractsExplorer({
                         ↗
                       </Link>
                     </td>
-                    {COLUMNS.map((col) => (
+                    {COLUMNS.map((col, i) => (
                       <td
                         key={col.key}
+                        className={
+                          [i < FROZEN_COLS ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                            .filter(Boolean)
+                            .join(" ") || undefined
+                        }
                         style={
-                          col.align === "right"
-                            ? tdRight
-                            : col.align === "center"
-                              ? tdCheck
-                              : { ...td, minWidth: col.width ?? 110 }
+                          i === 0
+                            ? { ...td, ...frozenStyle(W_LINK, W_ID) }
+                            : i === 1
+                              ? { ...td, ...frozenStyle(W_LINK + W_ID, W_SUBJECT) }
+                              : col.align === "right"
+                                ? tdRight
+                                : col.align === "center"
+                                  ? tdCheck
+                                  : { ...td, minWidth: col.width ?? 110 }
                         }
                       >
                         {renderCell(c, col)}
