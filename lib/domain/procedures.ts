@@ -147,12 +147,11 @@ export function buildRequestCode(params: {
   return `${country}/${projectCode}/${procCode}/${String(fieldProgressive).padStart(2, "0")}`;
 }
 
-/** Documents gate: all required (non-optional) docs checked + folder path set -> ready for payment. */
+/** Documents gate: all required (non-optional) docs checked -> ready for payment. The folder path is optional. */
 export function documentsComplete(
   procCode: ProcCode,
-  docs: Record<string, boolean>,
-  folderPath: string | null | undefined
+  docs: Record<string, boolean>
 ): boolean {
   const required = DOCS_BY_PROC[procCode].filter((k) => !OPTIONAL_DOCS.has(k));
-  return required.every((k) => docs[k]) && !!folderPath;
+  return required.every((k) => docs[k]);
 }

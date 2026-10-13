@@ -130,7 +130,7 @@ export default async function RequestDetailPage({
     docsMap[d.doc_key] = d.checked;
   });
   const requiredDocs = DOCS_BY_PROC[request.proc_code];
-  const docsOk = documentsComplete(request.proc_code, docsMap, request.folder_path);
+  const docsOk = documentsComplete(request.proc_code, docsMap);
 
   const showOffers = config.minOffers > 0;
   const offersIndex = STAGE_ORDER.indexOf("offers");
@@ -384,13 +384,11 @@ export default async function RequestDetailPage({
             >
               <div style={{ flex: 1 }}>
                 <label>
-                  Folder path
+                  Folder path (optional)
                 </label>
                 <input
                   name="folder_path"
                   defaultValue={request.folder_path ?? ""}
-                  required
-                  
                 />
               </div>
               <button type="submit" disabled={!docsOk} className="primary">

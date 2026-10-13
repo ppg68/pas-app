@@ -375,7 +375,6 @@ export async function toggleDoc(requestId: string, docKey: string, checked: bool
 
 export async function advanceToPayment(requestId: string, formData: FormData) {
   const folderPath = String(formData.get("folder_path") || "").trim();
-  if (!folderPath) fail(`/requests/${requestId}`, "The folder path is required.");
 
   const supabase = await createClient();
   const { data: req } = await supabase
@@ -397,14 +396,14 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
     docsMap[d.doc_key] = d.checked;
   });
 
-  if (!documentsComplete(req.proc_code, docsMap, folderPath)) {
-    fail(`/requests/${requestId}`, "Required documents or the folder path are missing.");
+  if (!documentsComplete(req.proc_code, docsMap)) {
+    fail(`/requests/${requestId}`, "Required documents are missing.");
   }
 
   await supabase
     .from("requests")
     .update({
-      folder_path: folderPath,
+      folder_path: folderPath || null,
       // no payment authorization required (DIR): the request closes once its documents are complete
       stage:
         paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0
