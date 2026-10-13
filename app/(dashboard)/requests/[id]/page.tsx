@@ -236,7 +236,12 @@ export default async function RequestDetailPage({
           {(
             [
               ["IR number", request.ir_number ?? request.legacy_ir_number ?? request.code],
-              ["Compiled by", requesterProfile?.full_name ?? request.legacy_initiator_name ?? "—"],
+              [
+                "Compiled by",
+                requesterProfile
+                  ? `${requesterProfile.full_name}${requesterProfile.email ? ` — ${requesterProfile.email}` : ""}`
+                  : (request.legacy_initiator_name ?? "—"),
+              ],
               ["Date", fmtWhen(request.created_at)],
               ["Office / country", request.country],
               ["Project", request.project_code],
