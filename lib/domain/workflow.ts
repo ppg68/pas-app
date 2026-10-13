@@ -10,6 +10,7 @@ import {
   effectiveProcCode,
   procConfigFor,
   paymentSigners,
+  irSigners,
   buildRequestCode,
   documentsComplete,
   ROLE_LABEL,
@@ -69,7 +70,7 @@ export async function createRequest(formData: FormData) {
 
   // Every signer required by the procedure must be designated before the request is created
   // (checked before the IR number is drawn, so a refused request does not burn a number).
-  const required = procConfigFor(procCode).signers;
+  const required = irSigners({ procCode, coordinationCost, derogation });
   const picked = required.map((role) => ({
     role,
     userId: String(formData.get(`approver_${role}`) || "").trim(),
@@ -142,6 +143,8 @@ export async function createRequest(formData: FormData) {
       institutional_activity: institutionalActivity,
       occasional_collaborator: occasionalCollaborator,
       initiated_by: user.id,
+      // DIR needs no approval: the request goes straight to the documents stage.
+      stage: required.length === 0 ? "documents" : "ir_auth",
     })
     .select("id")
     .single();
@@ -160,7 +163,7 @@ export async function createRequest(formData: FormData) {
     supabase,
     requestId: inserted.id,
     creatorId: user.id,
-    procCode,
+    signers: required,
     formData,
     code,
     description,
@@ -181,17 +184,17 @@ async function designateAndNotifyApprovers(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
   creatorId: string;
-  procCode: ReturnType<typeof effectiveProcCode>;
+  signers: Role[];
   formData: FormData;
   code: string;
   description: string;
   estimatedPrice: number;
   currency: string;
 }) {
-  const { supabase, requestId, creatorId, procCode, formData } = params;
+  const { supabase, requestId, creatorId, signers, formData } = params;
 
   const picks: { role: Role; userId: string }[] = [];
-  for (const role of procConfigFor(procCode).signers) {
+  for (const role of signers) {
     const userId = String(formData.get(`approver_${role}`) || "").trim();
     if (userId && userId !== creatorId) picks.push({ role, userId });
   }
@@ -272,7 +275,7 @@ export async function signIrAuth(requestId: string, role: Role) {
 
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage")
+    .select("proc_code, stage, derogation, coordination_cost")
     .eq("id", requestId)
     .single();
 
@@ -283,7 +286,11 @@ export async function signIrAuth(requestId: string, role: Role) {
       .eq("request_id", requestId)
       .eq("phase", "ir_auth");
 
-    const required = procConfigFor(req.proc_code).signers;
+    const required = irSigners({
+      procCode: req.proc_code,
+      coordinationCost: req.coordination_cost,
+      derogation: req.derogation,
+    });
     const signedRoles = new Set((sigs ?? []).map((s) => s.signer_role));
     const allSigned = required.every((r) => signedRoles.has(r));
 
@@ -373,7 +380,7 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
   const supabase = await createClient();
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage")
+    .select("proc_code, stage, coordination_cost")
     .eq("id", requestId)
     .single();
   if (!req || req.stage !== "documents") {
@@ -396,7 +403,14 @@ export async function advanceToPayment(requestId: string, formData: FormData) {
 
   await supabase
     .from("requests")
-    .update({ folder_path: folderPath, stage: "payment" })
+    .update({
+      folder_path: folderPath,
+      // no payment authorization required (DIR): the request closes once its documents are complete
+      stage:
+        paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost }).length === 0
+          ? "completed"
+          : "payment",
+    })
     .eq("id", requestId);
 
   revalidatePath(`/requests/${requestId}`);

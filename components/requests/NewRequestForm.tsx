@@ -5,7 +5,7 @@ import { createRequest } from "@/lib/domain/workflow";
 import { cupForProject } from "@/lib/domain/projectCups";
 import {
   effectiveProcCode,
-  procConfigFor,
+  irSigners,
   ROLE_LABEL,
   type Role,
 } from "@/lib/domain/procedures";
@@ -30,13 +30,18 @@ export default function NewRequestForm({
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
   const [derogation, setDerogation] = useState(false);
+  const [coordination, setCoordination] = useState(false);
   const [chosen, setChosen] = useState<Partial<Record<Role, string>>>({});
 
   const projectCup = cupForProject(projectCups, project);
   const price = parseFloat(amount);
   const signers =
     Number.isFinite(price) && price > 0
-      ? procConfigFor(effectiveProcCode(price, derogation)).signers
+      ? irSigners({
+          procCode: effectiveProcCode(price, derogation),
+          coordinationCost: coordination,
+          derogation,
+        })
       : [];
 
   function suggestion(role: Role): string {
@@ -106,7 +111,13 @@ export default function NewRequestForm({
       </div>
 
       <label className="checkbox-row">
-        <input type="checkbox" name="coordination_cost" /> Coordination cost (no linked project)
+        <input
+          type="checkbox"
+          name="coordination_cost"
+          checked={coordination}
+          onChange={(e) => setCoordination(e.target.checked)}
+        />{" "}
+        Coordination cost (no linked project)
       </label>
       <label className="checkbox-row">
         <input type="checkbox" name="institutional_activity" /> Institutional activity

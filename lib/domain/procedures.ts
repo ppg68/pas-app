@@ -32,11 +32,14 @@ export interface ProcConfig {
 
 // PR04 §4.2 thresholds.
 export const PROC_CONFIG: ProcConfig[] = [
-  { code: "DIR", label: "Direct Purchase", max: 200, minOffers: 0, signers: ["CAR"] },
-  { code: "SQ", label: "Single Quotation", max: 2500, minOffers: 1, signers: ["PM", "CAR"] },
-  { code: "3Q", label: "Three Quotations", max: 20000, minOffers: 3, signers: ["PM", "CAR"] },
-  { code: "SP", label: "Simplified Procedure", max: 100000, minOffers: 3, signers: ["PM", "CAR"] },
-  { code: "TEN", label: "Tender", max: Infinity, minOffers: 3, signers: ["PM", "RAC"] },
+  // signers = who authorizes the IR and the payment in the standard case (PR04 4.5, as applied at Oikos:
+  // the Budget Holder is the PM, so only the administrative figures CAR / RAC sign). DIR: no approval at all,
+  // the IR only exists to give a number to the archived documents.
+  { code: "DIR", label: "Direct Purchase", max: 200, minOffers: 0, signers: [] },
+  { code: "SQ", label: "Single Quotation", max: 2500, minOffers: 1, signers: ["CAR"] },
+  { code: "3Q", label: "Three Quotations", max: 20000, minOffers: 3, signers: ["CAR"] },
+  { code: "SP", label: "Simplified Procedure", max: 100000, minOffers: 3, signers: ["CAR"] },
+  { code: "TEN", label: "Tender", max: Infinity, minOffers: 3, signers: ["RAC"] },
 ];
 
 export function procConfigFor(code: ProcCode): ProcConfig {
@@ -102,12 +105,23 @@ export const STAGE_TITLES: Record<Stage, string> = {
 const PROC_LETTER: Record<ProcCode, string> = { DIR: "A", SQ: "B", "3Q": "C", SP: "D", TEN: "E" };
 
 /**
+ * Who must sign the IR approval. DIR: nobody. Coordination costs (no linked project): RAC instead of CAR.
+ * A derogation (3Q -> SQ) needs the prior authorization of the RAC in addition (PR04 section 5).
+ */
+export function irSigners(req: { procCode: ProcCode; coordinationCost: boolean; derogation: boolean }): Role[] {
+  if (req.procCode === "DIR") return [];
+  if (req.coordinationCost) return ["RAC"];
+  const base = procConfigFor(req.procCode).signers;
+  return req.derogation && !base.includes("RAC") ? [...base, "RAC"] : base;
+}
+
+/**
  * Which roles must sign the payment authorization for a given request.
- * Coordination costs (no linked project) override the normal procedure signers:
- * DIR -> RAC only; anything else -> PM + RAC, regardless of amount.
+ * DIR: none. Coordination costs (no linked project): RAC only. Otherwise the procedure signers.
  */
 export function paymentSigners(req: { procCode: ProcCode; coordinationCost: boolean }): Role[] {
-  if (req.coordinationCost) return req.procCode === "DIR" ? ["RAC"] : ["PM", "RAC"];
+  if (req.procCode === "DIR") return [];
+  if (req.coordinationCost) return ["RAC"];
   return procConfigFor(req.procCode).signers;
 }
 

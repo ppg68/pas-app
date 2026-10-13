@@ -3,6 +3,7 @@ import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import {
   procConfigFor,
   paymentSigners,
+  irSigners,
   canSign,
   documentsComplete,
   DOCS_BY_PROC,
@@ -114,6 +115,11 @@ export default async function RequestDetailPage({
       .filter((s) => s.phase === "payment")
       .map((s) => [s.signer_role as Role, s])
   );
+  const irRoles = irSigners({
+    procCode: request.proc_code,
+    coordinationCost: request.coordination_cost,
+    derogation: request.derogation,
+  });
   const paySigners = paymentSigners({
     procCode: request.proc_code,
     coordinationCost: request.coordination_cost,
@@ -173,7 +179,12 @@ export default async function RequestDetailPage({
       {/* IR approval */}
       <div className="card">
         <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>IR approval</h2>
-        {config.signers.map((role) => {
+        {irRoles.length === 0 && (
+          <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+            Direct purchase: no approval required. This IR number is used to archive the documents.
+          </p>
+        )}
+        {irRoles.map((role) => {
           const signed = irSignedRoles.get(role);
           const canShowButton =
             request.stage === "ir_auth" && !signed && roles.has(role) && iCanAct;
@@ -216,7 +227,7 @@ export default async function RequestDetailPage({
             </div>
           );
         })}
-        {config.signers.length > 0 && config.signers.every((r) => irSignedRoles.has(r)) && (
+        {irRoles.length > 0 && irRoles.every((r) => irSignedRoles.has(r)) && (
           <p style={{ fontSize: 13, marginTop: 8, fontWeight: 600, color: "var(--navy)" }}>
             Authorized on{" "}
             {fmtWhen(
@@ -397,7 +408,7 @@ export default async function RequestDetailPage({
       )}
 
       {/* Payment */}
-      {stageIndex >= paymentIndex && (
+      {stageIndex >= paymentIndex && paySigners.length > 0 && (
         <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment</h2>
           {paySigners.map((role) => {
