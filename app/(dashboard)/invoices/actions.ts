@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { normalizeContractNumber } from "@/lib/domain/contracts";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { irKey } from "@/lib/domain/irRefs";
+import { notifyInvoiceArrived } from "@/lib/domain/invoiceNotify";
 import { createClient } from "@/lib/supabase/server";
 
 const TEXT_FIELDS = new Set([
@@ -80,8 +81,35 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
     patch.contract_id = contractId;
   }
 
+  // IR number typed on an existing invoice: remember which request it was linked to before.
+  let previousRequestId: string | null = null;
+  if (field === "ir_number") {
+    const { data: before } = await supabase.from("invoices").select("request_id").eq("id", invoiceId).maybeSingle();
+    previousRequestId = before?.request_id ?? null;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await supabase.from("invoices").update(patch as any).eq("id", invoiceId);
+
+  if (field === "ir_number" && typeof patch.request_id === "string" && patch.request_id !== previousRequestId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: inv } = await supabase
+      .from("invoices")
+      .select("supplier, amount, currency")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    await notifyInvoiceArrived({
+      supabase,
+      requestId: patch.request_id,
+      enteredBy: user?.id ?? null,
+      supplier: inv?.supplier ?? null,
+      amount: inv?.amount ?? 0,
+      currency: inv?.currency ?? "EUR",
+    });
+  }
+
   revalidatePath("/invoices");
 }
 
@@ -163,6 +191,20 @@ export async function createInvoiceFromForm(formData: FormData) {
 
   if (error || !data) {
     redirect("/invoices/new?error=" + encodeURIComponent(error?.message ?? "Unable to create the invoice."));
+  }
+
+  if (requestId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await notifyInvoiceArrived({
+      supabase,
+      requestId,
+      enteredBy: user?.id ?? null,
+      supplier,
+      amount,
+      currency: (str(formData, "currency") || "EUR").toUpperCase(),
+    });
   }
 
   revalidatePath("/invoices");
