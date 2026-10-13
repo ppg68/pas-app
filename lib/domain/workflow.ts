@@ -159,10 +159,14 @@ export async function createRequest(formData: FormData) {
     action: "request_created",
   });
 
+  const { data: me } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
+  const requester = me ? `${me.full_name}${me.email ? ` (${me.email})` : ""}` : "A colleague";
+
   await designateAndNotifyApprovers({
     supabase,
     requestId: inserted.id,
     creatorId: user.id,
+    requester,
     signers: required,
     formData,
     code,
@@ -175,6 +179,7 @@ export async function createRequest(formData: FormData) {
     supabase,
     requestId: inserted.id,
     creatorId: user.id,
+    requester,
     pmId: String(formData.get("pm_info") || "").trim(),
     signerIds: picked.map((p) => p.userId),
     code,
@@ -195,6 +200,7 @@ async function informPm(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
   creatorId: string;
+  requester: string;
   pmId: string;
   signerIds: string[];
   code: string;
@@ -232,9 +238,9 @@ async function informPm(params: {
 
     const result = await sendEmail({
       to: profile.email,
-      subject: `IR ${params.code}: new request (for your information)`,
+      subject: `IR ${params.code}: new request by ${params.requester.split(" (")[0]} (for your information)`,
       html: `<p>Hello ${escapeHtml(profile.full_name)},</p>
-<p>A new internal request has been created, for your information. No action is required from you:</p>
+<p><b>${escapeHtml(params.requester)}</b> has created a new internal request, for your information. No action is required from you:</p>
 <p><b>${escapeHtml(params.code)}</b><br>${escapeHtml(params.description)}<br>${params.estimatedPrice} ${escapeHtml(params.currency)}</p>
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
     });
@@ -259,6 +265,7 @@ async function designateAndNotifyApprovers(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
   creatorId: string;
+  requester: string;
   signers: Role[];
   formData: FormData;
   code: string;
@@ -302,9 +309,9 @@ async function designateAndNotifyApprovers(params: {
     const roles = valid.filter((v) => v.userId === userId).map((v) => ROLE_LABEL[v.role]);
     const result = await sendEmail({
       to: profile.email,
-      subject: `IR ${params.code} is ready for your approval`,
+      subject: `IR ${params.code}: approval requested by ${params.requester.split(" (")[0]}`,
       html: `<p>Hello ${escapeHtml(profile.full_name)},</p>
-<p>A new internal request is waiting for your approval as <b>${escapeHtml(roles.join(", "))}</b>:</p>
+<p><b>${escapeHtml(params.requester)}</b> has created a new internal request that is waiting for your approval as <b>${escapeHtml(roles.join(", "))}</b>:</p>
 <p><b>${escapeHtml(params.code)}</b><br>${escapeHtml(params.description)}<br>${params.estimatedPrice} ${escapeHtml(params.currency)}</p>
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
     });
@@ -717,6 +724,8 @@ async function notifyPaymentAuthorizers(params: {
 }) {
   const { supabase, requestId, preparerId, req, amount, currency, beneficiary } = params;
   try {
+    const { data: prep } = await supabase.from("profiles").select("full_name, email").eq("id", preparerId).maybeSingle();
+    const preparedBy = prep ? `${prep.full_name}${prep.email ? ` (${prep.email})` : ""}` : "The Budget Holder";
     const roles = paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost });
     if (roles.length === 0) return;
 
@@ -744,9 +753,9 @@ async function notifyPaymentAuthorizers(params: {
       if (!p.email) continue;
       await sendEmail({
         to: p.email,
-        subject: `IR ${req.code}: payment authorization to approve`,
+        subject: `IR ${req.code}: payment authorization to approve (from ${preparedBy.split(" (")[0]})`,
         html: `<p>Hello ${escapeHtml(p.full_name)},</p>
-<p>A payment authorization is waiting for your approval:</p>
+<p><b>${escapeHtml(preparedBy)}</b> has prepared a payment authorization that is waiting for your approval:</p>
 <p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${amount} ${escapeHtml(currency)} — ${escapeHtml(beneficiary)}</p>
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
       });

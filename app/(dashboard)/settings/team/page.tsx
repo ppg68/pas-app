@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
-import { addRole, removeRole, cancelPending } from "./actions";
+import { addRole, removeRole, cancelPending, updatePersonName } from "./actions";
 import RemovePersonButton from "./RemovePersonButton";
 import ConfirmForm from "@/components/ConfirmForm";
 
@@ -61,7 +61,20 @@ export default async function TeamSettingsPage({
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
               <div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.full_name}</div>
+                <form
+                  action={updatePersonName.bind(null, p.id)}
+                  style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}
+                >
+                  <input
+                    name="full_name"
+                    defaultValue={p.full_name}
+                    aria-label={`Name of ${p.email ?? "this person"}`}
+                    style={{ fontSize: 14, fontWeight: 500, minWidth: 220 }}
+                  />
+                  <button type="submit" className="pill">
+                    Save name
+                  </button>
+                </form>
                 <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
                   {p.email} ·{" "}
                   {roles.length > 0

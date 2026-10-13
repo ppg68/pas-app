@@ -60,3 +60,20 @@ export async function cancelPending(email: string, role: Role) {
   await supabase.from("pending_roles").delete().eq("email", email).eq("role", role);
   revalidatePath("/settings/team");
 }
+
+export async function updatePersonName(userId: string, formData: FormData) {
+  const name = String(formData.get("full_name") || "").trim().replace(/\s+/g, " ");
+  if (!name || name.length > 120) fail("Enter the name (up to 120 characters).");
+
+  const supabase = await createClient();
+  // RLS ("ADMIN updates profiles") filters silently: no row back means the change was not allowed.
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ full_name: name })
+    .eq("id", userId)
+    .select("id");
+  if (error) fail(error.message);
+  if (!data || data.length === 0) fail("The name could not be changed (only an ADMIN can do it).");
+
+  revalidatePath("/settings/team");
+}
