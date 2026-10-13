@@ -30,6 +30,7 @@ export type RequestRow = {
   occasional_collaborator: boolean;
   stage: Stage;
   folder_path: string | null;
+  ir_number: string | null;
   created_at: string;
   initiatedByName: string;
   winnerSupplier: string;
@@ -51,7 +52,8 @@ type SortDir = "asc" | "desc";
 
 /** HQ codes start with the IR number ("790_C_3Q_…"); field-office codes don't. */
 function irNumber(r: RequestRow): string {
-  return r.country === "IT" ? r.code.split("_")[0] : "";
+  // numbering per office ("12/IT"); older requests: the number at the start of the HQ code
+  return r.ir_number ?? (r.country === "IT" ? r.code.split("_")[0] : "");
 }
 
 const SORTERS: Record<SortKey, (a: RequestRow, b: RequestRow) => number> = {

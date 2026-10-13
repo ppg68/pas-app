@@ -638,6 +638,7 @@ export type Database = {
           folder_path: string | null
           id: string
           initiated_by: string | null
+          ir_number: string | null
           is_legacy: boolean
           legacy_ir_number: string | null
           legacy_initiator_name: string | null
@@ -667,6 +668,7 @@ export type Database = {
           folder_path?: string | null
           id?: string
           initiated_by?: string | null
+          ir_number?: string | null
           is_legacy?: boolean
           legacy_ir_number?: string | null
           legacy_initiator_name?: string | null
@@ -696,6 +698,7 @@ export type Database = {
           folder_path?: string | null
           id?: string
           initiated_by?: string | null
+          ir_number?: string | null
           is_legacy?: boolean
           legacy_ir_number?: string | null
           legacy_initiator_name?: string | null
@@ -807,6 +810,7 @@ export type Database = {
       is_member: { Args: { uid: string }; Returns: boolean }
       is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
+      next_ir_number: { Args: { office: string }; Returns: string }
       record_direct_payment: { Args: { pa_id: string }; Returns: undefined }
       remove_person: { Args: { target: string }; Returns: undefined }
     }

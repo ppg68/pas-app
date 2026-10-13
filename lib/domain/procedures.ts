@@ -135,14 +135,14 @@ export function buildRequestCode(params: {
   procCode: ProcCode;
   description: string;
   projectCode: string;
-  hqNumber: number; // used when country === "IT"
+  irToken: string; // IR number of the office with "/" replaced by "-" (e.g. "12-IT"), used when country === "IT"
   fieldProgressive: number; // used when country !== "IT" (count of same country+project+proc so far, +1)
 }): string {
-  const { country, procCode, description, projectCode, hqNumber, fieldProgressive } = params;
+  const { country, procCode, description, projectCode, irToken, fieldProgressive } = params;
   if (country === "IT") {
     const letter = PROC_LETTER[procCode];
     const shortDesc = (description || "").trim().replace(/\s+/g, " ");
-    return `${hqNumber}_${letter}_${procCode}${shortDesc ? "_" + shortDesc : ""}${projectCode ? "_" + projectCode : ""}`;
+    return `${irToken}_${letter}_${procCode}${shortDesc ? "_" + shortDesc : ""}${projectCode ? "_" + projectCode : ""}`;
   }
   return `${country}/${projectCode}/${procCode}/${String(fieldProgressive).padStart(2, "0")}`;
 }

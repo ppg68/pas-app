@@ -94,18 +94,17 @@ export async function createRequest(formData: FormData) {
     fail("/requests/new", `The person chosen does not hold the required role: ${notHolding.join(", ")}.`);
   }
 
-  let hqNumber = 0;
+  // IR number of the office ("12/IT"): continuous per office, never collides with the historic
+  // register numbers. Drawn here and consumed right after, in the same server action.
+  const { data: irNumber, error: irError } = await supabase.rpc("next_ir_number", { office: country });
+  if (irError || !irNumber) {
+    fail("/requests/new", irError?.message ?? "Unable to generate the IR number.");
+  }
+  const irToken = irNumber.replace("/", "-");
+
   let fieldProgressive = 0;
 
-  if (country === "IT") {
-    // rpc + insert in the same server action: the lock on hq_counter only lasts
-    // as long as the next_hq_number() function, so it must be consumed right after.
-    const { data, error } = await supabase.rpc("next_hq_number");
-    if (error || data == null) {
-      fail("/requests/new", error?.message ?? "Unable to generate the IR number.");
-    }
-    hqNumber = data;
-  } else {
+  if (country !== "IT") {
     const { count, error } = await supabase
       .from("requests")
       .select("id", { count: "exact", head: true })
@@ -121,7 +120,7 @@ export async function createRequest(formData: FormData) {
     procCode,
     description,
     projectCode,
-    hqNumber,
+    irToken,
     fieldProgressive,
   });
 
@@ -129,6 +128,7 @@ export async function createRequest(formData: FormData) {
     .from("requests")
     .insert({
       code,
+      ir_number: irNumber,
       country,
       project_code: projectCode,
       budget_line: budgetLine,

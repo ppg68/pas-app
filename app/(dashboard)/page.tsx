@@ -7,7 +7,7 @@ export default async function RequestListPage() {
   const { data: requestsRaw } = await supabase
     .from("requests")
     .select(
-      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, created_at, initiated_by, legacy_initiator_name"
+      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, ir_number, created_at, initiated_by, legacy_initiator_name"
     )
     .order("created_at", { ascending: false });
 
