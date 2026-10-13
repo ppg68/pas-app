@@ -22,6 +22,7 @@ import {
   advanceToPayment,
   authorizePaymentAuth,
 } from "@/lib/domain/workflow";
+import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
@@ -244,7 +245,7 @@ export default async function RequestDetailPage({
                 {ROLE_LABEL[role]} —{" "}
                 {signed ? (
                   <>
-                    signed by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
+                    approved by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
                     <b>{fmtWhen(signed.signed_at)}</b>
                   </>
                 ) : (
@@ -260,9 +261,7 @@ export default async function RequestDetailPage({
               </span>
               {canShowButton && (
                 <form action={signIrAuth.bind(null, request.id, role)}>
-                  <button type="submit" className="primary">
-                    Sign
-                  </button>
+                  <SubmitButton pendingLabel="Approving…">Approve</SubmitButton>
                 </form>
               )}
             </div>
