@@ -126,6 +126,9 @@ export default async function RequestDetailPage({
     : { data: [] as { id: string; full_name: string }[] };
   const paName = (uid: string | null | undefined) =>
     (paProfiles ?? []).find((p) => p.id === uid)?.full_name ?? "—";
+  const { data: requesterProfile } = request.initiated_by
+    ? await supabase.from("profiles").select("full_name, email").eq("id", request.initiated_by).maybeSingle()
+    : { data: null };
   const winnerOffer = (offers ?? []).find((o) => o.id === request.winner_offer_id) ?? null;
   const authorizedTotal = (payAuths ?? [])
     .filter((a) => a.status === "authorized")
@@ -217,6 +220,57 @@ export default async function RequestDetailPage({
           {decodeURIComponent(error)}
         </div>
       )}
+
+      {/* Request details: everything the approver needs to check before approving */}
+      <div className="card">
+        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Request details</h2>
+        <dl
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(150px, 220px) 1fr",
+            gap: "6px 16px",
+            fontSize: 13,
+            margin: 0,
+          }}
+        >
+          {(
+            [
+              ["IR number", request.ir_number ?? request.legacy_ir_number ?? request.code],
+              ["Compiled by", requesterProfile?.full_name ?? request.legacy_initiator_name ?? "—"],
+              ["Date", fmtWhen(request.created_at)],
+              ["Office / country", request.country],
+              ["Project", request.project_code],
+              ["Budget line", request.budget_line],
+              ["Description", request.description],
+              ["Estimated amount", `${money(request.estimated_price)} ${request.currency}`],
+              ["Procedure", config.label],
+              ["CUP / AID", effectiveCup ?? "—"],
+              [
+                "Derogation",
+                request.derogation ? `Yes — ${request.derogation_reason ?? "no reason given"}` : "No",
+              ],
+              ["Coordination cost", request.coordination_cost ? "Yes (no linked project)" : "No"],
+              ["Institutional activity", request.institutional_activity ? "Yes" : "No"],
+              ["Occasional collaborator", request.occasional_collaborator ? "Yes" : "No"],
+              ...irRoles.map(
+                (role) =>
+                  [
+                    `Approver — ${ROLE_LABEL[role]}`,
+                    approverByRole.get(role)?.name ?? "not designated",
+                  ] as [string, string]
+              ),
+              ...(approverByRole.get("PM")
+                ? ([["PM (for information)", approverByRole.get("PM")!.name]] as [string, string][])
+                : []),
+            ] as [string, string][]
+          ).map(([label, value]) => (
+            <div key={label} style={{ display: "contents" }}>
+              <dt style={{ color: "var(--ink-soft)" }}>{label}</dt>
+              <dd style={{ margin: 0 }}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
 
       {/* IR approval */}
       <div className="card">
