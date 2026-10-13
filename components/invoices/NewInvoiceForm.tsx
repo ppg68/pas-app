@@ -16,17 +16,35 @@ export type FormContract = {
   invoiced: number;
 };
 
+/** A request that is waiting for its invoice (winner chosen, or direct purchase), offered to Elisa as a picker. */
+export type AwaitingRequest = {
+  id: string;
+  ir: string;
+  description: string;
+  project: string | null;
+  currency: string;
+  procedure: string;
+  stage: string;
+  supplier: string | null;
+  /** value of the winning offer; direct purchases: the estimated amount */
+  value: number;
+};
+
 const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
 
 export default function NewInvoiceForm({
   contracts,
   projectCups,
   irRefs,
+  awaiting = [],
 }: {
   contracts: FormContract[];
   projectCups: Record<string, string>;
   irRefs: Record<string, IrRef>;
+  awaiting?: AwaitingRequest[];
 }) {
+  const [pickFilter, setPickFilter] = useState("");
+  const [picked, setPicked] = useState("");
   const [contractNumber, setContractNumber] = useState("");
   const [supplier, setSupplier] = useState("");
   const [project, setProject] = useState("");
@@ -64,6 +82,29 @@ export default function NewInvoiceForm({
   const afterThis =
     match && sameCurrency && Number.isFinite(amountNum) ? match.amount - match.invoiced - amountNum : null;
 
+  const pickedReq = awaiting.find((r) => r.id === picked);
+  const visibleAwaiting = awaiting.filter((r) => {
+    const q = pickFilter.trim().toLowerCase();
+    if (!q) return true;
+    return [r.ir, r.supplier ?? "", r.description, r.project ?? ""].some((x) => x.toLowerCase().includes(q));
+  });
+
+  function onPick(id: string) {
+    setPicked(id);
+    const r = awaiting.find((x) => x.id === id);
+    if (!r) return;
+    onIrChange(r.ir);
+    if (r.supplier) {
+      setSupplier(r.supplier);
+      setAutoSupplier(r.supplier);
+    }
+    if (r.project) {
+      setProject(r.project);
+      setAutoProject(r.project);
+    }
+    setCurrency(r.currency);
+  }
+
   function onContractChange(v: string) {
     setContractNumber(v);
     const c = v.trim() ? byNumber.get(normalizeContractNumber(v)) : undefined;
@@ -83,6 +124,36 @@ export default function NewInvoiceForm({
 
   return (
     <form action={createInvoiceFromForm} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {awaiting.length > 0 && (
+        <div className="field" style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: 10 }}>
+          <label>Which request is this invoice for? (optional — fills IR, supplier, project)</label>
+          <input
+            type="search"
+            placeholder="Filter by supplier, IR, description or project…"
+            value={pickFilter}
+            onChange={(e) => setPickFilter(e.target.value)}
+            style={{ marginBottom: 6 }}
+          />
+          <select value={picked} onChange={(e) => onPick(e.target.value)}>
+            <option value="">— choose the request awaiting this invoice ({visibleAwaiting.length}) —</option>
+            {visibleAwaiting.map((r) => (
+              <option key={r.id} value={r.id}>
+                {`${r.ir} — ${r.supplier ?? "no supplier (direct purchase)"} — ${r.description} — ${formatMoney(r.value)} ${r.currency}`}
+              </option>
+            ))}
+          </select>
+          {pickedReq && (
+            <div style={{ fontSize: 12, marginTop: 6, color: "var(--ink-soft)" }}>
+              {pickedReq.procedure} · {pickedReq.project ?? "no project"} · stage {pickedReq.stage} ·{" "}
+              {pickedReq.supplier ? "winning offer" : "estimated amount"}{" "}
+              <b>
+                {formatMoney(pickedReq.value)} {pickedReq.currency}
+              </b>
+              {pickedReq.stage !== "payment" && " · the request has not reached the payment stage yet"}
+            </div>
+          )}
+        </div>
+      )}
       <div className="field">
         <label>Contract # (optional — links the invoice to the contract)</label>
         <input

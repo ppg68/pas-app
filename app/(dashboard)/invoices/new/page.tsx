@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fetchProjectCups } from "@/lib/domain/projectCups";
 import { fetchIrRefs } from "@/lib/domain/irRefs";
-import NewInvoiceForm, { type FormContract } from "@/components/invoices/NewInvoiceForm";
+import { procConfigFor } from "@/lib/domain/procedures";
+import NewInvoiceForm, { type FormContract, type AwaitingRequest } from "@/components/invoices/NewInvoiceForm";
 
 export default async function NewInvoicePage({
   searchParams,
@@ -42,6 +43,33 @@ export default async function NewInvoicePage({
       invoiced: invoiced.get(c.id) ?? 0,
     }));
 
+  // Requests created in the app that are waiting for their invoice: winner chosen (or direct purchase),
+  // not yet closed.
+  const { data: open } = await supabase
+    .from("requests")
+    .select("id, code, ir_number, country, description, project_code, currency, proc_code, estimated_price, stage, winner_offer_id")
+    .eq("is_legacy", false)
+    .in("stage", ["documents", "payment"])
+    .order("created_at", { ascending: false });
+  const winnerIds = (open ?? []).map((r) => r.winner_offer_id).filter((v): v is string => !!v);
+  const { data: winnerOffers } = winnerIds.length
+    ? await supabase.from("offers").select("id, supplier, price").in("id", winnerIds)
+    : { data: [] as { id: string; supplier: string; price: number }[] };
+  const awaiting: AwaitingRequest[] = (open ?? []).map((r) => {
+    const w = (winnerOffers ?? []).find((o) => o.id === r.winner_offer_id);
+    return {
+      id: r.id,
+      ir: r.ir_number ?? (r.country === "IT" ? r.code.split("_")[0] : r.code),
+      description: r.description,
+      project: r.project_code,
+      currency: r.currency,
+      procedure: procConfigFor(r.proc_code).label,
+      stage: r.stage,
+      supplier: w?.supplier ?? null,
+      value: w?.price ?? r.estimated_price,
+    };
+  });
+
   return (
     <div style={{ maxWidth: 760 }}>
       <Link href="/invoices" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
@@ -49,7 +77,7 @@ export default async function NewInvoicePage({
       </Link>
       <h1 style={{ margin: "10px 0 16px" }}>New invoice</h1>
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
-      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} />
+      <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} awaiting={awaiting} />
     </div>
   );
 }
