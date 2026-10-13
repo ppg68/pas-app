@@ -243,6 +243,59 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   }
 }
 
+/**
+ * Tells whoever compiled the request that an IR approval signature has been given: once all
+ * required signatures are in, that they can proceed. Best effort — an email problem never
+ * blocks the signature.
+ */
+async function notifyInitiatorOfSignature(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  requestId: string;
+  signerId: string;
+  role: Role;
+  authorized: boolean;
+  pending: Role[];
+  req: {
+    initiated_by: string | null;
+    code: string;
+    description: string;
+    estimated_price: number;
+    currency: string;
+  };
+}) {
+  const { supabase, requestId, signerId, role, authorized, pending, req } = params;
+  if (!req.initiated_by || req.initiated_by === signerId) return;
+  try {
+    const [{ data: initiator }, { data: signer }] = await Promise.all([
+      supabase.from("profiles").select("full_name, email").eq("id", req.initiated_by).maybeSingle(),
+      supabase.from("profiles").select("full_name").eq("id", signerId).maybeSingle(),
+    ]);
+    if (!initiator?.email) return;
+
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+
+    const who = `${escapeHtml(signer?.full_name ?? "An approver")} (${escapeHtml(ROLE_LABEL[role])})`;
+    const outcome = authorized
+      ? "<p>All required signatures are in: the request is <b>authorized</b> and you can proceed with entering the data.</p>"
+      : `<p>Still waiting for: <b>${escapeHtml(pending.map((r) => ROLE_LABEL[r]).join(", "))}</b>.</p>`;
+
+    await sendEmail({
+      to: initiator.email,
+      subject: authorized ? `IR ${req.code} authorized: you can proceed` : `IR ${req.code} signed by ${signer?.full_name ?? "an approver"}`,
+      html: `<p>Hello ${escapeHtml(initiator.full_name)},</p>
+<p>${who} has signed your internal request:</p>
+<p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${req.estimated_price} ${escapeHtml(req.currency)}</p>
+${outcome}
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+    });
+  } catch {
+    // notification is best effort
+  }
+}
+
 export async function signIrAuth(requestId: string, role: Role) {
   const supabase = await createClient();
   const {
@@ -275,7 +328,7 @@ export async function signIrAuth(requestId: string, role: Role) {
 
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage, derogation, coordination_cost")
+    .select("proc_code, stage, derogation, coordination_cost, code, description, estimated_price, currency, initiated_by")
     .eq("id", requestId)
     .single();
 
@@ -298,6 +351,16 @@ export async function signIrAuth(requestId: string, role: Role) {
       const nextStage = procConfigFor(req.proc_code).minOffers === 0 ? "documents" : "offers";
       await supabase.from("requests").update({ stage: nextStage }).eq("id", requestId);
     }
+
+    await notifyInitiatorOfSignature({
+      supabase,
+      requestId,
+      signerId: user.id,
+      role,
+      authorized: allSigned,
+      pending: required.filter((r) => !signedRoles.has(r)),
+      req,
+    });
   }
 
   revalidatePath(`/requests/${requestId}`);
