@@ -22,7 +22,7 @@ const TEXT_FIELDS = new Set([
 ]);
 const DATE_FIELDS = new Set(["due_date", "payment_date"]);
 // contract_value and balance_due are no longer editable: they are computed from the linked contract.
-const NUMBER_FIELDS = new Set(["amount", "withholding"]);
+const NUMBER_FIELDS = new Set(["amount"]);
 
 /** Whitelisted inline-edit save for a single cell in the Invoices table. */
 export async function updateInvoiceField(invoiceId: string, field: string, rawValue: string) {
@@ -151,11 +151,6 @@ export async function createInvoiceFromForm(formData: FormData) {
   const projectCode = str(formData, "project_code") || reqProject;
   const cup = cupForProject(await fetchProjectCups(supabase), projectCode) ?? (str(formData, "cup") || null);
 
-  const num = (k: string) => {
-    const v = str(formData, k).replace(",", ".");
-    return v === "" ? null : Number.isFinite(parseFloat(v)) ? parseFloat(v) : null;
-  };
-
   const { data, error } = await supabase
     .from("invoices")
     .insert({
@@ -170,7 +165,6 @@ export async function createInvoiceFromForm(formData: FormData) {
       payment_note: str(formData, "payment_note") || null,
       currency: (str(formData, "currency") || "EUR").toUpperCase(),
       amount,
-      withholding: num("withholding"),
       pa_signed: formData.get("pa_signed") === "on",
       project_code: projectCode,
       budget_line: str(formData, "budget_line") || reqBudget,

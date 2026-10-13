@@ -63,7 +63,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     payment_note: invoice.payment_note,
     currency: invoice.currency,
     amount: invoice.amount,
-    withholding: invoice.withholding,
     pa_signed: invoice.pa_signed,
     project_code: invoice.project_code,
     budget_line: invoice.budget_line,

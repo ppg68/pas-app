@@ -20,7 +20,6 @@ export type InvoiceRecord = {
   payment_note: string | null;
   currency: string;
   amount: number;
-  withholding: number | null;
   pa_signed: boolean;
   project_code: string | null;
   budget_line: string | null;
@@ -216,19 +215,6 @@ export default function InvoiceDetail({
             value={r.amount}
             onValueChange={(v) => setR({ ...r, amount: parseFloat(v) || 0 })}
             onCommit={(v) => void save("amount", v)}
-          />
-        </div>
-        <div className="field" style={{ flex: 1, minWidth: 150 }}>
-          <label>
-            Withholding
-            {saved === "withholding" && (
-              <span style={{ color: "var(--navy)", marginLeft: 8, textTransform: "none" }}>saved ✓</span>
-            )}
-          </label>
-          <MoneyInput
-            value={r.withholding ?? ""}
-            onValueChange={(v) => setR({ ...r, withholding: v === "" ? null : parseFloat(v) })}
-            onCommit={(v) => void save("withholding", v)}
           />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 130, justifyContent: "flex-end" }}>

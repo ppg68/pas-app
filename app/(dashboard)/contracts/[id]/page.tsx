@@ -62,7 +62,7 @@ export default async function ContractDetailPage({
   // Invoices of the IR register ("Fatture", managed by Elisa) linked to this contract.
   const { data: irInvoices } = await supabase
     .from("invoices")
-    .select("id, request_id, ir_number, protocol, supplier, due_date, payment_date, payment_note, currency, amount, withholding, balance_due, notes")
+    .select("id, request_id, ir_number, protocol, supplier, due_date, payment_date, payment_note, currency, amount, balance_due, notes")
     .eq("contract_id", id)
     .order("due_date", { ascending: true, nullsFirst: false });
 

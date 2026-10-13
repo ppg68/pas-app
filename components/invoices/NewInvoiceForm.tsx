@@ -237,10 +237,6 @@ export default function NewInvoiceForm({
           <label>Amount</label>
           <MoneyInput name="amount" required value={amount} onValueChange={(v) => setAmount(v)} />
         </div>
-        <div className="field" style={{ flex: 1, minWidth: 150 }}>
-          <label>Withholding</label>
-          <MoneyInput name="withholding" />
-        </div>
         <div className="field" style={{ flex: 1, minWidth: 130, justifyContent: "flex-end" }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input name="pa_signed" type="checkbox" style={{ width: "auto" }} /> PA signed

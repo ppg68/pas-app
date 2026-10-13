@@ -48,7 +48,6 @@ const COLUMNS: Col[] = [
   { key: "payment_date", label: "Payment date", sort: "payment", type: "date" },
   { key: "currency", label: "Cur.", type: "text", width: 64 },
   { key: "amount", label: "Amount", sort: "amount", align: "right", type: "number" },
-  { key: "withholding", label: "Withholding", align: "right", type: "number" },
   { key: "pa_signed", label: "PA signed", type: "checkbox" },
   { key: "project_code", label: "Project", type: "text", width: 90 },
   { key: "budget_line", label: "Budget line", type: "text", width: 120 },
@@ -70,7 +69,7 @@ const frozenStyle = (left: number, width: number): React.CSSProperties => ({
   maxWidth: width,
 });
 
-const NUMERIC_KEYS = new Set(["amount", "withholding", "contract_value", "balance_due"]);
+const NUMERIC_KEYS = new Set(["amount", "contract_value", "balance_due"]);
 
 export default function IrInvoicesExplorer({
   invoices,
@@ -214,7 +213,6 @@ This cannot be undone.`)) return;
         "Payment note": r.payment_note || "",
         Currency: r.currency,
         Amount: r.amount,
-        Withholding: r.withholding ?? "",
         "PA signed": r.pa_signed ? "OK" : "",
         Project: r.project_code || "",
         "Budget line": r.budget_line || "",
