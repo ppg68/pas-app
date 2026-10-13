@@ -307,7 +307,7 @@ This cannot be undone.`)) return;
                           : i === 1
                             ? { ...td, ...frozenStyle(W_LINK + W_DELETE + W_ID, W_SUBJECT) }
                             : col.align === "right"
-                              ? tdRight
+                              ? { ...tdRight, minWidth: 120 }
                               : { ...td, minWidth: col.width ?? 110 }
                       }
                     >

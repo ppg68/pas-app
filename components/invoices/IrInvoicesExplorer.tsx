@@ -46,8 +46,7 @@ const COLUMNS: Col[] = [
   { key: "contract_number", label: "Contract #", type: "text", width: 90 },
   { key: "due_date", label: "Due date", sort: "due", type: "date" },
   { key: "payment_date", label: "Payment date", sort: "payment", type: "date" },
-  { key: "payment_note", label: "Payment note", type: "text", width: 130 },
-  { key: "currency", label: "Cur.", type: "text", width: 60 },
+  { key: "currency", label: "Cur.", type: "text", width: 64 },
   { key: "amount", label: "Amount", sort: "amount", align: "right", type: "number" },
   { key: "withholding", label: "Withholding", align: "right", type: "number" },
   { key: "pa_signed", label: "PA signed", type: "checkbox" },
@@ -500,8 +499,10 @@ This cannot be undone.`)) return;
                       key={col.key}
                       style={
                         col.align === "right"
-                          ? { textAlign: "right", whiteSpace: "nowrap" }
-                          : { whiteSpace: "nowrap", minWidth: col.width ?? 110 }
+                          ? { textAlign: "right", whiteSpace: "nowrap", minWidth: 120 }
+                          : col.key === "currency"
+                            ? { whiteSpace: "nowrap", width: 64, minWidth: 64, maxWidth: 64 }
+                            : { whiteSpace: "nowrap", minWidth: col.width ?? 110 }
                       }
                     >
                       {renderCell(r, col)}
