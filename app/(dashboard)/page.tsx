@@ -44,14 +44,27 @@ export default async function RequestListPage() {
     new Set((requests ?? []).map((r) => r.initiated_by).filter((id): id is string => !!id))
   );
 
-  const [{ data: initiators }, { data: offers }] = await Promise.all([
+  // Offers are read in batches: one "in (...)" with ~800 ids makes the request URL too long and the whole
+  // query fails (the supplier column went empty).
+  const OFFER_BATCH = 100;
+  const offerBatches: Promise<{ id: string; request_id: string; supplier: string }[]>[] = [];
+  for (let i = 0; i < requestIds.length; i += OFFER_BATCH) {
+    const ids = requestIds.slice(i, i + OFFER_BATCH);
+    offerBatches.push(
+      (async () => {
+        const { data } = await supabase.from("offers").select("id, request_id, supplier").in("request_id", ids);
+        return (data ?? []) as { id: string; request_id: string; supplier: string }[];
+      })()
+    );
+  }
+
+  const [{ data: initiators }, offerChunks] = await Promise.all([
     initiatorIds.length
       ? supabase.from("profiles").select("id, full_name").in("id", initiatorIds)
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
-    requestIds.length
-      ? supabase.from("offers").select("id, request_id, supplier").in("request_id", requestIds)
-      : Promise.resolve({ data: [] as { id: string; request_id: string; supplier: string }[] }),
+    Promise.all(offerBatches),
   ]);
+  const offers = offerChunks.flat();
 
   const nameById = new Map((initiators ?? []).map((p) => [p.id, p.full_name]));
   const offersByRequest = new Map<string, { id: string; supplier: string }[]>();
