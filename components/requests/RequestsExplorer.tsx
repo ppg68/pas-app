@@ -236,7 +236,7 @@ This permanently removes the request together with its offers, signatures, docum
       )}
 
       {filteredRequests.length > 0 && (
-        <div className="table-wrap">
+        <div className="table-wrap fit-screen">
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>

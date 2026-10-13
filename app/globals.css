@@ -290,6 +290,11 @@ button.export:disabled { opacity: 0.5; cursor: not-allowed; }
   border-radius: 10px;
   background: var(--panel);
 }
+/* Long list: the table scrolls inside the window height, so both scrollbars (and the header) stay in view. */
+.table-wrap.fit-screen {
+  max-height: calc(100vh - 230px);
+  overflow: auto;
+}
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 thead th {
   text-align: left;
