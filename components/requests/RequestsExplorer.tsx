@@ -166,7 +166,6 @@ This permanently removes the request together with its offers, signatures, docum
           Stage: STAGE_TITLES[r.stage],
           "Initiated by": r.initiatedByName,
           "No. of offers": r.offersCount,
-          "Archive folder path": r.folder_path || "",
         };
       });
       const ws = XLSX.utils.json_to_sheet(rows);
