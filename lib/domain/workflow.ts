@@ -654,7 +654,18 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
   const typeOther = text("payment_type_other");
   if (paymentType === "other" && !typeOther) fail(path, "Specify the payment type.");
 
-  const invoiceId = text("invoice_id") || null;
+  let invoiceId = text("invoice_id") || null;
+  if (!invoiceId) {
+    // No invoice chosen: if the request has exactly one invoice not yet covered by a payment
+    // authorization, it is the one this payment refers to (so "PA signed" gets ticked on approval).
+    const [{ data: invs }, { data: used }] = await Promise.all([
+      supabase.from("invoices").select("id").eq("request_id", requestId),
+      supabase.from("payment_authorizations").select("invoice_id").eq("request_id", requestId),
+    ]);
+    const usedIds = new Set((used ?? []).map((u) => u.invoice_id).filter((v): v is string => !!v));
+    const free = (invs ?? []).filter((i) => !usedIds.has(i.id));
+    if (free.length === 1) invoiceId = free[0].id;
+  }
   const currency = (text("currency") || req.currency || "EUR").toUpperCase();
 
   const { data: created, error } = await supabase.from("payment_authorizations").insert({

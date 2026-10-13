@@ -38,11 +38,17 @@ export default function PaymentAuthorizationForm({
   /** Direct purchase: recorded without approval. */
   direct?: boolean;
 }) {
-  const [invoiceId, setInvoiceId] = useState("");
-  const [beneficiary, setBeneficiary] = useState(winnerSupplier ?? "");
-  const [amount, setAmount] = useState("");
-  const [cur, setCur] = useState(currency);
-  const [balance, setBalance] = useState("");
+  // a single invoice on the request is the obvious one: preselected
+  const only = invoices.length === 1 ? invoices[0] : null;
+  const [invoiceId, setInvoiceId] = useState(only?.id ?? "");
+  const [beneficiary, setBeneficiary] = useState(only?.supplier ?? winnerSupplier ?? "");
+  const [amount, setAmount] = useState(only ? String(only.amount) : "");
+  const [cur, setCur] = useState(only?.currency ?? currency);
+  const [balance, setBalance] = useState(
+    only && offerValue != null
+      ? String(Math.round((offerValue - authorizedTotal - only.amount) * 100) / 100)
+      : ""
+  );
   const [balanceTouched, setBalanceTouched] = useState(false);
   const [paymentType, setPaymentType] = useState("bank_transfer");
 
