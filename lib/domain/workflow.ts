@@ -67,6 +67,32 @@ export async function createRequest(formData: FormData) {
     fail("/requests/new", "Only someone with the Budget Holder role can create a request.");
   }
 
+  // Every signer required by the procedure must be designated before the request is created
+  // (checked before the IR number is drawn, so a refused request does not burn a number).
+  const required = procConfigFor(procCode).signers;
+  const picked = required.map((role) => ({
+    role,
+    userId: String(formData.get(`approver_${role}`) || "").trim(),
+  }));
+  const missing = picked.filter((p) => !p.userId).map((p) => ROLE_LABEL[p.role]);
+  if (missing.length > 0) {
+    fail("/requests/new", `Choose the approver for: ${missing.join(", ")}. The request cannot be created without them.`);
+  }
+  const selfPicked = picked.filter((p) => p.userId === user.id).map((p) => ROLE_LABEL[p.role]);
+  if (selfPicked.length > 0) {
+    fail("/requests/new", `You cannot be your own approver (${selfPicked.join(", ")}): pick another person.`);
+  }
+  const { data: holders } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .in("user_id", picked.map((p) => p.userId));
+  const notHolding = picked
+    .filter((p) => !(holders ?? []).some((h) => h.user_id === p.userId && h.role === p.role))
+    .map((p) => ROLE_LABEL[p.role]);
+  if (notHolding.length > 0) {
+    fail("/requests/new", `The person chosen does not hold the required role: ${notHolding.join(", ")}.`);
+  }
+
   let hqNumber = 0;
   let fieldProgressive = 0;
 
@@ -147,8 +173,8 @@ export async function createRequest(formData: FormData) {
 }
 
 /**
- * Optional approvers picked on the form (fields "approver_<ROLE>"): stored on the
- * request and emailed a link. Never blocks request creation — email problems are
+ * Approvers picked on the form (fields "approver_<ROLE>", required and validated in
+ * createRequest): stored on the request and emailed a link. Never blocks request creation — email problems are
  * swallowed (the request page shows who was designated and whether they were notified).
  */
 async function designateAndNotifyApprovers(params: {

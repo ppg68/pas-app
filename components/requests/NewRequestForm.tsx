@@ -117,8 +117,9 @@ export default function NewRequestForm({
 
       {signers.length > 0 && (
         <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>Approvers (optional)</div>
+          <div style={{ fontSize: 13, fontWeight: 500 }}>Approvers (required)</div>
           <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+            Choose who must sign: the request cannot be created without an approver for each role.
             Each person you pick receives an email as soon as the request is created. Only registered
             users holding the role are listed.
           </div>
@@ -130,10 +131,11 @@ export default function NewRequestForm({
                 <label>{ROLE_LABEL[role]}</label>
                 <select
                   name={`approver_${role}`}
+                  required
                   value={value}
                   onChange={(e) => setChosen((c) => ({ ...c, [role]: e.target.value }))}
                 >
-                  <option value="">— none, assign later —</option>
+                  <option value="">— choose the approver —</option>
                   {list.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.email})
