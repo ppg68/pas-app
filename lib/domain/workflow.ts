@@ -244,15 +244,16 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
 }
 
 /**
- * Tells whoever compiled the request that an IR approval signature has been given: once all
- * required signatures are in, that they can proceed. Best effort — an email problem never
- * blocks the signature.
+ * Tells whoever compiled the request that a signature has been given (IR approval or payment):
+ * once all required signatures are in, that they can proceed / that the payment is authorized.
+ * Best effort — an email problem never blocks the signature.
  */
 async function notifyInitiatorOfSignature(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
   signerId: string;
   role: Role;
+  phase: "ir_auth" | "payment";
   authorized: boolean;
   pending: Role[];
   req: {
@@ -263,7 +264,7 @@ async function notifyInitiatorOfSignature(params: {
     currency: string;
   };
 }) {
-  const { supabase, requestId, signerId, role, authorized, pending, req } = params;
+  const { supabase, requestId, signerId, role, phase, authorized, pending, req } = params;
   if (!req.initiated_by || req.initiated_by === signerId) return;
   try {
     const [{ data: initiator }, { data: signer }] = await Promise.all([
@@ -278,15 +279,25 @@ async function notifyInitiatorOfSignature(params: {
     const link = host ? `${proto}://${host}/requests/${requestId}` : "";
 
     const who = `${escapeHtml(signer?.full_name ?? "An approver")} (${escapeHtml(ROLE_LABEL[role])})`;
+    const isPayment = phase === "payment";
     const outcome = authorized
-      ? "<p>All required signatures are in: the request is <b>authorized</b> and you can proceed with entering the data.</p>"
+      ? isPayment
+        ? "<p>All required signatures are in: the <b>payment is authorized</b> and the request is closed.</p>"
+        : "<p>All required signatures are in: the request is <b>authorized</b> and you can proceed with entering the data.</p>"
       : `<p>Still waiting for: <b>${escapeHtml(pending.map((r) => ROLE_LABEL[r]).join(", "))}</b>.</p>`;
+    const subject = isPayment
+      ? authorized
+        ? `IR ${req.code}: payment authorized`
+        : `IR ${req.code}: payment signed by ${signer?.full_name ?? "an approver"}`
+      : authorized
+        ? `IR ${req.code} authorized: you can proceed`
+        : `IR ${req.code} signed by ${signer?.full_name ?? "an approver"}`;
 
     await sendEmail({
       to: initiator.email,
-      subject: authorized ? `IR ${req.code} authorized: you can proceed` : `IR ${req.code} signed by ${signer?.full_name ?? "an approver"}`,
+      subject,
       html: `<p>Hello ${escapeHtml(initiator.full_name)},</p>
-<p>${who} has signed your internal request:</p>
+<p>${who} has signed the ${isPayment ? "payment authorization of your" : ""} internal request:</p>
 <p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${req.estimated_price} ${escapeHtml(req.currency)}</p>
 ${outcome}
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
@@ -357,6 +368,7 @@ export async function signIrAuth(requestId: string, role: Role) {
       requestId,
       signerId: user.id,
       role,
+      phase: "ir_auth",
       authorized: allSigned,
       pending: required.filter((r) => !signedRoles.has(r)),
       req,
@@ -504,7 +516,7 @@ export async function signPayment(requestId: string, role: Role) {
 
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, coordination_cost, stage")
+    .select("proc_code, coordination_cost, stage, code, description, estimated_price, currency, initiated_by")
     .eq("id", requestId)
     .single();
 
@@ -525,6 +537,17 @@ export async function signPayment(requestId: string, role: Role) {
     if (allSigned) {
       await supabase.from("requests").update({ stage: "completed" }).eq("id", requestId);
     }
+
+    await notifyInitiatorOfSignature({
+      supabase,
+      requestId,
+      signerId: user.id,
+      role,
+      phase: "payment",
+      authorized: allSigned,
+      pending: required.filter((r) => !signedRoles.has(r)),
+      req,
+    });
   }
 
   revalidatePath(`/requests/${requestId}`);
