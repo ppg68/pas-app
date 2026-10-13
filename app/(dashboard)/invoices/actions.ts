@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { normalizeContractNumber } from "@/lib/domain/contracts";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
-import { irKey } from "@/lib/domain/irRefs";
+import { irKey, findRequestByIr } from "@/lib/domain/irRefs";
 import { notifyInvoiceArrived } from "@/lib/domain/invoiceNotify";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,12 +53,7 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
     const ir = irKey(String(patch.ir_number ?? ""));
     let requestId: string | null = null;
     if (ir) {
-      const { data: req } = await supabase
-        .from("requests")
-        .select("id, project_code, budget_line")
-        .eq("legacy_ir_number", ir)
-        .limit(1);
-      const r = req?.[0];
+      const r = await findRequestByIr(supabase, ir);
       if (r) {
         requestId = r.id;
         if (r.project_code) patch.project_code = r.project_code;
@@ -146,14 +141,10 @@ export async function createInvoiceFromForm(formData: FormData) {
   let reqProject: string | null = null;
   let reqBudget: string | null = null;
   if (irNumber) {
-    const { data: req } = await supabase
-      .from("requests")
-      .select("id, project_code, budget_line")
-      .eq("legacy_ir_number", irNumber)
-      .limit(1);
-    requestId = req?.[0]?.id ?? null;
-    reqProject = req?.[0]?.project_code ?? null;
-    reqBudget = req?.[0]?.budget_line ?? null;
+    const found = await findRequestByIr(supabase, irNumber);
+    requestId = found?.id ?? null;
+    reqProject = found?.project_code ?? null;
+    reqBudget = found?.budget_line ?? null;
   }
 
   // the CUP of the project (Approved projects) wins over what was typed
