@@ -123,14 +123,6 @@ export default function ContractsExplorer({
   const scrollRef = useRef<HTMLDivElement>(null);
   const hoveringRef = useRef(false);
 
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
-    const el = scrollRef.current;
-    if (!el || e.deltaY === 0) return;
-    if (el.scrollWidth <= el.clientWidth) return;
-    el.scrollLeft += e.deltaY;
-    e.preventDefault();
-  }
-
   // Arrow keys, tied to mouse position rather than DOM focus — with editable
   // cells now in every row, focus constantly moves between inputs, so a
   // focus-based handler on the scroll container would be unreliable.
@@ -512,14 +504,13 @@ export default function ContractsExplorer({
         <div
           ref={scrollRef}
           tabIndex={0}
-          onWheel={handleWheel}
           onMouseEnter={() => {
             hoveringRef.current = true;
           }}
           onMouseLeave={() => {
             hoveringRef.current = false;
           }}
-          className="table-wrap"
+          className="table-wrap fit-screen"
           style={{ outline: "none" }}
         >
           <table style={{ width: "max-content" }}>
