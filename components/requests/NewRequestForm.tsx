@@ -53,6 +53,9 @@ export default function NewRequestForm({
     return list.length === 1 ? list[0].id : "";
   }
 
+  // the PM assigned to the project, only if it is someone other than the creator (already excluded from the list)
+  const assignedPmId = assignments[project.trim()]?.PM ?? "";
+  const assignedPm = (candidates.PM ?? []).some((c) => c.id === assignedPmId) ? assignedPmId : "";
   const currentProc = Number.isFinite(price) && price > 0 ? effectiveProcCode(price, derogation) : null;
 
   return (
@@ -164,6 +167,23 @@ export default function NewRequestForm({
           })}
         </div>
       )}
+
+      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+        <div className="field">
+          <label>PM — for information (optional, leave empty if the PM is the Budget Holder)</label>
+          <select name="pm_info" value={chosen.PM ?? assignedPm} onChange={(e) => setChosen((c) => ({ ...c, PM: e.target.value }))}>
+            <option value="">— nobody —</option>
+            {(candidates.PM ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.email})
+              </option>
+            ))}
+          </select>
+          <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
+            The PM is told the request has been created. No signature is required from the PM.
+          </div>
+        </div>
+      </div>
 
       <SubmitButton style={{ marginTop: 6, width: "fit-content" }}>Create request</SubmitButton>
     </form>

@@ -171,8 +171,83 @@ export async function createRequest(formData: FormData) {
     currency,
   });
 
+  await informPm({
+    supabase,
+    requestId: inserted.id,
+    creatorId: user.id,
+    pmId: String(formData.get("pm_info") || "").trim(),
+    signerIds: picked.map((p) => p.userId),
+    code,
+    description,
+    estimatedPrice,
+    currency,
+  });
+
   revalidatePath("/");
   redirect(`/requests/${inserted.id}`);
+}
+
+/**
+ * The PM picked "for information" is recorded on the request and told it has been created.
+ * Not a signer: no signature is requested. Best effort — never blocks request creation.
+ */
+async function informPm(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  requestId: string;
+  creatorId: string;
+  pmId: string;
+  signerIds: string[];
+  code: string;
+  description: string;
+  estimatedPrice: number;
+  currency: string;
+}) {
+  const { supabase, requestId, creatorId, pmId, signerIds } = params;
+  if (!pmId || pmId === creatorId || signerIds.includes(pmId)) return;
+  try {
+    const { data: holds } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", pmId)
+      .eq("role", "PM")
+      .maybeSingle();
+    if (!holds) return;
+
+    const { error } = await supabase
+      .from("request_approvers")
+      .insert({ request_id: requestId, signer_role: "PM", user_id: pmId });
+    if (error) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", pmId)
+      .maybeSingle();
+    if (!profile?.email) return;
+
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+
+    const result = await sendEmail({
+      to: profile.email,
+      subject: `IR ${params.code}: new request (for your information)`,
+      html: `<p>Hello ${escapeHtml(profile.full_name)},</p>
+<p>A new internal request has been created, for your information. No action is required from you:</p>
+<p><b>${escapeHtml(params.code)}</b><br>${escapeHtml(params.description)}<br>${params.estimatedPrice} ${escapeHtml(params.currency)}</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+    });
+    if (result.ok) {
+      await supabase
+        .from("request_approvers")
+        .update({ notified_at: new Date().toISOString() })
+        .eq("request_id", requestId)
+        .eq("user_id", pmId);
+    }
+  } catch {
+    // notification is best effort
+  }
 }
 
 /**

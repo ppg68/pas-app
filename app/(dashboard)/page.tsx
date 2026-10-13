@@ -34,7 +34,8 @@ export default async function RequestListPage() {
   const signedKeys = new Set((irSignatures ?? []).map((s) => `${s.request_id}:${s.signer_role}`));
   const awaitingMeIds = new Set(
     (myApprovals ?? [])
-      .filter((a) => !signedKeys.has(`${a.request_id}:${a.signer_role}`))
+      // the PM is designated "for information": nothing to sign, so never "awaiting my approval"
+      .filter((a) => a.signer_role !== "PM" && !signedKeys.has(`${a.request_id}:${a.signer_role}`))
       .map((a) => a.request_id)
   );
 
