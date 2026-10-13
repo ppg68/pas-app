@@ -318,7 +318,17 @@ This permanently removes the request together with its offers, signatures, docum
                   <td style={{ whiteSpace: "nowrap" }}>{r.project_code}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{r.budget_line}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{procConfigFor(r.proc_code).label}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{r.winnerSupplier}</td>
+                  <td
+                    style={{
+                      whiteSpace: "nowrap",
+                      maxWidth: 240,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={r.winnerSupplier || undefined}
+                  >
+                    {r.winnerSupplier}
+                  </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     {formatMoney(r.estimated_price)} {r.currency}
                   </td>
