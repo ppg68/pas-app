@@ -68,8 +68,8 @@ const SORTERS: Record<SortKey, (a: RequestRow, b: RequestRow) => number> = {
 
 const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: "code", label: "IR" },
-  { key: "created", label: "Date" },
   { key: "description", label: "Description" },
+  { key: "created", label: "Date" },
   { key: "project", label: "Project" },
   { key: null, label: "Budget line" },
   { key: "procedure", label: "Procedure" },
@@ -80,6 +80,24 @@ const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: null, label: "CUP / AID" },
   { key: null, label: "Derog." },
 ];
+
+// Frozen columns (stay in view while scrolling to the right): link, [delete], IR, Description.
+const W_LINK = 34;
+const W_DELETE = 30;
+const W_IR = 70;
+const W_DESC = 280;
+
+function frozen(left: number, width: number, header: boolean): React.CSSProperties {
+  return {
+    position: "sticky",
+    left,
+    width,
+    minWidth: width,
+    maxWidth: width,
+    zIndex: header ? 4 : 2,
+    background: "var(--panel)",
+  };
+}
 
 export default function RequestsExplorer({
   requests: initialRequests,
@@ -140,6 +158,9 @@ This permanently removes the request together with its offers, signatures, docum
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => dir * SORTERS[sortKey](a, b));
   }, [requests, searchQuery, stageFilter, awaitingOnly, sortKey, sortDir]);
+
+  const irLeft = W_LINK + (canDelete ? W_DELETE : 0);
+  const descLeft = irLeft + W_IR;
 
   async function exportExcel() {
     if (requests.length === 0) return;
@@ -240,13 +261,17 @@ This permanently removes the request together with its offers, signatures, docum
           <table style={{ width: "max-content" }}>
             <thead>
               <tr>
-                <th></th>
-                {canDelete && <th></th>}
-                {HEADERS.map((h) => (
+                <th style={frozen(0, W_LINK, true)}></th>
+                {canDelete && <th style={frozen(W_LINK, W_DELETE, true)}></th>}
+                {HEADERS.map((h, i) => (
                   <th
                     key={h.label}
                     className={h.key ? "sortable" : undefined}
-                    style={{ textAlign: h.align ?? "left" }}
+                    style={{
+                      textAlign: h.align ?? "left",
+                      ...(i === 0 ? frozen(irLeft, W_IR, true) : {}),
+                      ...(i === 1 ? { ...frozen(descLeft, W_DESC, true), boxShadow: "2px 0 0 var(--line)" } : {}),
+                    }}
                     onClick={h.key ? () => toggleSort(h.key!) : undefined}
                   >
                     {h.label}
@@ -258,7 +283,7 @@ This permanently removes the request together with its offers, signatures, docum
             <tbody>
               {filteredRequests.map((r) => (
                 <tr key={r.id}>
-                  <td className="center">
+                  <td className="center" style={frozen(0, W_LINK, false)}>
                     <Link
                       href={`/requests/${r.id}`}
                       title="Open request"
@@ -268,7 +293,7 @@ This permanently removes the request together with its offers, signatures, docum
                     </Link>
                   </td>
                   {canDelete && (
-                    <td className="center">
+                    <td className="center" style={frozen(W_LINK, W_DELETE, false)}>
                       <button
                         type="button"
                         onClick={() => void handleDelete(r)}
@@ -285,11 +310,13 @@ This permanently removes the request together with its offers, signatures, docum
                       </button>
                     </td>
                   )}
-                  <td style={{ whiteSpace: "nowrap" }} title={r.code}>
+                  <td style={{ ...frozen(irLeft, W_IR, false), whiteSpace: "nowrap" }} title={r.code}>
                     {irNumber(r) || r.code}
                   </td>
+                  <td style={{ ...frozen(descLeft, W_DESC, false), boxShadow: "2px 0 0 var(--line)" }}>
+                    {r.description}
+                  </td>
                   <td style={{ whiteSpace: "nowrap" }}>{formatDateIT(r.created_at.slice(0, 10))}</td>
-                  <td style={{ minWidth: 260, maxWidth: 420 }}>{r.description}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{r.project_code}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{r.budget_line}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{procConfigFor(r.proc_code).label}</td>
