@@ -20,8 +20,9 @@ import {
   selectWinner,
   toggleDoc,
   advanceToPayment,
-  signPayment,
+  authorizePaymentAuth,
 } from "@/lib/domain/workflow";
+import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
 
@@ -99,6 +100,46 @@ export default async function RequestDetailPage({
     : { data: [] as { id: string; full_name: string }[] };
   const signerName = (uid: string | null | undefined) =>
     (signerProfiles ?? []).find((p) => p.id === uid)?.full_name ?? "—";
+
+  const [{ data: payAuths }, { data: requestInvoices }] = await Promise.all([
+    supabase
+      .from("payment_authorizations")
+      .select("*")
+      .eq("request_id", id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("invoices")
+      .select("id, supplier, amount, currency, protocol, ir_number")
+      .eq("request_id", id)
+      .order("created_at", { ascending: true }),
+  ]);
+  const paNameIds = Array.from(
+    new Set(
+      (payAuths ?? [])
+        .flatMap((a) => [a.prepared_by, a.authorized_by])
+        .filter((v): v is string => !!v)
+    )
+  );
+  const { data: paProfiles } = paNameIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", paNameIds)
+    : { data: [] as { id: string; full_name: string }[] };
+  const paName = (uid: string | null | undefined) =>
+    (paProfiles ?? []).find((p) => p.id === uid)?.full_name ?? "—";
+  const winnerOffer = (offers ?? []).find((o) => o.id === request.winner_offer_id) ?? null;
+  const authorizedTotal = (payAuths ?? [])
+    .filter((a) => a.status === "authorized")
+    .reduce(
+      (sum, a) =>
+        sum +
+        (a.currency === request.currency
+          ? a.amount
+          : request.currency === "EUR"
+            ? (a.euro_equivalent ?? 0)
+            : 0),
+      0
+    );
+  const money = (n: number) =>
+    n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const roles = new Set((myRoles ?? []).map((r) => r.role as Role));
   const config = procConfigFor(request.proc_code);
@@ -396,46 +437,121 @@ export default async function RequestDetailPage({
         </div>
       )}
 
-      {/* Payment */}
-      {stageIndex >= paymentIndex && paySigners.length > 0 && (
+      {/* Payment: one payment authorization (PR04.AA05) per payment, approved by CAR / RAC */}
+      {stageIndex >= paymentIndex && (paySigners.length > 0 || (payAuths ?? []).length > 0) && (
         <div className="card">
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment</h2>
-          {paySigners.map((role) => {
-            const signed = paySignedRoles.get(role);
-            const canShowButton =
-              request.stage === "payment" && !signed && roles.has(role) && iCanAct;
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment authorizations</h2>
+
+          {winnerOffer && (
+            <p style={{ fontSize: 13, marginBottom: 10 }}>
+              Winning offer: <b>{money(winnerOffer.price)} {request.currency}</b> ({winnerOffer.supplier}) · authorized so
+              far: <b>{money(authorizedTotal)}</b> · remaining:{" "}
+              <b>{money(Math.max(winnerOffer.price - authorizedTotal, 0))}</b>
+              {request.stage === "payment" && (
+                <span style={{ color: "var(--ink-soft)" }}>
+                  {" "}
+                  — the request closes when the authorized payments reach the winning offer.
+                </span>
+              )}
+            </p>
+          )}
+
+          {(payAuths ?? []).length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+              No payment authorization yet.
+              {request.stage === "payment" &&
+                " When the invoice arrives, the Budget Holder or the PM prepares one below."}
+            </p>
+          )}
+
+          {(payAuths ?? []).map((a) => {
+            const approverRoles = paySigners.filter((r) => r === "CAR" || r === "RAC");
+            const canApprove =
+              request.stage === "payment" &&
+              a.status === "pending" &&
+              iCanAct &&
+              userId !== a.prepared_by &&
+              approverRoles.some((r) => roles.has(r));
+            const myRole = approverRoles.find((r) => roles.has(r));
+            const inv = (requestInvoices ?? []).find((x) => x.id === a.invoice_id);
             return (
               <div
-                key={role}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 13,
-                  padding: "6px 0",
-                }}
+                key={a.id}
+                style={{ borderTop: "0.5px solid #EEF0F3", padding: "10px 0", fontSize: 13 }}
               >
-                <span>
-                  {ROLE_LABEL[role]} —{" "}
-                  {signed ? (
-                    <>
-                      signed by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
-                      <b>{fmtWhen(signed.signed_at)}</b>
-                    </>
-                  ) : (
-                    "pending"
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                  <div>
+                    <b>
+                      {money(a.amount)} {a.currency}
+                    </b>{" "}
+                    to {a.beneficiary}
+                    {inv?.protocol ? ` · invoice ${inv.protocol}` : ""}
+                    <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                      {a.description} · {a.payment_type === "bank_transfer" ? "bank transfer" : a.payment_type === "cash" ? "cash" : a.payment_type_other ?? "other"}
+                      {a.balance_after != null ? ` · balance still to pay ${money(a.balance_after)}` : ""}
+                      {a.euro_equivalent != null && a.currency !== "EUR" ? ` · EUR ${money(a.euro_equivalent)}` : ""}
+                    </div>
+                    <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                      Prepared by {paName(a.prepared_by)} on {fmtWhen(a.created_at)}
+                      {a.status === "authorized" && (
+                        <>
+                          {" "}
+                          · <b style={{ color: "var(--navy)" }}>authorized</b> by {paName(a.authorized_by)} (
+                          {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
+                        </>
+                      )}
+                      {a.status === "pending" && " · waiting for authorization"}
+                    </div>
+                  </div>
+                  {canApprove && myRole && (
+                    <form action={authorizePaymentAuth.bind(null, a.id, request.id, myRole)}>
+                      <button type="submit" className="primary">
+                        Authorize payment
+                      </button>
+                    </form>
                   )}
-                </span>
-                {canShowButton && (
-                  <form action={signPayment.bind(null, request.id, role)}>
-                    <button type="submit" className="primary">
-                      Sign
-                    </button>
-                  </form>
-                )}
+                </div>
               </div>
             );
           })}
+
+          {paySignedRoles.size > 0 && (
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 10 }}>
+              Payment signatures recorded before the payment authorization form:{" "}
+              {[...paySignedRoles.entries()]
+                .map(([r, sig]) => `${ROLE_LABEL[r]} — ${signerName(sig.signed_by)} (${fmtWhen(sig.signed_at)})`)
+                .join("; ")}
+            </p>
+          )}
+
+          {request.stage === "payment" && (request.initiated_by === userId || roles.has("PM")) && (
+            <details style={{ marginTop: 12 }} open={(payAuths ?? []).length === 0}>
+              <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                + New payment authorization
+              </summary>
+              <PaymentAuthorizationForm
+                requestId={request.id}
+                fixed={{
+                  ir: request.code,
+                  project: request.project_code,
+                  budgetLine: request.budget_line,
+                  procedure: config.label,
+                }}
+                invoices={(requestInvoices ?? []).map((i) => ({
+                  id: i.id,
+                  label: `${i.supplier ?? "—"} — ${money(i.amount)} ${i.currency}${i.protocol ? ` — ${i.protocol}` : ""}`,
+                  supplier: i.supplier,
+                  amount: i.amount,
+                  currency: i.currency,
+                }))}
+                winnerSupplier={winnerOffer?.supplier ?? null}
+                offerValue={winnerOffer ? winnerOffer.price : null}
+                authorizedTotal={authorizedTotal}
+                currency={request.currency}
+                defaultBankDescription={effectiveCup ?? request.project_code}
+              />
+            </details>
+          )}
         </div>
       )}
 

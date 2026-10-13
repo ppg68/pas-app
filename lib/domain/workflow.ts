@@ -533,79 +533,211 @@ export async function advanceToPayment(requestId: string) {
   redirect(`/requests/${requestId}`);
 }
 
-export async function signPayment(requestId: string, role: Role) {
+/**
+ * Payment authorization (form PR04.AA05). Prepared by the person who compiled the request
+ * (Budget Holder) or the PM while the request is in the payment stage; CAR / RAC approve it.
+ * There can be several per request (advance, balance...).
+ */
+export async function createPaymentAuthorization(requestId: string, formData: FormData) {
+  const path = `/requests/${requestId}`;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) fail(path, "Session expired, please log in again.");
 
-  const { error } = await supabase.from("signatures").insert({
-    request_id: requestId,
-    phase: "payment",
-    signer_role: role,
-    signed_by: user.id,
-    signed_at: new Date().toISOString(),
-  });
-  if (error) {
-    revalidatePath(`/requests/${requestId}`);
-    return;
+  const { data: req } = await supabase
+    .from("requests")
+    .select("id, code, description, proc_code, coordination_cost, stage, initiated_by, currency")
+    .eq("id", requestId)
+    .single();
+  if (!req || req.stage !== "payment") fail(path, "The request is not in the payment stage.");
+
+  const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+  const isPm = (myRoles ?? []).some((r) => r.role === "PM");
+  if (req.initiated_by !== user.id && !isPm) {
+    fail(path, "Only the person who compiled the request (Budget Holder) or the PM can prepare a payment authorization.");
   }
+
+  const text = (k: string) => String(formData.get(k) || "").trim();
+  const num = (k: string): number | null | typeof NaN => {
+    const v = text(k).replace(",", ".");
+    if (v === "") return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const amount = num("amount");
+  if (amount === null || Number.isNaN(amount) || amount <= 0) fail(path, "Enter a valid amount to be paid.");
+  const balance = num("balance_after");
+  const euro = num("euro_equivalent");
+  if (Number.isNaN(balance) || Number.isNaN(euro)) fail(path, "Balance and Euro equivalent must be numbers.");
+  const description = text("description");
+  const beneficiary = text("beneficiary");
+  if (!description || !beneficiary) fail(path, "Description of the payment and beneficiary are required.");
+  const paymentType = text("payment_type");
+  if (!["bank_transfer", "cash", "other"].includes(paymentType)) fail(path, "Choose the payment type.");
+  const typeOther = text("payment_type_other");
+  if (paymentType === "other" && !typeOther) fail(path, "Specify the payment type.");
+
+  const invoiceId = text("invoice_id") || null;
+  const currency = (text("currency") || req.currency || "EUR").toUpperCase();
+
+  const { error } = await supabase.from("payment_authorizations").insert({
+    request_id: requestId,
+    invoice_id: invoiceId,
+    description,
+    bank_description: text("bank_description") || null,
+    donor_procedure: text("donor_procedure") || null,
+    communication_activity: formData.get("communication_activity") === "on",
+    payment_type: paymentType,
+    payment_type_other: paymentType === "other" ? typeOther : null,
+    beneficiary,
+    payment_details: text("payment_details") || null,
+    amount,
+    balance_after: balance,
+    currency,
+    euro_equivalent: euro,
+    prepared_by: user.id,
+  });
+  if (error) fail(path, error.message);
 
   await supabase.from("audit_log").insert({
     request_id: requestId,
     user_id: user.id,
-    role,
-    action: "payment_signed",
+    action: "payment_authorization_prepared",
   });
+
+  await notifyPaymentAuthorizers({
+    supabase,
+    requestId,
+    preparerId: user.id,
+    req,
+    amount,
+    currency,
+    beneficiary,
+  });
+
+  revalidatePath(path);
+  redirect(path);
+}
+
+/** Emails CAR / RAC (the designated approver for the role, else every holder) that a PA is waiting. */
+async function notifyPaymentAuthorizers(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  requestId: string;
+  preparerId: string;
+  req: { code: string; description: string; proc_code: ReturnType<typeof effectiveProcCode>; coordination_cost: boolean; initiated_by: string | null };
+  amount: number;
+  currency: string;
+  beneficiary: string;
+}) {
+  const { supabase, requestId, preparerId, req, amount, currency, beneficiary } = params;
+  try {
+    const roles = paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost });
+    if (roles.length === 0) return;
+
+    const { data: designated } = await supabase
+      .from("request_approvers")
+      .select("user_id")
+      .eq("request_id", requestId)
+      .in("signer_role", roles);
+    let ids = (designated ?? []).map((d) => d.user_id);
+    if (ids.length === 0) {
+      const { data: holders } = await supabase.from("user_roles").select("user_id").in("role", roles);
+      ids = (holders ?? []).map((h) => h.user_id);
+    }
+    ids = Array.from(new Set(ids)).filter((id) => id !== preparerId && id !== req.initiated_by);
+    if (ids.length === 0) return;
+
+    const { data: profiles } = await supabase.from("profiles").select("full_name, email").in("id", ids);
+
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+
+    for (const p of profiles ?? []) {
+      if (!p.email) continue;
+      await sendEmail({
+        to: p.email,
+        subject: `IR ${req.code}: payment authorization to approve`,
+        html: `<p>Hello ${escapeHtml(p.full_name)},</p>
+<p>A payment authorization is waiting for your approval:</p>
+<p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${amount} ${escapeHtml(currency)} — ${escapeHtml(beneficiary)}</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+      });
+    }
+  } catch {
+    // notification is best effort
+  }
+}
+
+/** CAR / RAC approve a payment authorization; the database closes the request when the winning offer is fully paid. */
+export async function authorizePaymentAuth(paId: string, requestId: string, role: Role) {
+  const path = `/requests/${requestId}`;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) fail(path, "Session expired, please log in again.");
 
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, coordination_cost, stage, code, description, estimated_price, currency, initiated_by")
+    .select("code, description, estimated_price, currency, proc_code, coordination_cost")
     .eq("id", requestId)
     .single();
+  if (!req) fail(path, "Request not found.");
 
-  if (req && req.stage === "payment") {
-    const { data: sigs } = await supabase
-      .from("signatures")
-      .select("signer_role")
-      .eq("request_id", requestId)
-      .eq("phase", "payment");
+  const allowed = paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost });
+  if (!allowed.includes(role)) {
+    fail(path, `This payment must be authorized by: ${allowed.map((r) => ROLE_LABEL[r]).join(", ") || "nobody"}.`);
+  }
+  if (role !== "CAR" && role !== "RAC") fail(path, "Only CAR or RAC can authorize a payment.");
 
-    const required = paymentSigners({
-      procCode: req.proc_code,
-      coordinationCost: req.coordination_cost,
-    });
-    const signedRoles = new Set((sigs ?? []).map((s) => s.signer_role));
-    const allSigned = required.every((r) => signedRoles.has(r));
+  const { error } = await supabase.rpc("authorize_payment", { pa_id: paId, as_role: role });
+  if (error) fail(path, error.message);
 
-    if (allSigned) {
-      await supabase.from("requests").update({ stage: "completed" }).eq("id", requestId);
+  const { data: pa } = await supabase
+    .from("payment_authorizations")
+    .select("prepared_by, amount, currency, beneficiary")
+    .eq("id", paId)
+    .maybeSingle();
+
+  if (pa) {
+    // the preparer learns the payment is authorized...
+    try {
+      const { data: prep } = pa.prepared_by
+        ? await supabase.from("profiles").select("full_name, email").eq("id", pa.prepared_by).maybeSingle()
+        : { data: null };
+      if (prep?.email) {
+        await sendEmail({
+          to: prep.email,
+          subject: `IR ${req.code}: payment authorized`,
+          html: `<p>Hello ${escapeHtml(prep.full_name)},</p>
+<p>The payment authorization of <b>${pa.amount} ${escapeHtml(pa.currency)}</b> to ${escapeHtml(pa.beneficiary)} for <b>${escapeHtml(req.code)}</b> has been approved.</p>`,
+        });
+      }
+    } catch {
+      // best effort
     }
-
-    await notifyInitiatorOfSignature({
+    // ...and Contracts is told it can pay
+    await notifyContractsOfPayment({
       supabase,
       requestId,
-      signerId: user.id,
-      role,
-      phase: "payment",
-      authorized: allSigned,
-      pending: required.filter((r) => !signedRoles.has(r)),
-      req,
+      excludeUserId: user.id,
+      directPurchase: false,
+      req: {
+        code: req.code,
+        description: `${req.description} — payment of ${pa.amount} ${pa.currency} to ${pa.beneficiary}`,
+        estimated_price: pa.amount,
+        currency: pa.currency,
+      },
     });
-
-    if (allSigned) {
-      await notifyContractsOfPayment({
-        supabase,
-        requestId,
-        excludeUserId: user.id,
-        directPurchase: false,
-        req,
-      });
-    }
   }
 
-  revalidatePath(`/requests/${requestId}`);
+  revalidatePath(path);
+  redirect(path);
 }
 
 /** ADMIN-only hard delete (RLS "ADMIN deletes requests" enforces it too). */

@@ -433,6 +433,66 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_authorizations: {
+        Row: {
+          amount: number
+          authorized_at: string | null
+          authorized_by: string | null
+          authorized_role: Database["pas"]["Enums"]["app_role"] | null
+          balance_after: number | null
+          bank_description: string | null
+          beneficiary: string
+          communication_activity: boolean
+          created_at: string
+          currency: string
+          description: string
+          donor_procedure: string | null
+          euro_equivalent: number | null
+          id: string
+          invoice_id: string | null
+          pa_date: string
+          payment_details: string | null
+          payment_type: string
+          payment_type_other: string | null
+          prepared_by: string | null
+          request_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          bank_description?: string | null
+          beneficiary: string
+          communication_activity?: boolean
+          currency?: string
+          description: string
+          donor_procedure?: string | null
+          euro_equivalent?: number | null
+          invoice_id?: string | null
+          payment_details?: string | null
+          payment_type?: string
+          payment_type_other?: string | null
+          prepared_by?: string | null
+          request_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          bank_description?: string | null
+          beneficiary?: string
+          communication_activity?: boolean
+          currency?: string
+          description?: string
+          donor_procedure?: string | null
+          euro_equivalent?: number | null
+          invoice_id?: string | null
+          payment_details?: string | null
+          payment_type?: string
+          payment_type_other?: string | null
+        }
+        Relationships: []
+      }
       pending_roles: {
         Row: {
           created_at: string
@@ -737,6 +797,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authorize_payment: {
+        Args: { pa_id: string; as_role: Database["pas"]["Enums"]["app_role"] }
+        Returns: Json
+      }
       ensure_profile: { Args: never; Returns: undefined }
       has_contracts_access: { Args: { uid: string }; Returns: boolean }
       is_admin: { Args: { uid: string }; Returns: boolean }
