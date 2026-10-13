@@ -112,16 +112,6 @@ export default function PaymentAuthorizationForm({
       </div>
 
       <div style={rowStyle}>
-        <div className="field" style={{ flex: 1 }}>
-          <label>Donor procedure type (if applicable)</label>
-          <input name="donor_procedure" placeholder="NA" />
-        </div>
-        <label className="checkbox-row" style={{ alignSelf: "flex-end", paddingBottom: 8 }}>
-          <input type="checkbox" name="communication_activity" /> Communication activity
-        </label>
-      </div>
-
-      <div style={rowStyle}>
         <div className="field" style={{ width: 200 }}>
           <label>Payment type</label>
           <select name="payment_type" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>

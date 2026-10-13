@@ -580,8 +580,6 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     invoice_id: invoiceId,
     description,
     bank_description: text("bank_description") || null,
-    donor_procedure: text("donor_procedure") || null,
-    communication_activity: formData.get("communication_activity") === "on",
     payment_type: paymentType,
     payment_type_other: paymentType === "other" ? typeOther : null,
     beneficiary,
