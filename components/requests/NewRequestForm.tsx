@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createRequest } from "@/lib/domain/workflow";
 import { cupForProject } from "@/lib/domain/projectCups";
+import ApprovalLevelsTable from "@/components/requests/ApprovalLevelsTable";
 import {
   effectiveProcCode,
   irSigners,
@@ -51,7 +52,11 @@ export default function NewRequestForm({
     return list.length === 1 ? list[0].id : "";
   }
 
+  const currentProc = Number.isFinite(price) && price > 0 ? effectiveProcCode(price, derogation) : null;
+
   return (
+    <>
+    <ApprovalLevelsTable current={currentProc} />
     <form action={createRequest} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="field">
         <label>Country (IT for HQ numbering)</label>
@@ -163,5 +168,6 @@ export default function NewRequestForm({
         Create request
       </button>
     </form>
+    </>
   );
 }

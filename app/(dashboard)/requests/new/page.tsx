@@ -46,7 +46,7 @@ export default async function NewRequestPage({
   });
 
   return (
-    <div style={{ maxWidth: 480 }}>
+    <div style={{ maxWidth: 640 }}>
       <h1 style={{ marginBottom: 16 }}>New request</h1>
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
