@@ -368,12 +368,12 @@ export default function ContractsExplorer({
     if (col.type === "number") {
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+          <span style={{ color: "var(--ink-soft)" }}>{c.currency}</span>
           <MoneyInput
             defaultValue={value as number}
             onCommit={(v) => saveField(c.id, col.key, v)}
-            style={{ ...cellInputStyle, minWidth: 110, width: 120 }}
+            style={{ ...cellInputStyle, minWidth: 100, width: 112 }}
           />
-          <span style={{ color: "var(--ink-soft)" }}>{c.currency}</span>
         </div>
       );
     }
@@ -525,7 +525,13 @@ export default function ContractsExplorer({
                         .join(" ") || undefined
                     }
                     style={{
-                      ...(col.align === "right" ? thRight : col.align === "center" ? thCenter : th),
+                      ...(col.key === "amount"
+                        ? thCenter
+                        : col.align === "right"
+                          ? thRight
+                          : col.align === "center"
+                            ? thCenter
+                            : th),
                       ...(i === 0 ? frozenStyle(W_LINK, W_ID) : i === 1 ? frozenStyle(W_LINK + W_ID, W_SUBJECT) : {}),
                     }}
                     onClick={col.sort ? () => toggleSort(col.sort!) : undefined}
