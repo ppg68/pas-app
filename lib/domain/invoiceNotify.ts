@@ -61,6 +61,11 @@ export async function notifyInvoiceArrived(params: {
     const proto = h.get("x-forwarded-proto") ?? "https";
     const link = host ? `${proto}://${host}/requests/${requestId}` : "";
 
+    const nextStep =
+      req.stage === "payment"
+        ? "<p>The request is in the payment stage: the Budget Holder can now fill in the payment data (payment authorization).</p>"
+        : "<p>The request has not reached the payment stage yet: complete the offers, the winner and the documents first, then go to payment and fill in the payment data.</p>";
+
     for (const p of profiles ?? []) {
       if (!p.email) continue;
       await sendEmail({
@@ -70,6 +75,7 @@ export async function notifyInvoiceArrived(params: {
 <p>An invoice has been registered for this internal request. You can proceed with the payment authorization:</p>
 <p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}</p>
 <p>Invoice: ${escapeHtml(supplier ?? "supplier n/a")} — ${amount} ${escapeHtml(currency)}</p>
+${nextStep}
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
       });
     }
