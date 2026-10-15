@@ -89,6 +89,7 @@ const COLUMNS: Col[] = [
   { key: "criminal_record_check", label: "Criminal record check", align: "center", type: "checkbox" },
   { key: "technical_requirements_check", label: "Technical requirements", align: "center", type: "checkbox" },
   { key: "labor_inspectorate_notice", label: "Labor inspectorate", align: "center", type: "checkbox" },
+  { key: "public_body_authorization", label: "Public body authorization", align: "center", type: "checkbox" },
   { key: "referent", label: "Referent", type: "text" },
   { key: "notes", label: "Notes", type: "text", width: 220 },
   { key: "project_deadline", label: "Project deadline (from Approved projects)", type: "readonly" },
@@ -256,9 +257,10 @@ export default function ContractsExplorer({
         Privacy: c.privacy ? "x" : "",
         "Code of Conduct": c.code_of_conduct ? "x" : "",
         "PSEA Policy": c.psea_policy ? "x" : "",
-        "Criminal record check": c.criminal_record_check ? "x" : "",
+        "Criminal record check": c.criminal_record_check ? "x" : c.compliance_na?.includes("criminal_record_check") ? "n/a" : "",
         "Technical requirements check": c.technical_requirements_check ? "x" : "",
-        "Labor inspectorate notice": c.labor_inspectorate_notice ? "x" : "",
+        "Labor inspectorate notice": c.labor_inspectorate_notice ? "x" : c.compliance_na?.includes("labor_inspectorate_notice") ? "n/a" : "",
+        "Public body authorization": c.public_body_authorization ? "x" : c.compliance_na?.includes("public_body_authorization") ? "n/a" : "",
         Referent: c.referent || "",
         Notes: c.notes || "",
         "Project deadline": c.project_deadline || "",
@@ -313,6 +315,14 @@ export default function ContractsExplorer({
     }
 
     if (col.type === "checkbox") {
+      // marked "not necessary" on the contract page: shown as n/a (change it from the contract page)
+      if (!value && c.compliance_na?.includes(col.key)) {
+        return (
+          <span style={{ color: "var(--ink-soft)", fontSize: 12 }} title="Not necessary for this contract">
+            n/a
+          </span>
+        );
+      }
       return (
         <input
           type="checkbox"

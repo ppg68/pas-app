@@ -118,6 +118,8 @@ export type Database = {
           id: string
           ir_code: string | null
           labor_inspectorate_notice: boolean
+          public_body_authorization: boolean
+          compliance_na: string[]
           legacy_id: string | null
           notes: string | null
           payment_terms: string | null
@@ -151,6 +153,8 @@ export type Database = {
           id?: string
           ir_code?: string | null
           labor_inspectorate_notice?: boolean
+          public_body_authorization?: boolean
+          compliance_na?: string[]
           legacy_id?: string | null
           notes?: string | null
           payment_terms?: string | null
@@ -184,6 +188,8 @@ export type Database = {
           id?: string
           ir_code?: string | null
           labor_inspectorate_notice?: boolean
+          public_body_authorization?: boolean
+          compliance_na?: string[]
           legacy_id?: string | null
           notes?: string | null
           payment_terms?: string | null

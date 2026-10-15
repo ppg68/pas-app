@@ -56,6 +56,9 @@ export interface ContractRow {
   criminal_record_check: boolean;
   technical_requirements_check: boolean;
   labor_inspectorate_notice: boolean;
+  public_body_authorization: boolean;
+  /** checklist items marked "not necessary" for this contract (column names) */
+  compliance_na: string[];
   referent: string | null;
   notes: string | null;
   created_at: string;

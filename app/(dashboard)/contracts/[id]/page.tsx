@@ -15,7 +15,7 @@ import TranchesTable from "@/components/contracts/TranchesTable";
 import ContractInvoicesTable from "@/components/contracts/ContractInvoicesTable";
 import {
   deleteContract,
-  toggleComplianceField,
+  setComplianceStatus,
 } from "../actions";
 
 
@@ -27,7 +27,15 @@ const COMPLIANCE_FIELDS = [
   { key: "criminal_record_check", label: "Casellario Giudiziale / autocert." },
   { key: "technical_requirements_check", label: "Autocert. requisiti tecnico professionali" },
   { key: "labor_inspectorate_notice", label: "Comunicazione ispettorato del lavoro" },
+  { key: "public_body_authorization", label: "Autorizzazione al lavoro Ente Pubblico" },
 ] as const;
+
+// not required for every contract: they also get the "Not necessary" button
+const OPTIONAL_COMPLIANCE = new Set<string>([
+  "criminal_record_check",
+  "labor_inspectorate_notice",
+  "public_body_authorization",
+]);
 
 export default async function ContractDetailPage({
   params,
@@ -393,6 +401,8 @@ export default async function ContractDetailPage({
         <h2 style={{ fontSize: 14, marginBottom: 10 }}>Compliance</h2>
         {COMPLIANCE_FIELDS.map(({ key, label }) => {
           const checked = Boolean(contract[key as keyof typeof contract]);
+          const notNecessary = !checked && ((contract.compliance_na as string[] | null) ?? []).includes(key);
+          const canBeNa = OPTIONAL_COMPLIANCE.has(key);
           return (
             <div
               key={key}
@@ -406,13 +416,31 @@ export default async function ContractDetailPage({
               }}
             >
               <span>
-                {label} — {checked ? "done" : "pending"}
+                {label} — {checked ? "done" : notNecessary ? "not necessary" : "pending"}
               </span>
-              <form action={toggleComplianceField.bind(null, contract.id, key, !checked)}>
-                <button type="submit" className="pill">
-                  {checked ? "Undo" : "Mark done"}
-                </button>
-              </form>
+              <span style={{ display: "flex", gap: 6 }}>
+                {!checked && (
+                  <form action={setComplianceStatus.bind(null, contract.id, key, "done")}>
+                    <button type="submit" className="pill">
+                      Mark done
+                    </button>
+                  </form>
+                )}
+                {!checked && !notNecessary && canBeNa && (
+                  <form action={setComplianceStatus.bind(null, contract.id, key, "na")}>
+                    <button type="submit" className="pill">
+                      Not necessary
+                    </button>
+                  </form>
+                )}
+                {(checked || notNecessary) && (
+                  <form action={setComplianceStatus.bind(null, contract.id, key, "pending")}>
+                    <button type="submit" className="pill">
+                      Undo
+                    </button>
+                  </form>
+                )}
+              </span>
             </div>
           );
         })}

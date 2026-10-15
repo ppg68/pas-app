@@ -81,27 +81,32 @@ export async function deleteContract(contractId: string) {
   redirect("/contracts");
 }
 
-/** Generic toggle for the compliance checklist columns (Firmato, privacy, PSEA Policy, ...). */
-export async function toggleComplianceField(
+/**
+ * Compliance checklist item of a contract: "done", "not necessary" (only for the optional items) or
+ * back to "pending".
+ */
+export async function setComplianceStatus(
   contractId: string,
-  field:
-    | "signed"
-    | "privacy"
-    | "code_of_conduct"
-    | "psea_policy"
-    | "criminal_record_check"
-    | "technical_requirements_check"
-    | "labor_inspectorate_notice",
-  value: boolean
+  field: string,
+  status: "done" | "na" | "pending"
 ) {
+  if (!BOOL_FIELDS.has(field)) return;
+  if (status === "na" && !NA_ALLOWED.has(field)) return;
+
   const supabase = await createClient();
-  const patch: Record<string, boolean | string> = {
-    [field]: value,
+  const { data: row } = await supabase.from("contracts").select("compliance_na").eq("id", contractId).single();
+  const current: string[] = (row?.compliance_na as string[] | null) ?? [];
+  const next = status === "na" ? Array.from(new Set([...current, field])) : current.filter((k) => k !== field);
+
+  const patch: Record<string, boolean | string | string[]> = {
+    [field]: status === "done",
+    compliance_na: next,
     updated_at: new Date().toISOString(),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await supabase.from("contracts").update(patch as any).eq("id", contractId);
   revalidatePath(`/contracts/${contractId}`);
+  revalidatePath("/contracts");
 }
 
 const TEXT_FIELDS = new Set([
@@ -129,7 +134,10 @@ const BOOL_FIELDS = new Set([
   "criminal_record_check",
   "technical_requirements_check",
   "labor_inspectorate_notice",
+  "public_body_authorization",
 ]);
+// checklist items that may be marked "not necessary" (not required for every contract)
+const NA_ALLOWED = new Set(["criminal_record_check", "labor_inspectorate_notice", "public_body_authorization"]);
 const STATUSES = new Set<ContractStatus>(["in_corso", "concluso", "annullato"]);
 
 /**
