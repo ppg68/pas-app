@@ -117,18 +117,18 @@ export default async function ContractRequestDetail({
         {(canEdit || (isOwner && r.status === "pending")) && (
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             {canEdit && (
-              <Link href={`/contract-requests/${id}/edit`} className="button">
+              <Link href={`/contract-requests/${id}/edit`} className="ghost">
                 Edit request
               </Link>
             )}
             {canEdit && (
               <ConfirmForm action={deleteContractRequest.bind(null, id)} message="Delete this request?">
-                <button type="submit">Delete</button>
+                <button type="submit" className="ghost danger">Delete</button>
               </ConfirmForm>
             )}
             {!canEdit && (
               <ConfirmForm action={cancelContractRequest.bind(null, id)} message="Cancel this request?">
-                <button type="submit">Cancel request</button>
+                <button type="submit" className="ghost danger">Cancel request</button>
               </ConfirmForm>
             )}
           </div>
@@ -184,7 +184,7 @@ export default async function ContractRequestDetail({
             </p>
           ) : (
             <form action={createContractDraft.bind(null, id)} style={{ marginBottom: 10 }}>
-              <SubmitButton className="" pendingLabel="Creating…">
+              <SubmitButton className="ghost" pendingLabel="Creating…">
                 Create draft in Contracts register
               </SubmitButton>
             </form>
@@ -197,14 +197,14 @@ export default async function ContractRequestDetail({
           ) : (
             <>
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <a href={`/contract-requests/${id}/docx`} className="button primary">
+                <a href={`/contract-requests/${id}/docx`} className="primary">
                   Download Word (.docx)
                 </a>
                 <ConfirmForm
                   action={generateContractText.bind(null, id)}
                   message="Rebuild the text from the scheda? Your manual changes to the text will be lost."
                 >
-                  <button type="submit">Rebuild from scheda</button>
+                  <button type="submit" className="ghost">Rebuild from scheda</button>
                 </ConfirmForm>
               </div>
               <p className="subtitle" style={{ margin: "0 0 10px" }}>

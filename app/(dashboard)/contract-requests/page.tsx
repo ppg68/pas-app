@@ -29,7 +29,7 @@ export default async function ContractRequestsPage() {
           <p className="subtitle">Request to activate a contract with a consultant or a company (PR09 form, online).</p>
         </div>
         <div className="page-actions">
-          <Link href="/contract-requests/new" className="button primary">
+          <Link href="/contract-requests/new" className="primary">
             + New request
           </Link>
         </div>
