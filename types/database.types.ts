@@ -1,3 +1,5 @@
+import type { ContractApproval, ContractRequestRow } from "@/lib/domain/contractRequests"
+
 export type Json =
   | string
   | number
@@ -439,6 +441,18 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_requests: {
+        Row: ContractRequestRow
+        Insert: Partial<ContractRequestRow>
+        Update: Partial<ContractRequestRow>
+        Relationships: []
+      }
+      contract_approvals: {
+        Row: ContractApproval
+        Insert: Partial<ContractApproval>
+        Update: Partial<ContractApproval>
+        Relationships: []
+      }
       payment_authorizations: {
         Row: {
           amount: number
@@ -808,6 +822,14 @@ export type Database = {
     Functions: {
       authorize_payment: {
         Args: { pa_id: string; as_role: Database["pas"]["Enums"]["app_role"] }
+        Returns: Json
+      }
+      contract_role_holders: {
+        Args: { r: Database["pas"]["Enums"]["app_role"] }
+        Returns: { id: string; full_name: string; email: string | null }[]
+      }
+      sign_contract_request: {
+        Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json
       }
       ensure_profile: { Args: never; Returns: undefined }
