@@ -220,14 +220,15 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
   const art = FORMS[d.party_art ?? "il"] ?? FORMS.il;
   const sp = art.sp ? " " : "";
   // company references: "il CIHEAM Bari", "del CIHEAM Bari", "al CIHEAM Bari", ...
-  const ref = (k: "il" | "di" | "a" | "da" | "su") => `${art[k]}${sp}${short}`;
+  const B = `**${name}**`;
+  const ref = (k: "il" | "di" | "a" | "da" | "su") => `${art[k]}${sp}**${short}**`;
   const refCap = (k: "il" | "di" | "a" | "da" | "su") => {
     const s = ref(k);
-    return s.charAt(0).toUpperCase() + s.slice(1);
+    return s.replace(/[a-zà-ÿ]/i, (c) => c.toUpperCase());
   };
 
   const project = [r.donor_code, r.project_title].filter(Boolean).join(" - ");
-  const projectQuoted = project ? `“${project}”` : "“____________”";
+  const projectQuoted = `**${project ? `“${project}”` : "“____________”"}**`;
   const internal = r.internal_code ? ` (cod. int. ${r.internal_code})` : "";
   const fee = amountInWords(r.amount);
   const amountTxt = moneyIt(r.amount, r.currency);
@@ -249,7 +250,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
         ...OIKOS_HEAD.map((l, i) => (i === 0 ? "ISTITUTO OIKOS ENTE DEL TERZO SETTORE" : l)),
         "da una parte",
         "e",
-        name,
+        `**${name}**`,
         r.address ? `con sede legale in ${r.address}` : "",
         [r.tax_code ? `Cod.Fisc. ${r.tax_code}` : "", r.vat_number ? `P.Iva ${r.vat_number}` : ""].filter(Boolean).join(" - "),
         r.legal_rep ? `${r.legal_rep} in qualità di ${r.legal_rep_role || "Legale Rappresentante"}` : "",
@@ -272,7 +273,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
         "da una parte",
         "e",
         "",
-        name.toUpperCase(),
+        `**${name.toUpperCase()}**`,
         r.address ? `Residente in ${r.address}` : "",
         [r.tax_code ? `Cod.Fisc. ${r.tax_code}` : "", r.vat_number ? `P.Iva ${r.vat_number}` : ""].filter(Boolean).join(" - "),
         `in qualità ${d.capacity || "Consulente"}`,
@@ -288,11 +289,12 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
     "premesso che:",
     "",
     "a. ISTITUTO OIKOS E.T.S. opera in Italia e all’Estero nei settori della gestione e tutela ambientale e della cooperazione internazionale",
+    "",
     company
       ? `b. ISTITUTO OIKOS E.T.S. ha ricevuto un finanziamento per il progetto ${projectQuoted} nel cui ambito si rende necessaria la “prestazione” da soggetto in possesso di idonee conoscenze come specificato al punto 4 del presente contratto${d.tdr ? " e nei relativi Termini di Riferimento allegati" : ""}.`
       : `b. ISTITUTO OIKOS E.T.S. ha ricevuto il finanziamento per il seguente progetto ${projectQuoted} per il quale si rende necessaria la “prestazione” da soggetto in possesso di idonee conoscenze come specificato al punto 4 del presente contratto.`,
   ];
-  if (r.ir_code) prem.push(`c. Il contraente è stato selezionato attraverso la procedura n. IR ${r.ir_code}.`);
+  if (r.ir_code) prem.push("", `c. Il contraente è stato selezionato attraverso la procedura n. IR ${r.ir_code}.`);
   prem.push("", "Tutto ciò premesso si conviene e si stipula quanto segue:");
   add("premises", "", prem.join("\n"));
 
@@ -321,9 +323,9 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
     ].join("\n"));
   } else {
     add("art4", "ARTICOLO 4 – OGGETTO DEL CONTRATTO", [
-      `4.1 Con il presente Contratto, ${name} si impegna a prestare il Servizio a ISTITUTO OIKOS E.T.S. alle condizioni economiche e termini specificati nell’accordo economico.`,
+      `4.1 Con il presente Contratto, ${B} si impegna a prestare il Servizio a ISTITUTO OIKOS E.T.S. alle condizioni economiche e termini specificati nell’accordo economico.`,
       "",
-      `ISTITUTO OIKOS E.T.S. conferisce l’incarico a ${name}, che accetta di prestare consulenza e compiere le seguenti attività:`,
+      `ISTITUTO OIKOS E.T.S. conferisce l’incarico a ${B}, che accetta di prestare consulenza e compiere le seguenti attività:`,
       bullets(r.activities),
       "",
       r.work_place ? `Il consulente svolgerà le sue funzioni presso: ${r.work_place.trim()}, nell’ambito del progetto:` : "Il consulente svolgerà le sue funzioni nell’ambito del progetto:",
@@ -339,7 +341,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
   const feeLines: string[] = [];
   if (company) {
     feeLines.push(
-      `6.1 Le Parti convengono, per le attività oggetto del presente Contratto, un compenso totale lordo pari a ${amountTxt} (${fee}), omnicomprensivo degli eventuali oneri a carico dell’Ente.`,
+      `6.1 Le Parti convengono, per le attività oggetto del presente Contratto, un compenso totale lordo pari a **${amountTxt}** (${fee}), omnicomprensivo degli eventuali oneri a carico dell’Ente.`,
       `6.2 Il pagamento avverrà a mezzo di bonifico bancario${lines(r.payment_terms).length > 1 ? ` in ${lines(r.payment_terms).length} rate:` : ":"}`,
       bullets(r.payment_terms),
       `6.3 Il pagamento avverrà a seguito dell’emissione di regolari fatture e/o note di addebito riportanti la dicitura del progetto${r.donor_code ? " e il relativo codice" : ""}: ${project || "____________"}.`,
@@ -350,11 +352,11 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
       ? "comprensivo della ritenuta d’acconto e degli eventuali oneri a carico dell’Ente"
       : "omnicomprensivo di Iva e degli eventuali oneri a carico dell’Ente";
     feeLines.push(
-      `6.1 Le Parti convengono, per le attività oggetto del presente Contratto, ${what} pari a ${amountTxt} (${fee}), ${incl}.`,
+      `6.1 Le Parti convengono, per le attività oggetto del presente Contratto, ${what} pari a **${amountTxt}** (${fee}), ${incl}.`,
       `6.2 Il pagamento avverrà a mezzo di bonifico bancario a seguito:`,
       `- dell’emissione di ${occasional ? "regolare nota di prestazione occasionale" : "regolari fatture"}${r.payment_terms ? ` ${r.payment_terms.trim()}` : ""}.`,
-      `6.3 In caso di mancato espletamento dell’incarico, per motivo esclusivamente attribuibile a cause di forza maggiore sarà riconosciuta a ${name}, una quota proporzionale al lavoro svolto.`,
-      `6.4 In caso di mancato espletamento dell’incarico, per qualsiasi motivo attribuibile a ${name}, nulla sarà più dovuto se non una quota proporzionale al lavoro svolto a cui sarà detratto l’eventuale danno causato a ISTITUTO OIKOS E.T.S., derivante dal mancato completamento del lavoro.`,
+      `6.3 In caso di mancato espletamento dell’incarico, per motivo esclusivamente attribuibile a cause di forza maggiore sarà riconosciuta a ${B}, una quota proporzionale al lavoro svolto.`,
+      `6.4 In caso di mancato espletamento dell’incarico, per qualsiasi motivo attribuibile a ${B}, nulla sarà più dovuto se non una quota proporzionale al lavoro svolto a cui sarà detratto l’eventuale danno causato a ISTITUTO OIKOS E.T.S., derivante dal mancato completamento del lavoro.`,
       "6.5 In caso di ritardo nell’espletamento dell’incarico da parte del consulente, fatto salvo il ritardo cagionato da cause di forza maggiore, il corrispettivo verrà liquidato tenendo conto di eventuali danni addebitati ad ISTITUTO OIKOS E.T.S. in conseguenza di tale ritardo.",
     );
   }
@@ -405,7 +407,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
       "8.2 Il contratto può essere risolto per mutuo consenso delle parti contraenti, per giusta causa o per motivi di forza maggiore. Nel caso di prestazione all’estero in cui, nel paese ospitante, dovessero sorgere operazioni di polizia, operazioni di carattere militare, attività politiche o eventi di calamità naturale, che richiedano l’immediato rimpatrio del prestatore d’opera per ragioni di sicurezza dello stesso, il committente avrà la facoltà di dare disdetta dal presente contratto senza preavviso.",
       "8.3 Le Parti avranno altresì la facoltà di recedere in qualsiasi momento dal presente Contratto, mediante comunicazione scritta, da inviarsi all’altra Parte, a mezzo di lettera raccomandata A.R., con un preavviso di almeno 30 (trenta) giorni, trasmessa agli indirizzi di cui al successivo Art. 12.1",
       "8.4 Resta inteso tra le Parti che, al termine del presente Contratto per qualsiasi causa, gli impegni resteranno comunque in vigore fino a quando non saranno giunte a buon fine tutte le iniziative in essere o avviate e ISTITUTO OIKOS E.T.S. non sarà tenuta al pagamento di alcuna indennità o compenso di alcun genere, ad alcun titolo, a favore dell’altra Parte.",
-      `8.5 Le parti convengono e stipulano la seguente clausola risolutiva espressa art 1456 C.C: Il presente contratto deve intendersi automaticamente risolto nel caso in cui le prestazioni non vengano adempiute secondo le modalità previste all’art. 4 del contratto. Le obbligazioni da eseguirsi a pena di risoluzione e poste a carico di ${name} riguardano precisamente, la realizzazione di servizi e iniziative di cui all’art. 4.`,
+      `8.5 Le parti convengono e stipulano la seguente clausola risolutiva espressa art 1456 C.C: Il presente contratto deve intendersi automaticamente risolto nel caso in cui le prestazioni non vengano adempiute secondo le modalità previste all’art. 4 del contratto. Le obbligazioni da eseguirsi a pena di risoluzione e poste a carico di ${B} riguardano precisamente, la realizzazione di servizi e iniziative di cui all’art. 4.`,
       "La presente clausola è da considerarsi come parte integrante del presente contratto.",
     ].join("\n"));
   }
@@ -417,7 +419,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
   add("art11", "ARTICOLO 11 – MODALITA’ DI CONCLUSIONE DEL CONTRATTO", [
     company
       ? `11.1 Il Contratto si intenderà perfezionato nel momento in cui ISTITUTO OIKOS E.T.S. riceverà ${ref("da")} il Contratto debitamente sottoscritto.`
-      : `11.1 Il Contratto si concluderà mediante scambio di corrispondenza commerciale e dunque si intenderà perfezionato nel momento in cui ISTITUTO OIKOS E.T.S. riceverà da ${name} l’accettazione del Contratto debitamente sottoscritta.`,
+      : `11.1 Il Contratto si concluderà mediante scambio di corrispondenza commerciale e dunque si intenderà perfezionato nel momento in cui ISTITUTO OIKOS E.T.S. riceverà da ${B} l’accettazione del Contratto debitamente sottoscritta.`,
     "11.2 Ciascuna delle Parti garantisce all’altra: (I) di aver assunto tutte le deliberazioni necessarie per stipulare e dare esecuzione al Contratto, (II) che il Contratto è per essa pienamente vincolante ed impegnativo, (III) che il Contratto non viola disposizioni di altri contratti da essa stipulati né divieti, di qualsiasi origine o natura, ai quali sia assoggettata.",
   ].join("\n"));
 
@@ -440,8 +442,8 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
       "12.1 Le comunicazioni contrattualistiche previste dal presente accordo saranno effettuate per iscritto via email all’attenzione dei seguenti referenti, presso le sedi:",
       "Per ISTITUTO OIKOS E.T.S.",
       "Att.ne del Rappresentante Legale Giuseppe Guida – Sede Amministrativa in 20134 Milano – Via Crescenzago 1- email: segreteria.it@istituto-oikos.org",
-      `Per ${name}`,
-      `Att.ne ${name}${r.address ? ` – domicilio fiscale in ${r.address}` : ""} – email: ${r.email || "____________"}${r.pec ? ` – PEC: ${r.pec}` : ""}`,
+      `Per ${B}`,
+      `Att.ne ${B}${r.address ? ` – domicilio fiscale in ${r.address}` : ""} – email: ${r.email || "____________"}${r.pec ? ` – PEC: ${r.pec}` : ""}`,
       "12.2 È fatta salva la facoltà delle Parti di modificare i suddetti indirizzi, dandone idonea preventiva comunicazione, a pena di inopponibilità, all’altra Parte, nella quale dovrà essere indicato il termine da cui il nuovo indirizzo diverrà efficace.",
       "12.3 Le comunicazioni aventi ad oggetto l’ordinaria operatività potranno essere scambiate tra le Parti con ogni mezzo, purché documentabile, agli indirizzi che le Parti si renderanno noti nel corso dell’esecuzione del Contratto.",
       "12.4 Le comunicazioni saranno efficaci dal giorno di ricezione delle stesse.",
@@ -466,10 +468,10 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
     ].join("\n"));
   } else {
     add("art15", "ARTICOLO 15 – RESPONSABILITA’ E DISPOSIZIONI IN MATERIA DI SICUREZZA", [
-      `ISTITUTO OIKOS E.T.S. è esonerata da ogni responsabilità riguardo a danni causati da ${name} a persone e/o cose in corso di contratto.`,
-      `${name} è tenuto ad adottare tutte le misure di sicurezza.`,
-      `ISTITUTO OIKOS E.T.S. è esonerata fin d’ora da richieste di risarcimento riguardante infortuni di qualsiasi tipo e natura derivanti a ${name} o a terzi.`,
-      `ISTITUTO OIKOS E.T.S. potrà rivalersi su ${name} a seguito di eventuali danni causati a terzi, durante lo svolgimento del servizio, quando i predetti danni siano stati causati da dolo o colpa grave di quest'ultimo o dal proprio personale.`,
+      `ISTITUTO OIKOS E.T.S. è esonerata da ogni responsabilità riguardo a danni causati da ${B} a persone e/o cose in corso di contratto.`,
+      `${B} è tenuto ad adottare tutte le misure di sicurezza.`,
+      `ISTITUTO OIKOS E.T.S. è esonerata fin d’ora da richieste di risarcimento riguardante infortuni di qualsiasi tipo e natura derivanti a ${B} o a terzi.`,
+      `ISTITUTO OIKOS E.T.S. potrà rivalersi su ${B} a seguito di eventuali danni causati a terzi, durante lo svolgimento del servizio, quando i predetti danni siano stati causati da dolo o colpa grave di quest'ultimo o dal proprio personale.`,
     ].join("\n"));
   }
 
@@ -493,7 +495,7 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
     "",
     company
       ? `per ${ref("il")}: ${r.legal_rep || "____________"}`
-      : `per il consulente: ${name}`,
+      : `per il consulente: ${B}`,
   ].join("\n"));
 
   return blocks;

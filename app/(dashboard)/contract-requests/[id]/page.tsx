@@ -212,8 +212,8 @@ export default async function ContractRequestDetail({
                 </ConfirmForm>
               </div>
               <p className="subtitle" style={{ margin: "0 0 10px" }}>
-                Edit the text of this contract here, then download it. Each line is a paragraph; start a line with “- ” for a bullet.
-                Tick “remove” to delete an article.
+                Edit the text of this contract here, then download it. Each line is a paragraph. Put **two asterisks** around
+                words to print them in bold (names and amounts already are). Tick “remove” to delete an article.
               </p>
               <form action={saveContractText.bind(null, id)} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {r.contract_text.map((b, i) => (
