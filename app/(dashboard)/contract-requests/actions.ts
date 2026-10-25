@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
@@ -165,21 +166,24 @@ export async function createContractRequest(kind: RequestKind, formData: FormDat
 }
 
 async function notifyApprovers(id: string, number: string, requester: string, party: string, list: Holder[]) {
-  try {
-    const link = `${await baseUrl()}/contract-requests/${id}`;
-    for (const h of list) {
-      if (!h.email) continue;
-      await sendEmail({
-        to: h.email,
-        subject: `Contract request ${number}: your approval is needed`,
-        html: `<p>Hello ${escapeHtml(h.full_name)},</p>
+  const link = `${await baseUrl()}/contract-requests/${id}`;
+  // sent after the response, so a slow SMTP server never delays or breaks saving the request
+  after(async () => {
+    try {
+      for (const h of list) {
+        if (!h.email) continue;
+        await sendEmail({
+          to: h.email,
+          subject: `Contract request ${number}: your approval is needed`,
+          html: `<p>Hello ${escapeHtml(h.full_name)},</p>
 <p><b>${escapeHtml(requester)}</b> asks to activate a contract with <b>${escapeHtml(party)}</b> (${escapeHtml(number)}). Your approval is needed.</p>
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
-      });
+        });
+      }
+    } catch {
+      // best effort
     }
-  } catch {
-    // best effort
-  }
+  });
 }
 
 export async function updateContractRequest(id: string, formData: FormData) {
@@ -204,6 +208,8 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
   const { data, error } = await supabase.rpc("sign_contract_request", { rid: id, as_role: role });
   if (error) fail(`/contract-requests/${id}`, error.message);
 
+  type Mail = { to: string; subject: string; html: string };
+  const mails: Mail[] = [];
   try {
     const { data: req } = await supabase
       .from("contract_requests")
@@ -222,7 +228,7 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
         const seen = new Set<string>();
         const to = [...contracts, ...racs, ...dgs].filter((h) => h.email && !seen.has(h.email) && seen.add(h.email));
         for (const h of to) {
-          await sendEmail({
+          mails.push({
             to: h.email!,
             subject: `Contract request ${req.number} approved: ${req.party_name}`,
             html: `<p>Hello ${escapeHtml(h.full_name)},</p>
@@ -231,14 +237,14 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
           });
         }
         if (req.requester_email) {
-          await sendEmail({
+          mails.push({
             to: req.requester_email,
             subject: `Contract request ${req.number} approved`,
             html: `<p>Hello ${escapeHtml(req.requester_name)},</p><p>Your contract request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.party_name)}) is approved. Contracts will prepare the contract.</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
           });
         }
       } else if (req.requester_email) {
-        await sendEmail({
+        mails.push({
           to: req.requester_email,
           subject: `Contract request ${req.number}: ${role} approved`,
           html: `<p>Hello ${escapeHtml(req.requester_name)},</p><p>The ${role} approved your contract request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.party_name)}). The other approval is still needed.</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
@@ -248,6 +254,15 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   } catch {
     // best effort
   }
+  after(async () => {
+    for (const m of mails) {
+      try {
+        await sendEmail(m);
+      } catch {
+        // best effort
+      }
+    }
+  });
   revalidatePath(`/contract-requests/${id}`);
   redirect(`/contract-requests/${id}`);
 }
