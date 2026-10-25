@@ -84,7 +84,7 @@ export default async function ContractRequestsPage({
                     {r.status === "pending" && missing(r.id) ? (
                       <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {missing(r.id)}</span>
                     ) : null}
-                    {r.contract_id ? <span style={{ fontSize: 11, marginLeft: 6 }}>· in register</span> : null}
+                    {r.contract_id ? <span style={{ fontSize: 11, marginLeft: 6 }}>· in Contracts list</span> : null}
                   </td>
                 </tr>
               ))}

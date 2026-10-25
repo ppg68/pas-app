@@ -184,12 +184,12 @@ export default async function ContractRequestDetail({
           <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Contract</h2>
           {linked ? (
             <p style={{ marginBottom: 10 }}>
-              In the register as <Link href={`/contracts/${linked.id}`}>{linked.legacy_id ?? "contract"}</Link>.
+              Already in the Contracts list as <Link href={`/contracts/${linked.id}`}>{linked.legacy_id ?? "contract"}</Link>.
             </p>
           ) : (
             <form action={createContractDraft.bind(null, id)} style={{ marginBottom: 10 }}>
-              <SubmitButton className="ghost" pendingLabel="Creating…">
-                Create draft in Contracts register
+              <SubmitButton className="ghost" pendingLabel="Adding…">
+                Add to Contracts list
               </SubmitButton>
             </form>
           )}
