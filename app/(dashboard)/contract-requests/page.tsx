@@ -2,7 +2,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { KIND_LABEL, STATUS_LABEL, type ContractApproval, type ContractRequestRow } from "@/lib/domain/contractRequests";
 
-export default async function ContractRequestsPage() {
+export default async function ContractRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string }>;
+}) {
+  const { created } = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase
     .from("contract_requests")
@@ -34,6 +39,12 @@ export default async function ContractRequestsPage() {
           </Link>
         </div>
       </div>
+
+      {created && (
+        <div className="banner">
+          Request {created} sent. The approvers have been notified by email.
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="empty">No contract requests yet.</p>

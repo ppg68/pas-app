@@ -162,7 +162,7 @@ export async function createContractRequest(kind: RequestKind, formData: FormDat
 
   await notifyApprovers(inserted.id, inserted.number, profile?.full_name ?? "A colleague", parsed.fields.party_name, [pm, rac]);
   revalidatePath("/contract-requests");
-  redirect(`/contract-requests/${inserted.id}`);
+  redirect(`/contract-requests?created=${encodeURIComponent(inserted.number)}`);
 }
 
 async function notifyApprovers(id: string, number: string, requester: string, party: string, list: Holder[]) {
