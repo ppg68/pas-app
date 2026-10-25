@@ -17,7 +17,7 @@ import {
 
 // redirect() throws internally: used to bring a readable message back to the page (same pattern as workflow.ts).
 function fail(path: string, message: string): never {
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
+  redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
 }
 
 const str = (f: FormData, k: string) => String(f.get(k) || "").trim();
