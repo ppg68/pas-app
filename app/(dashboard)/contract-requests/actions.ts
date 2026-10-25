@@ -172,16 +172,17 @@ async function notifyApprovers(id: string, number: string, requester: string, pa
     try {
       for (const h of list) {
         if (!h.email) continue;
-        await sendEmail({
+        const res = await sendEmail({
           to: h.email,
           subject: `Contract request ${number}: your approval is needed`,
           html: `<p>Hello ${escapeHtml(h.full_name)},</p>
 <p><b>${escapeHtml(requester)}</b> asks to activate a contract with <b>${escapeHtml(party)}</b> (${escapeHtml(number)}). Your approval is needed.</p>
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
         });
+        console.log(`[contract-requests] approval email ${number} -> ${h.email}: ${res.ok ? "sent" : res.error}`);
       }
-    } catch {
-      // best effort
+    } catch (e) {
+      console.error("[contract-requests] approval email failed", e);
     }
   });
 }
@@ -257,9 +258,10 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   after(async () => {
     for (const m of mails) {
       try {
-        await sendEmail(m);
-      } catch {
-        // best effort
+        const res = await sendEmail(m);
+        console.log(`[contract-requests] email '${m.subject}' -> ${m.to}: ${res.ok ? "sent" : res.error}`);
+      } catch (e) {
+        console.error("[contract-requests] email failed", e);
       }
     }
   });
