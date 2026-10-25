@@ -60,7 +60,8 @@ function parseScheda(f: FormData, kind: RequestKind) {
     tdr: f.get("tdr") === "on",
     signing_date: str(f, "signing_date") || undefined,
   };
-  const startOnSignature = f.get("start_on_signature") === "on";
+  // no start date entered = the contract starts at signature
+  const startOnSignature = f.get("start_on_signature") === "on" || !str(f, "start_date");
   return {
     amount,
     fields: {
@@ -109,7 +110,6 @@ function validate(path: string, kind: RequestKind, p: ReturnType<typeof parseSch
   if (!f.party_name) fail(path, kind === "company" ? "Enter the name of the company or organisation." : "Enter the name and surname.");
   if (!Number.isFinite(p.amount) || p.amount <= 0) fail(path, "Enter the contract amount.");
   if (!f.activities) fail(path, "Describe the activities to be carried out.");
-  if (!f.start_on_signature && !f.start_date) fail(path, "Enter the start date (or tick 'from signature').");
   if (!f.end_date) fail(path, "Enter the end date.");
   if (f.start_date && f.end_date && f.end_date < f.start_date) fail(path, "The end date is before the start date.");
   if (kind === "company" && !f.legal_rep) fail(path, "Enter the legal representative of the company.");
