@@ -45,10 +45,6 @@ export default async function NewContractPage({
 
         <div style={row}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Typology (Tipologia)</label>
-            <input name="typology" />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
             <label>Unit (Unità)</label>
             <select name="unit" defaultValue="">
               <option value=""></option>
