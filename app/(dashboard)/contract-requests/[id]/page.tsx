@@ -55,7 +55,8 @@ export default async function ContractRequestDetail({
   ]);
   const approvals = (aps ?? []) as ContractApproval[];
   const roles = (myRoles ?? []).map((x) => x.role as string);
-  const isEditor = roles.includes("CONTRACTS") || roles.includes("ADMIN");
+  const isAdmin = roles.includes("ADMIN");
+  const isEditor = roles.includes("CONTRACTS") || isAdmin;
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
   const canEdit = isOwner && r.status === "pending" && !anySigned;
@@ -114,19 +115,22 @@ export default async function ContractRequestDetail({
             Check the data below before approving: after approval the request is locked.
           </p>
         )}
-        {(canEdit || (isOwner && r.status === "pending")) && (
-          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+        {(canEdit || (isOwner && r.status === "pending") || isAdmin) && (
+          <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             {canEdit && (
               <Link href={`/contract-requests/${id}/edit`} className="ghost">
                 Edit request
               </Link>
             )}
-            {canEdit && (
-              <ConfirmForm action={deleteContractRequest.bind(null, id)} message="Delete this request?">
+            {(canEdit || isAdmin) && (
+              <ConfirmForm
+                action={deleteContractRequest.bind(null, id)}
+                message={anySigned ? "This request has been signed. Delete it for good?" : "Delete this request?"}
+              >
                 <button type="submit" className="ghost danger">Delete</button>
               </ConfirmForm>
             )}
-            {!canEdit && (
+            {!canEdit && isOwner && r.status === "pending" && (
               <ConfirmForm action={cancelContractRequest.bind(null, id)} message="Cancel this request?">
                 <button type="submit" className="ghost danger">Cancel request</button>
               </ConfirmForm>

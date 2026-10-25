@@ -1,7 +1,9 @@
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   Footer,
+  ImageRun,
   LevelFormat,
   Packer,
   PageNumber,
@@ -9,6 +11,7 @@ import {
   TextRun,
 } from "docx";
 import type { ContractBlock } from "@/lib/domain/contractRequests";
+import { OIKOS_LOGO_BASE64 } from "@/lib/domain/oikosLogo";
 
 const FONT = "Calibri";
 const SIZE = 22; // half-points: 11 pt
@@ -54,12 +57,13 @@ function blockParagraphs(block: ContractBlock): Paragraph[] {
       );
       return;
     }
-    // the party blocks (no title) keep their short lines left-aligned, articles are justified
+    // the party block is centred (as in the letterhead layout), articles are justified
     const justify = block.title !== "" || line.length > 90;
     out.push(
       new Paragraph({
-        children: runs(line),
-        alignment: justify ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+        // in the party block the names in capitals (Oikos, the other party) are bold
+        children: runs(line, block.key === "parties" && line.length > 3 && line === line.toUpperCase()),
+        alignment: block.key === "parties" ? AlignmentType.CENTER : justify ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
         spacing: { after: block.title ? 80 : 0 },
       }),
     );
@@ -96,12 +100,27 @@ export async function buildContractDocx(blocks: ContractBlock[]): Promise<Buffer
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })],
+                border: { top: { style: BorderStyle.DOTTED, size: 4, color: "808080", space: 6 } },
+                children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 24 })],
               }),
             ],
           }),
         },
-        children: blocks.flatMap(blockParagraphs),
+        children: [
+          // letterhead: logo centred at the top of the first page
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 240 },
+            children: [
+              new ImageRun({
+                type: "png",
+                data: Buffer.from(OIKOS_LOGO_BASE64, "base64"),
+                transformation: { width: 120, height: 104 },
+              }),
+            ],
+          }),
+          ...blocks.flatMap(blockParagraphs),
+        ],
       },
     ],
   });
