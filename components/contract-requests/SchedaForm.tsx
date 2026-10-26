@@ -101,12 +101,12 @@ export default function SchedaForm({
             </div>
             <div style={row}>
               <div className="field" style={col()}>
-                <label>Contact person (art. 12)</label>
-                <input name="contact_person" defaultValue={d.contact_person ?? ""} />
+                <label>Contact person (art. 12) *</label>
+                <input name="contact_person" defaultValue={d.contact_person ?? ""} required />
               </div>
               <div className="field" style={col()}>
-                <label>Contact email</label>
-                <input name="contact_email" type="email" defaultValue={d.contact_email ?? ""} />
+                <label>Contact email *</label>
+                <input name="contact_email" type="email" defaultValue={d.contact_email ?? ""} required />
               </div>
               <div className="field" style={col()}>
                 <label>Administration email</label>
@@ -121,8 +121,8 @@ export default function SchedaForm({
         ) : (
           <div style={row}>
             <div className="field" style={col()}>
-              <label>Email</label>
-              <input name="email" type="email" defaultValue={d.email ?? ""} />
+              <label>Email *</label>
+              <input name="email" type="email" defaultValue={d.email ?? ""} required />
             </div>
             <div className="field" style={col()}>
               <label>PEC</label>
@@ -143,6 +143,13 @@ export default function SchedaForm({
             <select name="contract_type" defaultValue={d.contract_type ?? "consultancy_vat"}>
               <option value="consultancy_vat">1.5.1.4 Consulenza con P.I. o Cod. Identificativo (fattura)</option>
               <option value="occasional">1.5.13 Lavoro autonomo occasionale (nota)</option>
+            </select>
+          </div>
+          <div className="field" style={{ width: 150 }}>
+            <label>Contract language *</label>
+            <select name="lang" defaultValue={x.lang ?? "it"} required>
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
             </select>
           </div>
           <div className="field" style={col(1, 120)}>
@@ -182,8 +189,8 @@ export default function SchedaForm({
 
       <Section title="Project and role">
         <div className="field">
-          <label>Project title</label>
-          <input name="project_title" defaultValue={d.project_title ?? ""} />
+          <label>Project title *</label>
+          <input name="project_title" defaultValue={d.project_title ?? ""} required />
         </div>
         <div style={row}>
           <div className="field" style={col()}>
@@ -191,8 +198,8 @@ export default function SchedaForm({
             <input name="donor_code" defaultValue={d.donor_code ?? ""} />
           </div>
           <div className="field" style={col()}>
-            <label>Internal code (e.g. 209E)</label>
-            <input name="internal_code" defaultValue={d.internal_code ?? ""} />
+            <label>Internal code (e.g. 209E) *</label>
+            <input name="internal_code" defaultValue={d.internal_code ?? ""} required />
           </div>
           <div className="field" style={col()}>
             <label>Budget line</label>
@@ -239,7 +246,7 @@ export default function SchedaForm({
       <Section title="Fee and payment">
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Amount *</label>
+            <label>Amount, gross: all-inclusive (VAT, withholding tax, any charges) *</label>
             <MoneyInput name="amount" required defaultValue={d.amount ?? ""} />
           </div>
           <div className="field" style={{ width: 90 }}>
@@ -259,10 +266,10 @@ export default function SchedaForm({
         <div className="field">
           <label>
             {company
-              ? "Payment tranches (one per line, e.g. “30% alla firma del contratto”)"
-              : "Payment terms (e.g. “a presentazione e approvazione del Rapporto di Missione”)"}
+              ? "Payment tranches * (one per line, e.g. “30% alla firma del contratto”)"
+              : "Payment terms * (e.g. “a presentazione e approvazione del Rapporto di Missione”)"}
           </label>
-          <textarea name="payment_terms" rows={3} style={area} defaultValue={d.payment_terms ?? ""} />
+          <textarea name="payment_terms" rows={3} style={area} defaultValue={d.payment_terms ?? ""} required />
         </div>
         <div className="field">
           <label>Internal note on the fee (e.g. “220 €/day + VAT”; not printed in the contract)</label>
@@ -272,33 +279,6 @@ export default function SchedaForm({
 
       {!company && (
         <Section title="Expenses, travel and insurance">
-          <div style={row}>
-            <div className="field" style={col()}>
-              <label>Accommodation</label>
-              <select name="accommodation" defaultValue={x.accommodation ?? ""}>
-                <option value=""></option>
-                <option value="self">at the consultant’s expense</option>
-                <option value="oikos_reimbursed">reimbursed by Oikos (receipts)</option>
-                <option value="oikos_free">free, Oikos facility</option>
-              </select>
-            </div>
-            <div className="field" style={col()}>
-              <label>Meals</label>
-              <select name="meals" defaultValue={x.meals ?? ""}>
-                <option value=""></option>
-                <option value="self">at the consultant’s expense</option>
-                <option value="oikos_reimbursed">reimbursed by Oikos (receipts)</option>
-              </select>
-            </div>
-            <div className="field" style={col()}>
-              <label>Per diem (Oikos tables)</label>
-              <select name="per_diem" defaultValue={x.per_diem ?? ""}>
-                <option value=""></option>
-                <option value="yes">yes</option>
-                <option value="no">no</option>
-              </select>
-            </div>
-          </div>
           <div className="field">
             <label>Other reimbursements</label>
             <input name="other_reimb" defaultValue={x.other_reimb ?? ""} />
@@ -325,10 +305,6 @@ export default function SchedaForm({
             <div className="field" style={col()}>
               <label>Budget line: visa (fill in if a visa is reimbursed)</label>
               <input name="visa_bl" defaultValue={x.visa_bl ?? ""} />
-            </div>
-            <div className="field" style={col()}>
-              <label>Budget line: accommodation / meals</label>
-              <input name="accommodation_bl" defaultValue={x.accommodation_bl ?? ""} />
             </div>
           </div>
           <div style={row}>

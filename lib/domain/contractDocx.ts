@@ -62,7 +62,7 @@ function blockParagraphs(block: ContractBlock, index: number): (Paragraph | Tabl
       out.push(new Paragraph({ children: [], keepNext: closing }));
       return;
     }
-    if (closing && /^per /i.test(line.trim())) {
+    if (closing && /^(per|for) /i.test(line.trim())) {
       signers.push(line.trim());
       void i;
       return;
@@ -87,7 +87,7 @@ function blockParagraphs(block: ContractBlock, index: number): (Paragraph | Tabl
     out.push(
       new Paragraph({
         children: runs(line),
-        alignment: parties || block.key === "premises" && /^(premesso|Tutto ciò)/.test(line) ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+        alignment: parties || block.key === "premises" && /^(premesso|Tutto ciò|whereas|Now,? therefore)/i.test(line) ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
       }),
     );
   });

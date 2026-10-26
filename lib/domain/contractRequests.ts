@@ -1,3 +1,5 @@
+import { buildContractBlocksEn } from "@/lib/domain/contractTemplateEn";
+
 // Contract requests: online version of the Word form "Scheda attivazione contratto prestatori autonomi"
 // (PR09_1.5_AA14) and the contract text built from it. Two templates are kept here, the single source of
 // truth for the wording: individual (consultant with VAT number / occasional) and company (e.g. CIHEAM Bari).
@@ -30,16 +32,13 @@ export const PROC_TYPES = ["DIR", "SQ", "3Q", "SP", "TEN"];
 export type SchedaData = {
   capacity?: string; // "Consulente"
   party_art?: "il" | "lo" | "la" | "l'" | ""; // company: article used in the text
-  accommodation?: "" | "self" | "oikos_free" | "oikos_reimbursed";
-  meals?: "" | "self" | "oikos_reimbursed";
-  per_diem?: "" | "yes" | "no";
+  lang?: "it" | "en"; // language of the contract text
   other_reimb?: string;
   flights_count?: string;
   flights_route?: string;
   flights_max?: string;
   flight_bl?: string;
   visa_bl?: string;
-  accommodation_bl?: string;
   insurance?: "" | "self" | "oikos";
   insurance_bl?: string;
   equipment?: string;
@@ -213,6 +212,7 @@ const OIKOS_HEAD = [
 // ------------------------------------------------------------------ template
 
 export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
+  if (r.data?.lang === "en") return buildContractBlocksEn(r);
   const d = r.data ?? {};
   const company = r.kind === "company";
   const name = r.party_name.trim();
@@ -381,10 +381,6 @@ export function buildContractBlocks(r: ContractRequestRow): ContractBlock[] {
   const reimb: string[] = [];
   if (d.visa_bl) reimb.push("Spese di visto;");
   if (flights) reimb.push("Spese di trasporto da e per l’aeroporto;");
-  if (d.accommodation === "oikos_reimbursed") reimb.push("Spese di alloggio;");
-  if (d.accommodation === "oikos_free") reimb.push("Alloggio presso struttura Oikos;");
-  if (d.meals === "oikos_reimbursed") reimb.push("Spese di vitto;");
-  if (d.per_diem === "yes") reimb.push("Per diem secondo le tabelle Oikos, in sostituzione dei rimborsi;");
   if (d.other_reimb) reimb.push(`${d.other_reimb.trim()};`);
   if (!company && reimb.length) {
     exp.push("", "Il committente assumerà altresì a proprio carico, o rimborserà al consulente, il costo delle seguenti spese, preventivamente autorizzate e debitamente documentate:", ...reimb.map((x) => `- ${x}`));

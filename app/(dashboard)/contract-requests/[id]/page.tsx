@@ -150,6 +150,7 @@ export default async function ContractRequestDetail({
         <Item label="Email / PEC" value={[r.email, r.pec].filter(Boolean).join(" / ")} />
         <Item label="Legal representative" value={[r.legal_rep, r.legal_rep_role].filter(Boolean).join(", ")} />
         <Item label="Contact" value={[r.contact_person, r.contact_email, r.contact_email_admin].filter(Boolean).join(" · ")} />
+        <Item label="Contract language" value={x.lang === "en" ? "English" : "Italiano"} />
         <Item label="Contract type" value={CONTRACT_TYPE_LABEL[r.contract_type]} />
         <Item label="Period" value={`${r.start_on_signature ? "from signature" : r.start_date} → ${r.end_date}`} />
         <Item label="Project" value={[r.donor_code, r.project_title].filter(Boolean).join(" - ")} />
@@ -161,18 +162,14 @@ export default async function ContractRequestDetail({
         <Item label="Place of work" value={r.work_place} />
         <Item label="Contact with minors" value={r.minors ? "Yes" : "No"} />
         <Item
-          label="Amount"
+          label="Amount (gross)"
           value={`${r.amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })} ${r.currency}${r.kind === "person" ? (r.fee_mode === "daily" ? " per day" : " total") : ""}`}
         />
         <Item label="Fee note" value={r.fee_note} />
         <Item label="Payment" value={r.payment_terms} />
-        <Item label="Accommodation" value={x.accommodation} />
-        <Item label="Meals" value={x.meals} />
-        <Item label="Per diem" value={x.per_diem} />
         <Item label="Other reimbursements" value={x.other_reimb} />
         <Item label="Flights" value={[x.flights_count, x.flights_route, x.flights_max && `max ${x.flights_max}`, x.flight_bl && `BL ${x.flight_bl}`].filter(Boolean).join(" · ")} />
         <Item label="Visa budget line" value={x.visa_bl} />
-        <Item label="Accommodation budget line" value={x.accommodation_bl} />
         <Item label="Insurance" value={[x.insurance, x.insurance_bl && `BL ${x.insurance_bl}`].filter(Boolean).join(" · ")} />
         <Item label="Equipment" value={x.equipment} />
         <Item label="Public employee" value={x.public_employee} />

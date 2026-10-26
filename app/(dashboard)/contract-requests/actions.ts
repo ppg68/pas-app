@@ -43,16 +43,13 @@ function parseScheda(f: FormData, kind: RequestKind) {
   const data: SchedaData = {
     capacity: str(f, "capacity") || undefined,
     party_art: (str(f, "party_art") as SchedaData["party_art"]) || undefined,
-    accommodation: str(f, "accommodation") as SchedaData["accommodation"],
-    meals: str(f, "meals") as SchedaData["meals"],
-    per_diem: str(f, "per_diem") as SchedaData["per_diem"],
+    lang: (str(f, "lang") === "en" ? "en" : "it") as SchedaData["lang"],
     other_reimb: str(f, "other_reimb") || undefined,
     flights_count: str(f, "flights_count") || undefined,
     flights_route: str(f, "flights_route") || undefined,
     flights_max: str(f, "flights_max") || undefined,
     flight_bl: str(f, "flight_bl") || undefined,
     visa_bl: str(f, "visa_bl") || undefined,
-    accommodation_bl: str(f, "accommodation_bl") || undefined,
     insurance: str(f, "insurance") as SchedaData["insurance"],
     insurance_bl: str(f, "insurance_bl") || undefined,
     equipment: str(f, "equipment") || undefined,
@@ -113,6 +110,12 @@ function validate(path: string, kind: RequestKind, p: ReturnType<typeof parseSch
   if (!f.end_date) fail(path, "Enter the end date.");
   if (f.start_date && f.end_date && f.end_date < f.start_date) fail(path, "The end date is before the start date.");
   if (kind === "company" && !f.legal_rep) fail(path, "Enter the legal representative of the company.");
+  if (kind === "company" ? !f.contact_person || !f.contact_email : !f.email) {
+    fail(path, kind === "company" ? "Enter the supplier contact person and email." : "Enter the supplier email.");
+  }
+  if (!f.project_title) fail(path, "Enter the project title.");
+  if (!f.internal_code) fail(path, "Enter the internal code.");
+  if (!f.payment_terms) fail(path, "Enter the payment terms.");
 }
 
 export async function createContractRequest(kind: RequestKind, formData: FormData) {
