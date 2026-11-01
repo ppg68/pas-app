@@ -79,7 +79,12 @@ export const DOCS_BY_PROC: Record<ProcCode, string[]> = {
   TEN: ["02", "03", "04", "05", "06", "07", "08"],
 };
 
-export const OPTIONAL_DOCS = new Set(["02", "06", "08"]);
+export const OPTIONAL_DOCS = new Set(["02", "05", "06", "08"]);
+
+/** Optional folders for a procedure: the comparative bid (04) is required only for Three Quotations. */
+export function isOptionalDoc(procCode: ProcCode, key: string): boolean {
+  return OPTIONAL_DOCS.has(key) || (key === "04" && procCode !== "3Q");
+}
 
 export const FOLDER_NAMES: Record<string, string> = {
   "01": "01 Internal Request",
@@ -215,6 +220,6 @@ export function documentsComplete(
   procCode: ProcCode,
   docs: Record<string, boolean>
 ): boolean {
-  const required = DOCS_BY_PROC[procCode].filter((k) => !OPTIONAL_DOCS.has(k));
+  const required = DOCS_BY_PROC[procCode].filter((k) => !isOptionalDoc(procCode, k));
   return required.every((k) => docs[k]);
 }

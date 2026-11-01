@@ -11,7 +11,7 @@ import {
   canSign,
   documentsComplete,
   DOCS_BY_PROC,
-  OPTIONAL_DOCS,
+  isOptionalDoc,
   FOLDER_NAMES,
   ROLE_LABEL,
   STAGE_TITLES,
@@ -464,7 +464,7 @@ export default async function RequestDetailPage({
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Documents</h2>
           {requiredDocs.map((docKey) => {
             const checked = !!docsMap[docKey];
-            const optional = OPTIONAL_DOCS.has(docKey);
+            const optional = isOptionalDoc(request.proc_code, docKey);
             return (
               <div
                 key={docKey}
