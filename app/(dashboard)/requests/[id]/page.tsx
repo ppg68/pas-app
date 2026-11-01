@@ -3,8 +3,11 @@ import MoneyInput from "@/components/MoneyInput";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import {
   procConfigFor,
-  paymentSigners,
-  irSigners,
+  paymentSlots,
+  irSlots,
+  slotLabel,
+  slotSigned,
+  slotRoleFor,
   canSign,
   documentsComplete,
   DOCS_BY_PROC,
@@ -115,11 +118,20 @@ export default async function RequestDetailPage({
       .eq("request_id", id)
       .order("created_at", { ascending: true }),
   ]);
+  const paIds = (payAuths ?? []).map((a) => a.id);
+  const { data: paSignatures } = paIds.length
+    ? await supabase
+        .from("payment_authorization_signatures")
+        .select("payment_authorization_id, signer_role, signed_by, signed_at")
+        .in("payment_authorization_id", paIds)
+        .order("signed_at", { ascending: true })
+    : { data: [] as { payment_authorization_id: string; signer_role: string; signed_by: string; signed_at: string }[] };
   const paNameIds = Array.from(
     new Set(
-      (payAuths ?? [])
-        .flatMap((a) => [a.prepared_by, a.authorized_by])
-        .filter((v): v is string => !!v)
+      [
+        ...(payAuths ?? []).flatMap((a) => [a.prepared_by, a.authorized_by]),
+        ...(paSignatures ?? []).map((x) => x.signed_by),
+      ].filter((v): v is string => !!v)
     )
   );
   const { data: paProfiles } = paNameIds.length
@@ -161,15 +173,22 @@ export default async function RequestDetailPage({
       .filter((s) => s.phase === "payment")
       .map((s) => [s.signer_role as Role, s])
   );
-  const irRoles = irSigners({
+  const irSlotList = irSlots({
     procCode: request.proc_code,
     coordinationCost: request.coordination_cost,
     derogation: request.derogation,
+    pmRequired: request.pm_required,
   });
-  const paySigners = paymentSigners({
+  const paySlotList = paymentSlots({
     procCode: request.proc_code,
     coordinationCost: request.coordination_cost,
+    pmRequired: request.pm_required,
   });
+  // the designated approver of a slot (stored under the role they hold)
+  const approverOfSlot = (roles: Role[]) => roles.map((r) => approverByRole.get(r)).find((x) => !!x);
+  // who signed an IR slot
+  const irSignatureOf = (roles: Role[]) => roles.map((r) => irSignedRoles.get(r)).find((x) => !!x);
+  const iHaveSignedIr = [...irSignedRoles.values()].some((x) => x.signed_by === userId);
 
   const docsMap: Record<string, boolean> = {};
   (docs ?? []).forEach((d) => {
@@ -258,15 +277,18 @@ export default async function RequestDetailPage({
               ["Coordination cost", request.coordination_cost ? "Yes (no linked project)" : "No"],
               ["Institutional activity", request.institutional_activity ? "Yes" : "No"],
               ["Occasional collaborator", request.occasional_collaborator ? "Yes" : "No"],
-              ...irRoles.map(
-                (role) =>
+              ...irSlotList.map(
+                (slot) =>
                   [
-                    `Approver — ${ROLE_LABEL[role]}`,
-                    approverByRole.get(role)?.name ?? "not designated",
+                    `Approver — ${slotLabel(slot)}`,
+                    approverOfSlot(slot.roles)?.name ?? "not designated",
                   ] as [string, string]
               ),
-              ...(approverByRole.get("PM")
+              ...(!request.pm_required && approverByRole.get("PM")
                 ? ([["PM (for information)", approverByRole.get("PM")!.name]] as [string, string][])
+                : []),
+              ...(!request.pm_required && !request.is_legacy && request.proc_code !== "DIR" && !request.coordination_cost
+                ? ([["PM signature", "not requested (the request was compiled by the PM)"]] as [string, string][])
                 : []),
             ] as [string, string][]
           ).map(([label, value]) => (
@@ -281,18 +303,15 @@ export default async function RequestDetailPage({
       {/* IR approval */}
       <div className="card">
         <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>IR approval</h2>
-        {irRoles.length === 0 && (
-          <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-            Direct purchase: no IR approval required. This IR number is used to archive the documents; the payment data is filled in with the payment authorization form.
-          </p>
-        )}
-        {irRoles.map((role) => {
-          const signed = irSignedRoles.get(role);
+        {irSlotList.map((slot) => {
+          const signature = irSignatureOf(slot.roles);
+          const myRole = slotRoleFor(slot, roles);
           const canShowButton =
-            request.stage === "ir_auth" && !signed && roles.has(role) && iCanAct;
+            request.stage === "ir_auth" && !signature && !!myRole && iCanAct && !iHaveSignedIr;
+          const designated = approverOfSlot(slot.roles);
           return (
             <div
-              key={role}
+              key={slot.id}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -302,32 +321,32 @@ export default async function RequestDetailPage({
               }}
             >
               <span>
-                {ROLE_LABEL[role]} —{" "}
-                {signed ? (
+                {slotLabel(slot)} —{" "}
+                {signature ? (
                   <>
-                    approved by <b>{signerName(signed.signed_by)}</b> ({ROLE_LABEL[role]}) on{" "}
-                    <b>{fmtWhen(signed.signed_at)}</b>
+                    approved by <b>{signerName(signature.signed_by)}</b> ({ROLE_LABEL[signature.signer_role as Role]}) on{" "}
+                    <b>{fmtWhen(signature.signed_at)}</b>
                   </>
                 ) : (
                   "pending"
                 )}
-                {approverByRole.get(role) && (
+                {designated && (
                   <span style={{ color: "var(--ink-soft)" }}>
                     {" "}
-                    · designated: {approverByRole.get(role)!.name}
-                    {approverByRole.get(role)!.notified ? " (notified by email)" : " (not emailed)"}
+                    · designated: {designated.name}
+                    {designated.notified ? " (notified by email)" : " (not emailed)"}
                   </span>
                 )}
               </span>
-              {canShowButton && (
-                <form action={signIrAuth.bind(null, request.id, role)}>
+              {canShowButton && myRole && (
+                <form action={signIrAuth.bind(null, request.id, myRole)}>
                   <SubmitButton pendingLabel="Approving…">Approve</SubmitButton>
                 </form>
               )}
             </div>
           );
         })}
-        {irRoles.length > 0 && irRoles.every((r) => irSignedRoles.has(r)) && (
+        {irSlotList.length > 0 && irSlotList.every((sl) => !!irSignatureOf(sl.roles)) && (
           <p style={{ fontSize: 13, marginTop: 8, fontWeight: 600, color: "var(--navy)" }}>
             Authorized on{" "}
             {fmtWhen(
@@ -349,6 +368,11 @@ export default async function RequestDetailPage({
         {!iCanAct && request.stage === "ir_auth" && (
           <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
             Whoever created this request cannot sign it (segregation of duties).
+          </p>
+        )}
+        {iCanAct && iHaveSignedIr && request.stage === "ir_auth" && (
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
+            You have already signed: the other signature must come from a different person (dual authorization).
           </p>
         )}
       </div>
@@ -496,17 +520,14 @@ export default async function RequestDetailPage({
         </div>
       )}
 
-      {/* Payment: one payment authorization (PR04.AA05) per payment, approved by CAR / RAC */}
-      {stageIndex >= paymentIndex &&
-        (paySigners.length > 0 || request.proc_code === "DIR" || (payAuths ?? []).length > 0) && (
+      {/* Payment: one payment authorization (PR04.AA05) per payment, approved by PM + CAR / RAC */}
+      {stageIndex >= paymentIndex && (
         <div className="card">
           <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Payment authorizations</h2>
-          {request.proc_code === "DIR" && (
-            <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-              Direct purchase: fill in the payment data below. No approval is required; once submitted the
-              request is closed and Contracts is notified.
-            </p>
-          )}
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
+            Each payment is authorized by: {paySlotList.map(slotLabel).join(" + ")}
+            {paySlotList.length > 1 ? " (two different people)" : ""}.
+          </p>
 
           {winnerOffer && (
             <p style={{ fontSize: 13, marginBottom: 10 }}>
@@ -526,19 +547,24 @@ export default async function RequestDetailPage({
             <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
               No payment authorization yet.
               {request.stage === "payment" &&
-                " When the invoice arrives, the Budget Holder or the PM prepares one below."}
+                " When the invoice arrives, the Budget Holder prepares one below."}
             </p>
           )}
 
           {(payAuths ?? []).map((a) => {
-            const approverRoles = paySigners.filter((r) => r === "CAR" || r === "RAC");
+            const sigs = (paSignatures ?? []).filter((x) => x.payment_authorization_id === a.id);
+            const signedRoles = sigs.map((x) => x.signer_role as Role);
+            const iSigned = sigs.some((x) => x.signed_by === userId);
+            // slots still open that I could sign
+            const mySlot = paySlotList.find((sl) => !slotSigned(sl, signedRoles) && slotRoleFor(sl, roles));
+            const myRole = mySlot ? slotRoleFor(mySlot, roles) : undefined;
             const canApprove =
               request.stage === "payment" &&
               a.status === "pending" &&
               iCanAct &&
               userId !== a.prepared_by &&
-              approverRoles.some((r) => roles.has(r));
-            const myRole = approverRoles.find((r) => roles.has(r));
+              !iSigned &&
+              !!myRole;
             const inv = (requestInvoices ?? []).find((x) => x.id === a.invoice_id);
             return (
               <div
@@ -562,18 +588,30 @@ export default async function RequestDetailPage({
                       {a.status === "authorized" && (
                         <>
                           {" "}
-                          · <b style={{ color: "var(--navy)" }}>authorized</b> by {paName(a.authorized_by)} (
-                          {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
+                          · <b style={{ color: "var(--navy)" }}>authorized</b> on {fmtWhen(a.authorized_at)}
                         </>
                       )}
                       {a.status === "recorded" && " · recorded (no approval required)"}
-                      {a.status === "pending" && " · waiting for authorization"}
+                      {a.status === "pending" &&
+                        ` · waiting for: ${paySlotList.filter((sl) => !slotSigned(sl, signedRoles)).map(slotLabel).join(" + ")}`}
                     </div>
+                    {sigs.length > 0 ? (
+                      sigs.map((x) => (
+                        <div key={x.signer_role} style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                          Approved by {paName(x.signed_by)} ({ROLE_LABEL[x.signer_role as Role]}) on {fmtWhen(x.signed_at)}
+                        </div>
+                      ))
+                    ) : a.status === "authorized" && a.authorized_by ? (
+                      <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                        Approved by {paName(a.authorized_by)} (
+                        {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
+                      </div>
+                    ) : null}
                   </div>
                   {canApprove && myRole && (
                     <form action={authorizePaymentAuth.bind(null, a.id, request.id, myRole)}>
                       <button type="submit" className="primary">
-                        Authorize payment
+                        Authorize payment ({myRole})
                       </button>
                     </form>
                   )}
@@ -591,7 +629,7 @@ export default async function RequestDetailPage({
             </p>
           )}
 
-          {request.stage === "payment" && (request.initiated_by === userId || roles.has("PM")) && (
+          {request.stage === "payment" && request.initiated_by === userId && (
             <details style={{ marginTop: 12 }} open={(payAuths ?? []).length === 0}>
               <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                 + New payment authorization
@@ -616,7 +654,6 @@ export default async function RequestDetailPage({
                 authorizedTotal={authorizedTotal}
                 currency={request.currency}
                 defaultBankDescription={effectiveCup ?? request.project_code}
-                direct={request.proc_code === "DIR"}
               />
             </details>
           )}

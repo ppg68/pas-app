@@ -37,6 +37,9 @@ export default async function NewRequestPage({
   });
   Object.values(candidates).forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
 
+  const { data: myRoleRows } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  const creatorIsPm = (myRoleRows ?? []).some((r) => r.role === "PM");
+
   const assignments: Record<string, Partial<Record<"PM" | "CAR", string>>> = {};
   (assignmentRows ?? []).forEach((a) => {
     assignments[a.project_code] = {
@@ -51,7 +54,7 @@ export default async function NewRequestPage({
 
       {error && <div className="banner error">{decodeURIComponent(error)}</div>}
 
-      <NewRequestForm candidates={candidates} assignments={assignments} projectCups={projectCups} />
+      <NewRequestForm candidates={candidates} assignments={assignments} projectCups={projectCups} creatorIsPm={creatorIsPm} />
     </div>
   );
 }

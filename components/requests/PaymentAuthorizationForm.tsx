@@ -26,7 +26,6 @@ export default function PaymentAuthorizationForm({
   authorizedTotal,
   currency,
   defaultBankDescription,
-  direct = false,
 }: {
   requestId: string;
   fixed: { ir: string; project: string; budgetLine: string; procedure: string; projectName?: string };
@@ -36,8 +35,6 @@ export default function PaymentAuthorizationForm({
   authorizedTotal: number;
   currency: string;
   defaultBankDescription: string;
-  /** Direct purchase: recorded without approval. */
-  direct?: boolean;
 }) {
   // a single invoice on the request is the obvious one: preselected
   const only = invoices.length === 1 ? invoices[0] : null;
@@ -173,7 +170,7 @@ export default function PaymentAuthorizationForm({
       </div>
 
       <SubmitButton style={{ width: "fit-content" }}>
-        {direct ? "Submit payment data" : "Submit for authorization"}
+        Submit for authorization
       </SubmitButton>
     </form>
   );

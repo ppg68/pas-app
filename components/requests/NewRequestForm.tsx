@@ -7,9 +7,13 @@ import { createRequest } from "@/lib/domain/workflow";
 import { cupForProject } from "@/lib/domain/projectCups";
 import ApprovalLevelsTable from "@/components/requests/ApprovalLevelsTable";
 import {
-  effectiveProcCode,
-  irSigners,
-  ROLE_LABEL,
+  computeProcedure,
+  isDerogation,
+  PROC_CONFIG,
+  type ProcCode,
+  irSlots,
+  pmSigns,
+  slotLabel,
   type Role,
 } from "@/lib/domain/procedures";
 
@@ -25,43 +29,63 @@ export default function NewRequestForm({
   candidates,
   assignments,
   projectCups,
+  creatorIsPm,
 }: {
   candidates: Partial<Record<Role, Candidate[]>>;
   assignments: Record<string, Partial<Record<"PM" | "CAR", string>>>;
   projectCups: Record<string, string>;
+  /** the person compiling the request is a PM: the PM signature is skipped */
+  creatorIsPm: boolean;
 }) {
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
-  const [derogation, setDerogation] = useState(false);
+  const [procChoice, setProcChoice] = useState<ProcCode | "">("");
   const [coordination, setCoordination] = useState(false);
-  const [chosen, setChosen] = useState<Partial<Record<Role, string>>>({});
+  const [chosen, setChosen] = useState<Record<string, string>>({});
 
   const projectCup = cupForProject(projectCups, project);
   const price = parseFloat(amount);
-  const signers =
-    Number.isFinite(price) && price > 0
-      ? irSigners({
-          procCode: effectiveProcCode(price, derogation),
-          coordinationCost: coordination,
-          derogation,
-        })
-      : [];
+  const validPrice = Number.isFinite(price) && price > 0;
+  // the amount only suggests the procedure; whoever compiles the request decides (budget line of the project)
+  const indicated = validPrice ? computeProcedure(price) : null;
+  const proc: ProcCode | null = procChoice || indicated;
+  const derogation = !!proc && validPrice && isDerogation(proc, price);
+  const slots = proc
+    ? irSlots({
+        procCode: proc,
+        coordinationCost: coordination,
+        derogation,
+        pmRequired: pmSigns(proc, coordination, creatorIsPm),
+      })
+    : [];
 
-  function suggestion(role: Role): string {
-    const assigned = assignments[project.trim()]?.[role as "PM" | "CAR"];
-    const list = candidates[role] ?? [];
-    if (assigned && list.some((c) => c.id === assigned)) return assigned;
+  // people who can fill a slot: holders of any of its roles (CAR or RAC for the administration slot)
+  function slotCandidates(roles: Role[]): Candidate[] {
+    const seen = new Set<string>();
+    const out: Candidate[] = [];
+    for (const r of roles) {
+      for (const c of candidates[r] ?? []) {
+        if (!seen.has(c.id)) {
+          seen.add(c.id);
+          out.push(c);
+        }
+      }
+    }
+    return out.sort((x, y) => x.name.localeCompare(y.name));
+  }
+
+  function suggestion(roles: Role[]): string {
+    const list = slotCandidates(roles);
+    for (const r of roles) {
+      const assigned = r === "PM" || r === "CAR" ? assignments[project.trim()]?.[r] : undefined;
+      if (assigned && list.some((c) => c.id === assigned)) return assigned;
+    }
     return list.length === 1 ? list[0].id : "";
   }
 
-  // the PM assigned to the project, only if it is someone other than the creator (already excluded from the list)
-  const assignedPmId = assignments[project.trim()]?.PM ?? "";
-  const assignedPm = (candidates.PM ?? []).some((c) => c.id === assignedPmId) ? assignedPmId : "";
-  const currentProc = Number.isFinite(price) && price > 0 ? effectiveProcCode(price, derogation) : null;
-
   return (
     <>
-    <ApprovalLevelsTable current={currentProc} />
+    <ApprovalLevelsTable current={proc} />
     <form action={createRequest} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="field">
         <label>Country (IT for HQ numbering)</label>
@@ -98,19 +122,33 @@ export default function NewRequestForm({
         )}
       </div>
 
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          name="derogation"
-          checked={derogation}
-          onChange={(e) => setDerogation(e.target.checked)}
-        />{" "}
-        Derogation (3Q → SQ)
-      </label>
       <div className="field">
-        <label>Derogation reason (required if checked above)</label>
-        <input name="derogation_reason" />
+        <label>Procedure</label>
+        <select name="proc_code" required value={proc ?? ""} onChange={(e) => setProcChoice(e.target.value as ProcCode)}>
+          <option value="" disabled>
+            — choose the procedure —
+          </option>
+          {PROC_CONFIG.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.code} — {c.label}
+            </option>
+          ))}
+        </select>
+        <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
+          You decide: it follows the budget line of the project (for example, if the budget line needs Three Quotations,
+          every purchase on it does, whatever the amount).
+          {indicated && ` The amount alone would indicate ${indicated}.`}
+        </div>
       </div>
+      {derogation && (
+        <div className="field">
+          <label>Derogation (Single Quotation instead of Three Quotations): reason (required)</label>
+          <input name="derogation_reason" required />
+          <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
+            CAR and RAC both sign the IR approval.
+          </div>
+        </div>
+      )}
 
       <label className="checkbox-row">
         <input
@@ -128,25 +166,31 @@ export default function NewRequestForm({
         <input type="checkbox" name="occasional_collaborator" /> Occasional collaborator
       </label>
 
-      {signers.length > 0 && (
+      {slots.length > 0 && (
         <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 500 }}>Approvers (required)</div>
           <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-            Choose who must sign: the request cannot be created without an approver for each role.
+            Every expense needs the administration (CAR or RAC); above a direct purchase the PM signs as well.
+            Choose who must sign: the request cannot be created without an approver for each signature.
             Each person you pick receives an email as soon as the request is created. Only registered
             users holding the role are listed.
           </div>
-          {signers.map((role) => {
-            const list = candidates[role] ?? [];
-            const value = chosen[role] ?? suggestion(role);
+          {creatorIsPm && proc && proc !== "DIR" && (
+            <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+              You are the PM: your signature is not requested (nobody signs their own request).
+            </div>
+          )}
+          {slots.map((slot) => {
+            const list = slotCandidates(slot.roles);
+            const value = chosen[slot.id] ?? suggestion(slot.roles);
             return (
-              <div className="field" key={role}>
-                <label>{ROLE_LABEL[role]}</label>
+              <div className="field" key={slot.id}>
+                <label>{slotLabel(slot)}</label>
                 <select
-                  name={`approver_${role}`}
+                  name={`approver_${slot.id}`}
                   required
                   value={value}
-                  onChange={(e) => setChosen((c) => ({ ...c, [role]: e.target.value }))}
+                  onChange={(e) => setChosen((c) => ({ ...c, [slot.id]: e.target.value }))}
                 >
                   <option value="">— choose the approver —</option>
                   {list.map((c) => (
@@ -160,23 +204,6 @@ export default function NewRequestForm({
           })}
         </div>
       )}
-
-      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-        <div className="field">
-          <label>PM — for information (optional, leave empty if the PM is the Budget Holder)</label>
-          <select name="pm_info" value={chosen.PM ?? assignedPm} onChange={(e) => setChosen((c) => ({ ...c, PM: e.target.value }))}>
-            <option value="">— nobody —</option>
-            {(candidates.PM ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.email})
-              </option>
-            ))}
-          </select>
-          <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
-            The PM is told the request has been created. No signature is required from the PM.
-          </div>
-        </div>
-      </div>
 
       <SubmitButton style={{ marginTop: 6, width: "fit-content" }}>Create request</SubmitButton>
     </form>

@@ -7,14 +7,21 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { sendEmail, escapeHtml } from "@/lib/notify";
 import {
-  effectiveProcCode,
+  isDerogation,
+  procedureAllowed,
+  type ProcCode,
   procConfigFor,
-  paymentSigners,
-  irSigners,
+  PROC_CONFIG,
+  paymentSlots,
+  irSlots,
+  pmSigns,
+  slotLabel,
+  slotSigned,
   buildRequestCode,
   documentsComplete,
   ROLE_LABEL,
   type Role,
+  type SignSlot,
 } from "@/lib/domain/procedures";
 
 // redirect() throws internally — used here to bring a readable error message
@@ -31,7 +38,7 @@ export async function createRequest(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const estimatedPrice = parseFloat(String(formData.get("estimated_price") || ""));
   const currency = String(formData.get("currency") || "EUR").trim() || "EUR";
-  const derogation = formData.get("derogation") === "on";
+  const chosenProc = String(formData.get("proc_code") || "").trim() as ProcCode;
   const derogationReason = String(formData.get("derogation_reason") || "").trim();
   const coordinationCost = formData.get("coordination_cost") === "on";
   const cupCode = String(formData.get("cup_code") || "").trim();
@@ -48,11 +55,21 @@ export async function createRequest(formData: FormData) {
   ) {
     fail("/requests/new", "Fill in all required fields with a valid amount.");
   }
-  if (derogation && !derogationReason) {
-    fail("/requests/new", "Derogation requires a reason.");
+  if (!PROC_CONFIG.some((c) => c.code === chosenProc)) {
+    fail("/requests/new", "Choose the procedure.");
   }
-
-  const procCode = effectiveProcCode(estimatedPrice, derogation);
+  if (!procedureAllowed(chosenProc, estimatedPrice)) {
+    fail(
+      "/requests/new",
+      "The procedure is lower than the one required by the amount. Only Single Quotation instead of Three Quotations is allowed, as a derogation."
+    );
+  }
+  const procCode = chosenProc;
+  // amount in the 3Q range but run as SQ: derogation, with the reason and the RAC authorization
+  const derogation = isDerogation(procCode, estimatedPrice);
+  if (derogation && !derogationReason) {
+    fail("/requests/new", "Single Quotation instead of Three Quotations is a derogation: it requires a reason.");
+  }
   const supabase = await createClient();
 
   const {
@@ -68,30 +85,39 @@ export async function createRequest(formData: FormData) {
     fail("/requests/new", "Only someone with the Budget Holder role can create a request.");
   }
 
-  // Every signer required by the procedure must be designated before the request is created
-  // (checked before the IR number is drawn, so a refused request does not burn a number).
-  const required = irSigners({ procCode, coordinationCost, derogation });
-  const picked = required.map((role) => ({
-    role,
-    userId: String(formData.get(`approver_${role}`) || "").trim(),
+  // Every signature required (PM + administration CAR/RAC, see irSlots) must be designated before the
+  // request is created (checked before the IR number is drawn, so a refused request does not burn a number).
+  const pmRequired = pmSigns(procCode, coordinationCost, (myRoles ?? []).some((r) => r.role === "PM"));
+  const required = irSlots({ procCode, coordinationCost, derogation, pmRequired });
+  const pickedIds = required.map((slot) => ({
+    slot,
+    userId: String(formData.get(`approver_${slot.id}`) || "").trim(),
   }));
-  const missing = picked.filter((p) => !p.userId).map((p) => ROLE_LABEL[p.role]);
+  const missing = pickedIds.filter((p) => !p.userId).map((p) => slotLabel(p.slot));
   if (missing.length > 0) {
     fail("/requests/new", `Choose the approver for: ${missing.join(", ")}. The request cannot be created without them.`);
   }
-  const selfPicked = picked.filter((p) => p.userId === user.id).map((p) => ROLE_LABEL[p.role]);
+  const selfPicked = pickedIds.filter((p) => p.userId === user.id).map((p) => slotLabel(p.slot));
   if (selfPicked.length > 0) {
     fail("/requests/new", `You cannot be your own approver (${selfPicked.join(", ")}): pick another person.`);
   }
   const { data: holders } = await supabase
     .from("user_roles")
     .select("user_id, role")
-    .in("user_id", picked.map((p) => p.userId));
-  const notHolding = picked
-    .filter((p) => !(holders ?? []).some((h) => h.user_id === p.userId && h.role === p.role))
-    .map((p) => ROLE_LABEL[p.role]);
+    .in("user_id", pickedIds.map((p) => p.userId));
+  // the role under which each person is designated: the first role of the slot they really hold
+  const picked = pickedIds.map((p) => ({
+    ...p,
+    role: p.slot.roles.find((r) => (holders ?? []).some((h) => h.user_id === p.userId && h.role === r)),
+  }));
+  const notHolding = picked.filter((p) => !p.role).map((p) => slotLabel(p.slot));
   if (notHolding.length > 0) {
     fail("/requests/new", `The person chosen does not hold the required role: ${notHolding.join(", ")}.`);
+  }
+  const designated = picked.map((p) => ({ role: p.role as Role, userId: p.userId }));
+  // dual authorization: the same person cannot fill two slots
+  if (new Set(designated.map((d) => d.userId)).size !== designated.length) {
+    fail("/requests/new", "Each signature must be given by a different person: pick different approvers.");
   }
 
   // IR number of the office ("12/IT"): continuous per office, never collides with the historic
@@ -143,8 +169,9 @@ export async function createRequest(formData: FormData) {
       institutional_activity: institutionalActivity,
       occasional_collaborator: occasionalCollaborator,
       initiated_by: user.id,
-      // DIR needs no approval: the request goes straight to the documents stage.
-      stage: required.length === 0 ? "documents" : "ir_auth",
+      pm_required: pmRequired,
+      // every request, direct purchases included, starts with the IR approval
+      stage: "ir_auth",
     })
     .select("id")
     .single();
@@ -165,23 +192,8 @@ export async function createRequest(formData: FormData) {
   await designateAndNotifyApprovers({
     supabase,
     requestId: inserted.id,
-    creatorId: user.id,
     requester,
-    signers: required,
-    formData,
-    code,
-    description,
-    estimatedPrice,
-    currency,
-  });
-
-  await informPm({
-    supabase,
-    requestId: inserted.id,
-    creatorId: user.id,
-    requester,
-    pmId: String(formData.get("pm_info") || "").trim(),
-    signerIds: picked.map((p) => p.userId),
+    picks: designated,
     code,
     description,
     estimatedPrice,
@@ -193,110 +205,30 @@ export async function createRequest(formData: FormData) {
 }
 
 /**
- * The PM picked "for information" is recorded on the request and told it has been created.
- * Not a signer: no signature is requested. Best effort — never blocks request creation.
- */
-async function informPm(params: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  requestId: string;
-  creatorId: string;
-  requester: string;
-  pmId: string;
-  signerIds: string[];
-  code: string;
-  description: string;
-  estimatedPrice: number;
-  currency: string;
-}) {
-  const { supabase, requestId, creatorId, pmId, signerIds } = params;
-  if (!pmId || pmId === creatorId || signerIds.includes(pmId)) return;
-  try {
-    const { data: holds } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("user_id", pmId)
-      .eq("role", "PM")
-      .maybeSingle();
-    if (!holds) return;
-
-    const { error } = await supabase
-      .from("request_approvers")
-      .insert({ request_id: requestId, signer_role: "PM", user_id: pmId });
-    if (error) return;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email")
-      .eq("id", pmId)
-      .maybeSingle();
-    if (!profile?.email) return;
-
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
-
-    const result = await sendEmail({
-      to: profile.email,
-      subject: `IR ${params.code}: new request by ${params.requester.split(" (")[0]} (for your information)`,
-      html: `<p>Hello ${escapeHtml(profile.full_name)},</p>
-<p><b>${escapeHtml(params.requester)}</b> has created a new internal request, for your information. No action is required from you:</p>
-<p><b>${escapeHtml(params.code)}</b><br>${escapeHtml(params.description)}<br>${params.estimatedPrice} ${escapeHtml(params.currency)}</p>
-${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
-    });
-    if (result.ok) {
-      await supabase
-        .from("request_approvers")
-        .update({ notified_at: new Date().toISOString() })
-        .eq("request_id", requestId)
-        .eq("user_id", pmId);
-    }
-  } catch {
-    // notification is best effort
-  }
-}
-
-/**
- * Approvers picked on the form (fields "approver_<ROLE>", required and validated in
- * createRequest): stored on the request and emailed a link. Never blocks request creation — email problems are
+ * Approvers picked on the form (fields "approver_<slot>", required and validated in createRequest):
+ * stored on the request and emailed a link. Never blocks request creation — email problems are
  * swallowed (the request page shows who was designated and whether they were notified).
  */
 async function designateAndNotifyApprovers(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
-  creatorId: string;
   requester: string;
-  signers: Role[];
-  formData: FormData;
+  picks: { role: Role; userId: string }[];
   code: string;
   description: string;
   estimatedPrice: number;
   currency: string;
 }) {
-  const { supabase, requestId, creatorId, signers, formData } = params;
-
-  const picks: { role: Role; userId: string }[] = [];
-  for (const role of signers) {
-    const userId = String(formData.get(`approver_${role}`) || "").trim();
-    if (userId && userId !== creatorId) picks.push({ role, userId });
-  }
+  const { supabase, requestId, picks } = params;
   if (picks.length === 0) return;
 
-  const ids = Array.from(new Set(picks.map((p) => p.userId)));
-  const [{ data: holders }, { data: profiles }] = await Promise.all([
-    supabase.from("user_roles").select("user_id, role").in("user_id", ids),
-    supabase.from("profiles").select("id, full_name, email").in("id", ids),
-  ]);
-  // Only people who really hold the role can be designated for it.
-  const valid = picks.filter((p) =>
-    (holders ?? []).some((h) => h.user_id === p.userId && h.role === p.role)
-  );
-  if (valid.length === 0) return;
-
   const { error } = await supabase.from("request_approvers").insert(
-    valid.map((p) => ({ request_id: requestId, signer_role: p.role, user_id: p.userId }))
+    picks.map((p) => ({ request_id: requestId, signer_role: p.role, user_id: p.userId }))
   );
   if (error) return;
+
+  const ids = Array.from(new Set(picks.map((p) => p.userId)));
+  const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
@@ -306,7 +238,7 @@ async function designateAndNotifyApprovers(params: {
   for (const userId of ids) {
     const profile = (profiles ?? []).find((p) => p.id === userId);
     if (!profile?.email) continue;
-    const roles = valid.filter((v) => v.userId === userId).map((v) => ROLE_LABEL[v.role]);
+    const roles = picks.filter((v) => v.userId === userId).map((v) => ROLE_LABEL[v.role]);
     const result = await sendEmail({
       to: profile.email,
       subject: `IR ${params.code}: approval requested by ${params.requester.split(" (")[0]}`,
@@ -337,7 +269,7 @@ async function notifyInitiatorOfSignature(params: {
   role: Role;
   phase: "ir_auth" | "payment";
   authorized: boolean;
-  pending: Role[];
+  pending: string[];
   req: {
     initiated_by: string | null;
     code: string;
@@ -366,7 +298,7 @@ async function notifyInitiatorOfSignature(params: {
       ? isPayment
         ? "<p>All required signatures are in: the <b>payment is authorized</b> and the request is closed.</p>"
         : "<p>All required signatures are in: the request is <b>authorized</b> and you can proceed with entering the data.</p>"
-      : `<p>Still waiting for: <b>${escapeHtml(pending.map((r) => ROLE_LABEL[r]).join(", "))}</b>.</p>`;
+      : `<p>Still waiting for: <b>${escapeHtml(pending.join(", "))}</b>.</p>`;
     const subject = isPayment
       ? authorized
         ? `IR ${req.code}: payment authorized`
@@ -391,7 +323,7 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
 
 /**
  * Tells everyone who manages Contracts (role CONTRACTS) that a request is ready to be paid:
- * its payment is fully authorized, or it is a direct purchase closed without authorization.
+ * its payment is fully authorized (direct purchases included).
  * Best effort — an email problem never blocks the workflow.
  */
 async function notifyContractsOfPayment(params: {
@@ -440,10 +372,42 @@ export async function signIrAuth(requestId: string, role: Role) {
   } = await supabase.auth.getUser();
   if (!user) return;
 
+  const { data: req0 } = await supabase
+    .from("requests")
+    .select("proc_code, stage, derogation, coordination_cost, pm_required")
+    .eq("id", requestId)
+    .single();
+  if (!req0 || req0.stage !== "ir_auth") {
+    revalidatePath(`/requests/${requestId}`);
+    return;
+  }
+  const slots = irSlots({
+    procCode: req0.proc_code,
+    coordinationCost: req0.coordination_cost,
+    derogation: req0.derogation,
+    pmRequired: req0.pm_required,
+  });
+  const { data: before } = await supabase
+    .from("signatures")
+    .select("signer_role, signed_by")
+    .eq("request_id", requestId)
+    .eq("phase", "ir_auth");
+  const slot = slots.find((sl) => sl.roles.includes(role));
+  // the role must be required, its slot still open, and the signer must not have signed another slot
+  // (dual authorization needs two different people)
+  if (
+    !slot ||
+    slotSigned(slot, (before ?? []).map((x) => x.signer_role)) ||
+    (before ?? []).some((x) => x.signed_by === user.id)
+  ) {
+    revalidatePath(`/requests/${requestId}`);
+    return;
+  }
+
   // "role holder signs" (RLS) rejects the insert if the user doesn't have `role`; the
   // enforce_segregation_of_duties trigger rejects it if they created the request
-  // themselves. In both cases the error is ignored here: the UI only shows the "Sign"
-  // button when neither case applies, so this shouldn't happen in normal use.
+  // themselves or already signed it. In these cases the error is ignored here: the UI only shows the
+  // "Sign" button when none applies, so this shouldn't happen in normal use.
   const { error } = await supabase.from("signatures").insert({
     request_id: requestId,
     phase: "ir_auth",
@@ -465,24 +429,14 @@ export async function signIrAuth(requestId: string, role: Role) {
 
   const { data: req } = await supabase
     .from("requests")
-    .select("proc_code, stage, derogation, coordination_cost, code, description, estimated_price, currency, initiated_by")
+    .select("proc_code, stage, code, description, estimated_price, currency, initiated_by")
     .eq("id", requestId)
     .single();
 
   if (req && req.stage === "ir_auth") {
-    const { data: sigs } = await supabase
-      .from("signatures")
-      .select("signer_role")
-      .eq("request_id", requestId)
-      .eq("phase", "ir_auth");
-
-    const required = irSigners({
-      procCode: req.proc_code,
-      coordinationCost: req.coordination_cost,
-      derogation: req.derogation,
-    });
-    const signedRoles = new Set((sigs ?? []).map((s) => s.signer_role));
-    const allSigned = required.every((r) => signedRoles.has(r));
+    const signedRoles = [...(before ?? []).map((x) => x.signer_role), role];
+    const open = slots.filter((sl) => !slotSigned(sl, signedRoles));
+    const allSigned = open.length === 0;
 
     if (allSigned) {
       const nextStage = procConfigFor(req.proc_code).minOffers === 0 ? "documents" : "offers";
@@ -496,7 +450,7 @@ export async function signIrAuth(requestId: string, role: Role) {
       role,
       phase: "ir_auth",
       authorized: allSigned,
-      pending: required.filter((r) => !signedRoles.has(r)),
+      pending: open.map(slotLabel),
       req,
     });
   }
@@ -599,8 +553,7 @@ export async function advanceToPayment(requestId: string) {
     fail(`/requests/${requestId}`, "Required documents are missing.");
   }
 
-  // DIR too goes through the payment stage: the Budget Holder fills in the payment data (PA),
-  // which needs no approval and closes the request.
+  // every procedure, DIR included, goes through the payment stage: payment authorization (PA) with dual approval.
   await supabase.from("requests").update({ stage: "payment" }).eq("id", requestId);
 
   revalidatePath(`/requests/${requestId}`);
@@ -622,15 +575,14 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
 
   const { data: req } = await supabase
     .from("requests")
-    .select("id, code, description, proc_code, coordination_cost, stage, initiated_by, currency")
+    .select("id, code, description, proc_code, coordination_cost, pm_required, stage, initiated_by, currency")
     .eq("id", requestId)
     .single();
   if (!req || req.stage !== "payment") fail(path, "The request is not in the payment stage.");
 
-  const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-  const isPm = (myRoles ?? []).some((r) => r.role === "PM");
-  if (req.initiated_by !== user.id && !isPm) {
-    fail(path, "Only the person who compiled the request (Budget Holder) or the PM can prepare a payment authorization.");
+  // the PM now signs the payment, so only the person who compiled the request prepares it
+  if (req.initiated_by !== user.id) {
+    fail(path, "Only the person who compiled the request (Budget Holder) can prepare a payment authorization.");
   }
 
   const text = (k: string) => String(formData.get(k) || "").trim();
@@ -691,44 +643,26 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     action: "payment_authorization_prepared",
   });
 
-  if (req.proc_code === "DIR") {
-    // direct purchase: no approval; the data is recorded, the request closes and Contracts can pay
-    const { error: recordError } = await supabase.rpc("record_direct_payment", { pa_id: created.id });
-    if (recordError) fail(path, recordError.message);
-    await notifyContractsOfPayment({
-      supabase,
-      requestId,
-      excludeUserId: user.id,
-      directPurchase: true,
-      req: {
-        code: req.code,
-        description: `${req.description} — payment of ${amount} ${currency} to ${beneficiary}`,
-        estimated_price: amount,
-        currency,
-      },
-    });
-  } else {
-    await notifyPaymentAuthorizers({
-      supabase,
-      requestId,
-      preparerId: user.id,
-      req,
-      amount,
-      currency,
-      beneficiary,
-    });
-  }
+  await notifyPaymentAuthorizers({
+    supabase,
+    requestId,
+    preparerId: user.id,
+    req,
+    amount,
+    currency,
+    beneficiary,
+  });
 
   revalidatePath(path);
   redirect(path);
 }
 
-/** Emails CAR / RAC (the designated approver for the role, else every holder) that a PA is waiting. */
+/** Emails the PM and CAR / RAC who must sign (the designated approver for the role, else every holder) that a PA is waiting. */
 async function notifyPaymentAuthorizers(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   requestId: string;
   preparerId: string;
-  req: { code: string; description: string; proc_code: ReturnType<typeof effectiveProcCode>; coordination_cost: boolean; initiated_by: string | null };
+  req: { code: string; description: string; proc_code: ProcCode; coordination_cost: boolean; pm_required: boolean; initiated_by: string | null };
   amount: number;
   currency: string;
   beneficiary: string;
@@ -737,23 +671,35 @@ async function notifyPaymentAuthorizers(params: {
   try {
     const { data: prep } = await supabase.from("profiles").select("full_name, email").eq("id", preparerId).maybeSingle();
     const preparedBy = prep ? `${prep.full_name}${prep.email ? ` (${prep.email})` : ""}` : "The Budget Holder";
-    const roles = paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost });
+    const roles = paymentSlots({
+      procCode: req.proc_code,
+      coordinationCost: req.coordination_cost,
+      pmRequired: req.pm_required,
+    }).flatMap((sl) => sl.roles);
     if (roles.length === 0) return;
 
     const { data: designated } = await supabase
       .from("request_approvers")
-      .select("user_id")
+      .select("user_id, signer_role")
       .eq("request_id", requestId)
       .in("signer_role", roles);
-    let ids = (designated ?? []).map((d) => d.user_id);
-    if (ids.length === 0) {
-      const { data: holders } = await supabase.from("user_roles").select("user_id").in("role", roles);
-      ids = (holders ?? []).map((h) => h.user_id);
+    // one designated person per slot; a slot nobody was designated for falls back to every holder of its roles
+    const designatedRows = designated ?? [];
+    const ids = designatedRows.map((d) => d.user_id);
+    const { data: holders } = await supabase.from("user_roles").select("user_id, role").in("role", roles);
+    for (const sl of paymentSlots({
+      procCode: req.proc_code,
+      coordinationCost: req.coordination_cost,
+      pmRequired: req.pm_required,
+    })) {
+      if (!designatedRows.some((d) => sl.roles.includes(d.signer_role as Role))) {
+        ids.push(...(holders ?? []).filter((h) => sl.roles.includes(h.role as Role)).map((h) => h.user_id));
+      }
     }
-    ids = Array.from(new Set(ids)).filter((id) => id !== preparerId && id !== req.initiated_by);
-    if (ids.length === 0) return;
+    const targets = Array.from(new Set(ids)).filter((id) => id !== preparerId && id !== req.initiated_by);
+    if (targets.length === 0) return;
 
-    const { data: profiles } = await supabase.from("profiles").select("full_name, email").in("id", ids);
+    const { data: profiles } = await supabase.from("profiles").select("full_name, email").in("id", targets);
 
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
@@ -776,7 +722,11 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   }
 }
 
-/** CAR / RAC approve a payment authorization; the database closes the request when the winning offer is fully paid. */
+/**
+ * PM and CAR / RAC approve a payment authorization (dual authorization). Each call gives one signature;
+ * the database authorizes the PA, and closes the request when the winning offer is fully paid, once all
+ * the required signatures are in.
+ */
 export async function authorizePaymentAuth(paId: string, requestId: string, role: Role) {
   const path = `/requests/${requestId}`;
   const supabase = await createClient();
@@ -787,19 +737,23 @@ export async function authorizePaymentAuth(paId: string, requestId: string, role
 
   const { data: req } = await supabase
     .from("requests")
-    .select("code, description, estimated_price, currency, proc_code, coordination_cost")
+    .select("code, description, estimated_price, currency, proc_code, coordination_cost, pm_required, initiated_by")
     .eq("id", requestId)
     .single();
   if (!req) fail(path, "Request not found.");
 
-  const allowed = paymentSigners({ procCode: req.proc_code, coordinationCost: req.coordination_cost });
-  if (!allowed.includes(role)) {
-    fail(path, `This payment must be authorized by: ${allowed.map((r) => ROLE_LABEL[r]).join(", ") || "nobody"}.`);
+  const slots = paymentSlots({
+    procCode: req.proc_code,
+    coordinationCost: req.coordination_cost,
+    pmRequired: req.pm_required,
+  });
+  if (!slots.some((sl) => sl.roles.includes(role))) {
+    fail(path, `This payment must be authorized by: ${slots.map(slotLabel).join(" + ")}.`);
   }
-  if (role !== "CAR" && role !== "RAC") fail(path, "Only CAR or RAC can authorize a payment.");
 
-  const { error } = await supabase.rpc("authorize_payment", { pa_id: paId, as_role: role });
+  const { data: result, error } = await supabase.rpc("authorize_payment", { pa_id: paId, as_role: role });
   if (error) fail(path, error.message);
+  const outcome = (result ?? {}) as { authorized?: boolean; pending?: string[][] };
 
   const { data: pa } = await supabase
     .from("payment_authorizations")
@@ -807,7 +761,27 @@ export async function authorizePaymentAuth(paId: string, requestId: string, role
     .eq("id", paId)
     .maybeSingle();
 
-  if (pa) {
+  if (pa && !outcome.authorized) {
+    // one signature is in, others are still missing: the preparer is told who is still to sign
+    await notifyInitiatorOfSignature({
+      supabase,
+      requestId,
+      signerId: user.id,
+      role,
+      phase: "payment",
+      authorized: false,
+      pending: (outcome.pending ?? []).map((roles) => roles.join(" or ")),
+      req: {
+        initiated_by: pa.prepared_by,
+        code: req.code,
+        description: req.description,
+        estimated_price: pa.amount,
+        currency: pa.currency,
+      },
+    });
+  }
+
+  if (pa && outcome.authorized) {
     // the preparer learns the payment is authorized...
     try {
       const { data: prep } = pa.prepared_by

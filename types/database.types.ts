@@ -453,6 +453,27 @@ export type Database = {
         Update: Partial<ContractApproval>
         Relationships: []
       }
+      payment_authorization_signatures: {
+        Row: {
+          payment_authorization_id: string
+          signed_at: string
+          signed_by: string
+          signer_role: Database["pas"]["Enums"]["app_role"]
+        }
+        Insert: {
+          payment_authorization_id: string
+          signed_at?: string
+          signed_by: string
+          signer_role: Database["pas"]["Enums"]["app_role"]
+        }
+        Update: {
+          payment_authorization_id?: string
+          signed_at?: string
+          signed_by?: string
+          signer_role?: Database["pas"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       payment_authorizations: {
         Row: {
           amount: number
@@ -666,6 +687,7 @@ export type Database = {
           legacy_note: string | null
           institutional_activity: boolean
           occasional_collaborator: boolean
+          pm_required: boolean
           proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
           stage: Database["pas"]["Enums"]["request_stage"]
@@ -696,6 +718,7 @@ export type Database = {
           legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
+          pm_required?: boolean
           proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
           stage?: Database["pas"]["Enums"]["request_stage"]
@@ -726,6 +749,7 @@ export type Database = {
           legacy_note?: string | null
           institutional_activity?: boolean
           occasional_collaborator?: boolean
+          pm_required?: boolean
           proc_code?: Database["pas"]["Enums"]["proc_code"]
           project_code?: string
           stage?: Database["pas"]["Enums"]["request_stage"]
@@ -839,7 +863,6 @@ export type Database = {
       is_rac_or_car: { Args: { uid: string }; Returns: boolean }
       next_hq_number: { Args: never; Returns: number }
       next_ir_number: { Args: { office: string }; Returns: string }
-      record_direct_payment: { Args: { pa_id: string }; Returns: undefined }
       remove_person: { Args: { target: string }; Returns: undefined }
     }
     Enums: {
