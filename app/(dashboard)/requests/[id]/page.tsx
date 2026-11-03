@@ -26,10 +26,10 @@ import {
   toggleDoc,
   advanceToPayment,
   authorizePaymentAuth,
-  addIncrement,
 } from "@/lib/domain/workflow";
 import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
+import IncrementForm from "@/components/requests/IncrementForm";
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
 
@@ -244,7 +244,7 @@ export default async function RequestDetailPage({
             marginBottom: 16,
           }}
         >
-          {decodeURIComponent(error)}
+          {error}
         </div>
       )}
 
@@ -756,20 +756,7 @@ export default async function RequestDetailPage({
             <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
               + Additional service (up to {money(incrementLeft)} {request.currency} more, 50% of the initial value)
             </summary>
-            <form action={addIncrement.bind(null, request.id)} style={{ marginTop: 10 }}>
-              <div className="field">
-                <label>Additional amount ({request.currency})</label>
-                <MoneyInput name="amount" required />
-              </div>
-              <div className="field">
-                <label>Reason for the additional service</label>
-                <textarea name="reason" required rows={2} />
-              </div>
-              <SubmitButton pendingLabel="Saving…">Add additional service</SubmitButton>
-              <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}>
-                The request goes back to the payment stage; the extra payment is authorized as usual.
-              </p>
-            </form>
+            <IncrementForm requestId={request.id} currency={request.currency} left={incrementLeft} />
           </details>
           </div>
         )}

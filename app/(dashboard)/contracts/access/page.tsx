@@ -42,7 +42,7 @@ export default async function ContractsAccessPage({
         else in PAS, including other roles like RAC/CAR, has no access to it.
       </p>
 
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
 
       {!iHaveAccess && (
         <div className="banner">

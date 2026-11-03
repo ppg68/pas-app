@@ -22,7 +22,7 @@ export default async function EditContractRequestPage({
   return (
     <div style={{ maxWidth: 760 }}>
       <h1 style={{ marginBottom: 16 }}>Edit {r.number}</h1>
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
       <SchedaForm
         kind={r.kind}
         action={updateContractRequest.bind(null, id)}

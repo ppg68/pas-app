@@ -171,7 +171,7 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
 
       {/* Overall situation */}
       <div className="card">

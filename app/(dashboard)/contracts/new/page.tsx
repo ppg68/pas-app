@@ -15,7 +15,7 @@ export default async function NewContractPage({
     <div style={{ maxWidth: 620 }}>
       <h1 style={{ marginBottom: 16 }}>New contract</h1>
 
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
 
       <form action={createContract} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div className="field">

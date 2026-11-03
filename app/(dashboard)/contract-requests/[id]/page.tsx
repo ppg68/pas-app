@@ -90,7 +90,7 @@ export default async function ContractRequestDetail({
         </div>
       </div>
 
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
       {saved && <div className="banner">Contract text saved.</div>}
 
       <div className="card" style={{ marginBottom: 14 }}>

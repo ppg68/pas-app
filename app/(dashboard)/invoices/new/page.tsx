@@ -76,7 +76,7 @@ export default async function NewInvoicePage({
         ← Back to Invoices
       </Link>
       <h1 style={{ margin: "10px 0 16px" }}>New invoice</h1>
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
       <NewInvoiceForm contracts={formContracts} projectCups={projectCups} irRefs={irRefs} awaiting={awaiting} />
     </div>
   );

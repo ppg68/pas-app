@@ -830,6 +830,25 @@ export async function addIncrement(requestId: string, formData: FormData) {
   if (!Number.isFinite(amount) || amount <= 0) fail(path, "Enter a valid additional amount.");
   if (!reason) fail(path, "The reason for the additional service is required.");
 
+  const { data: r0 } = await supabase
+    .from("requests")
+    .select("estimated_price, increment_amount, winner_offer_id, currency")
+    .eq("id", requestId)
+    .single();
+  if (r0) {
+    const { data: offer } = r0.winner_offer_id
+      ? await supabase.from("offers").select("price").eq("id", r0.winner_offer_id).maybeSingle()
+      : { data: null };
+    const cap = Math.round((offer?.price ?? r0.estimated_price) * 0.5 * 100) / 100;
+    const left = Math.max(cap - Number(r0.increment_amount ?? 0), 0);
+    if (amount > left + 0.005) {
+      fail(
+        path,
+        `The additional service cannot exceed 50 percent of the initial value: you can add at most ${left.toFixed(2)} ${r0.currency}.`
+      );
+    }
+  }
+
   const { error } = await supabase.rpc("add_increment", { req_id: requestId, amount, reason });
   if (error) fail(path, error.message);
 

@@ -44,7 +44,7 @@ export default async function NewContractRequestPage({
   return (
     <div style={{ maxWidth: 760 }}>
       <h1 style={{ marginBottom: 16 }}>New contract request — {kind === "company" ? "company" : "individual"}</h1>
-      {error && <div className="banner error">{decodeURIComponent(error)}</div>}
+      {error && <div className="banner error">{error}</div>}
       <SchedaForm
         kind={kind}
         action={createContractRequest.bind(null, kind)}
