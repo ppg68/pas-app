@@ -231,6 +231,11 @@ export default async function RequestDetailPage({
         >
           {STAGE_TITLES[request.stage]}
         </div>
+        <div style={{ marginTop: 10 }}>
+          <a href={`/requests/${request.id}/pdf`} download style={{ fontSize: 13 }}>
+            Download PDF (whole procedure)
+          </a>
+        </div>
       </div>
 
       {error && (
