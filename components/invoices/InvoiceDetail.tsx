@@ -244,11 +244,11 @@ export default function InvoiceDetail({
         {textField("Budget line", "budget_line", { minWidth: 130 })}
         {projectCup ? (
           <div className="field" style={{ flex: 2, minWidth: 220 }}>
-            <label>CUP / AID (from Approved projects)</label>
+            <label>CUP\AID (from Approved projects)</label>
             <input value={projectCup} readOnly title="Read from the project in Approved projects" />
           </div>
         ) : (
-          textField("CUP / AID", "cup", { flex: 2, minWidth: 220 })
+          textField("CUP\\AID", "cup", { flex: 2, minWidth: 220 })
         )}
       </div>
 

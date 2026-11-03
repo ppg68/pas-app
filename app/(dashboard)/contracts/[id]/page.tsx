@@ -225,7 +225,7 @@ export default async function ContractDetailPage({
           </div>
           <div>
             Project{contract.project_code ? ` ${contract.project_code}` : ""}
-            {projectCup ? ` · CUP ${projectCup}` : ""}:{" "}
+            {projectCup ? ` · CUP\\AID ${projectCup}` : ""}:{" "}
             {projectEnd ? `ends ${formatDateIT(projectEnd)}` : "no deadline found in Approved projects"}
             {contract.end_date ? ` · contract ends ${formatDateIT(contract.end_date)}` : ""}
           </div>

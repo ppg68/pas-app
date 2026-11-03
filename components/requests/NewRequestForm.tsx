@@ -114,7 +114,7 @@ export default function NewRequestForm({
         </div>
       </div>
       <div className="field">
-        <label>CUP{projectCup ? " (from Approved projects)" : " (optional)"}</label>
+        <label>CUP\AID{projectCup ? " (from Approved projects)" : ""}</label>
         {projectCup ? (
           <input name="cup_code" value={projectCup} readOnly title="Read from the project in Approved projects" />
         ) : (

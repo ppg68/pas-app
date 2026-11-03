@@ -79,7 +79,7 @@ const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: "amount", label: "Amount", align: "right" },
   { key: "stage", label: "Stage" },
   { key: "initiator", label: "Initiated by" },
-  { key: null, label: "CUP / AID" },
+  { key: null, label: "CUP\\AID" },
   { key: null, label: "Derog." },
 ];
 
@@ -169,7 +169,7 @@ This permanently removes the request together with its offers, signatures, docum
           Project: r.project_code,
           "Budget line": r.budget_line,
           Description: r.description,
-          "CUP/AID code": r.cup_code || "",
+          "CUP\\AID": r.cup_code || "",
           "Estimated amount": r.estimated_price,
           Currency: r.currency,
           Procedure: c.label,

@@ -51,7 +51,7 @@ const COLUMNS: Col[] = [
   { key: "pa_signed", label: "PA signed", type: "checkbox" },
   { key: "project_code", label: "Project", type: "text", width: 90 },
   { key: "budget_line", label: "Budget line", type: "text", width: 120 },
-  { key: "cup", label: "CUP / AID", type: "text", width: 170 },
+  { key: "cup", label: "CUP\\AID", type: "text", width: 170 },
   { key: "contract_value", label: "Contract value", align: "right", type: "number" },
   { key: "balance_due", label: "Balance due", align: "right", type: "number" },
   { key: "notes", label: "Notes", type: "text", width: 200 },
@@ -216,7 +216,7 @@ This cannot be undone.`)) return;
         "PA signed": r.pa_signed ? "OK" : "",
         Project: r.project_code || "",
         "Budget line": r.budget_line || "",
-        "CUP / AID": projectCupOf(r) ?? r.cup ?? "",
+        "CUP\\AID": projectCupOf(r) ?? r.cup ?? "",
         "Contract value": contractFigures(r)?.value ?? "",
         "Balance due": contractFigures(r)?.balance ?? "",
         Notes: r.notes || "",
@@ -366,7 +366,7 @@ This cannot be undone.`)) return;
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <input
           type="text"
-          placeholder="Search by supplier, IR, protocol, contract, project, CUP…"
+          placeholder="Search by supplier, IR, protocol, contract, project, CUP\AID…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ maxWidth: 420 }}

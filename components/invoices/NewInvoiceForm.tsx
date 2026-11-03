@@ -269,7 +269,7 @@ export default function NewInvoiceForm({
           <input name="budget_line" value={budget} onChange={(e) => setBudget(e.target.value)} />
         </div>
         <div className="field" style={{ flex: 2, minWidth: 220 }}>
-          <label>CUP / AID{projectCup ? " (from Approved projects)" : ""}</label>
+          <label>CUP\AID{projectCup ? " (from Approved projects)" : ""}</label>
           {projectCup ? (
             <input name="cup" value={projectCup} readOnly title="Read from the project in Approved projects" />
           ) : (

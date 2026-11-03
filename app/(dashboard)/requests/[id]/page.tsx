@@ -210,7 +210,7 @@ export default async function RequestDetailPage({
         <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{request.code}</h1>
         <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {request.description} · {config.label} · {request.estimated_price} {request.currency}
-          {effectiveCup ? ` · CUP ${effectiveCup}` : ""}
+          {effectiveCup ? ` · CUP\\AID ${effectiveCup}` : ""}
         </div>
         <div
           style={{
@@ -269,7 +269,7 @@ export default async function RequestDetailPage({
               ["Description", request.description],
               ["Estimated amount", `${money(request.estimated_price)} ${request.currency}`],
               ["Procedure", config.label],
-              ["CUP / AID", effectiveCup ?? "—"],
+              ["CUP\\AID", effectiveCup ?? "—"],
               [
                 "Derogation",
                 request.derogation ? `Yes — ${request.derogation_reason ?? "no reason given"}` : "No",

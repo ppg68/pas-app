@@ -112,7 +112,7 @@ export default function PaymentAuthorizationForm({
       </div>
 
       <div className="field">
-        <label>Description to be entered in the bank transfer (CUP / AID or project code)</label>
+        <label>Description to be entered in the bank transfer (CUP\AID or project code)</label>
         <input name="bank_description" defaultValue={defaultBankDescription} />
       </div>
 
