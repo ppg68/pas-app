@@ -41,6 +41,7 @@ export default function NewRequestForm({
   const [amount, setAmount] = useState("");
   const [procChoice, setProcChoice] = useState<ProcCode | "">("");
   const [coordination, setCoordination] = useState(false);
+  const [derogationFlag, setDerogationFlag] = useState(false);
   const [chosen, setChosen] = useState<Record<string, string>>({});
 
   const projectCup = cupForProject(projectCups, project);
@@ -49,7 +50,9 @@ export default function NewRequestForm({
   // the amount only suggests the procedure; whoever compiles the request decides (budget line of the project)
   const indicated = validPrice ? computeProcedure(price) : null;
   const proc: ProcCode | null = procChoice || indicated;
-  const derogation = !!proc && validPrice && isDerogation(proc, price);
+  // automatic when the amount is in the 3Q range but SQ is chosen; otherwise ticked by hand
+  const autoDerogation = !!proc && validPrice && isDerogation(proc, price);
+  const derogation = autoDerogation || derogationFlag;
   const slots = proc
     ? irSlots({
         procCode: proc,
@@ -140,9 +143,23 @@ export default function NewRequestForm({
           {indicated && ` The amount alone would indicate ${indicated}.`}
         </div>
       </div>
+      <div className="field">
+        <label>Donor Procedure Type (if applicable):</label>
+        <input name="donor_procedure" />
+      </div>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          name="derogation"
+          checked={derogation}
+          disabled={autoDerogation}
+          onChange={(e) => setDerogationFlag(e.target.checked)}
+        />{" "}
+        Derogation from the procedure
+      </label>
       {derogation && (
         <div className="field">
-          <label>Derogation (Single Quotation instead of Three Quotations): reason (required)</label>
+          <label>Reason supporting the derogation (required)</label>
           <input name="derogation_reason" required />
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
             CAR and RAC both sign the IR approval.

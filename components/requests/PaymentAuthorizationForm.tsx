@@ -139,7 +139,7 @@ export default function PaymentAuthorizationForm({
       </div>
 
       <div className="field">
-        <label>Details for payment (bank account, etc.)</label>
+        <label>IBAN / details for payment (bank account, etc.)</label>
         <textarea name="payment_details" rows={2} />
       </div>
 

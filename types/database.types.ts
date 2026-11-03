@@ -674,6 +674,9 @@ export type Database = {
           currency: string
           derogation: boolean
           derogation_reason: string | null
+          donor_procedure: string | null
+          increment_amount: number
+          increment_reason: string | null
           description: string
           estimated_price: number
           folder_path: string | null
@@ -708,6 +711,9 @@ export type Database = {
           currency?: string
           derogation?: boolean
           derogation_reason?: string | null
+          donor_procedure?: string | null
+          increment_amount?: number
+          increment_reason?: string | null
           description: string
           estimated_price: number
           folder_path?: string | null
@@ -742,6 +748,9 @@ export type Database = {
           currency?: string
           derogation?: boolean
           derogation_reason?: string | null
+          donor_procedure?: string | null
+          increment_amount?: number
+          increment_reason?: string | null
           description?: string
           estimated_price?: number
           folder_path?: string | null
@@ -853,6 +862,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_increment: {
+        Args: { req_id: string; amount: number; reason: string }
+        Returns: Json
+      }
       authorize_payment: {
         Args: { pa_id: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json

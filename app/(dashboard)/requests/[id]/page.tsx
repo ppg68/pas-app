@@ -26,6 +26,7 @@ import {
   toggleDoc,
   advanceToPayment,
   authorizePaymentAuth,
+  addIncrement,
 } from "@/lib/domain/workflow";
 import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
@@ -156,6 +157,11 @@ export default async function RequestDetailPage({
             : 0),
       0
     );
+  // value of the supply the payments are measured against: winning offer + any approved increment
+  const incrementAmount = Number(request.increment_amount ?? 0);
+  const baseValue = winnerOffer ? winnerOffer.price : request.estimated_price;
+  const incrementCap = Math.round(baseValue * 0.5 * 100) / 100;
+  const incrementLeft = Math.max(incrementCap - incrementAmount, 0);
   const money = (n: number) =>
     n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -270,6 +276,7 @@ export default async function RequestDetailPage({
               ["Description", request.description],
               ["Estimated amount", `${money(request.estimated_price)} ${request.currency}`],
               ["Procedure", config.label],
+              ["Donor Procedure Type (if applicable)", request.donor_procedure || "—"],
               ["CUP\\AID", effectiveCup ?? "—"],
               [
                 "Derogation",
@@ -560,9 +567,15 @@ export default async function RequestDetailPage({
 
           {winnerOffer && (
             <p style={{ fontSize: 13, marginBottom: 10 }}>
-              Winning offer: <b>{money(winnerOffer.price)} {request.currency}</b> ({winnerOffer.supplier}) · authorized so
-              far: <b>{money(authorizedTotal)}</b> · remaining:{" "}
-              <b>{money(Math.max(winnerOffer.price - authorizedTotal, 0))}</b>
+              Winning offer: <b>{money(winnerOffer.price)} {request.currency}</b> ({winnerOffer.supplier})
+              {incrementAmount > 0 && (
+                <>
+                  {" "}
+                  + additional service <b>{money(incrementAmount)}</b>
+                </>
+              )}{" "}
+              · authorized so far: <b>{money(authorizedTotal)}</b> · remaining:{" "}
+              <b>{money(Math.max(winnerOffer.price + incrementAmount - authorizedTotal, 0))}</b>
               {request.stage === "payment" && (
                 <span style={{ color: "var(--ink-soft)" }}>
                   {" "}
@@ -600,51 +613,84 @@ export default async function RequestDetailPage({
                 key={a.id}
                 style={{ borderTop: "0.5px solid #EEF0F3", padding: "10px 0", fontSize: 13 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                  <div>
-                    <b>
-                      {money(a.amount)} {a.currency}
-                    </b>{" "}
-                    to {a.beneficiary}
-                    {inv?.protocol ? ` · invoice ${inv.protocol}` : ""}
-                    <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                      {a.description} · {a.payment_type === "bank_transfer" ? "bank transfer" : a.payment_type === "cash" ? "cash" : a.payment_type_other ?? "other"}
-                      {a.balance_after != null ? ` · balance still to pay ${money(a.balance_after)}` : ""}
-                      {a.euro_equivalent != null && a.currency !== "EUR" ? ` · EUR ${money(a.euro_equivalent)}` : ""}
-                    </div>
-                    <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                      Prepared by {paName(a.prepared_by)} on {fmtWhen(a.created_at)}
-                      {a.status === "authorized" && (
-                        <>
-                          {" "}
-                          · <b style={{ color: "var(--navy)" }}>authorized</b> on {fmtWhen(a.authorized_at)}
-                        </>
-                      )}
-                      {a.status === "recorded" && " · recorded (no approval required)"}
-                      {a.status === "pending" &&
-                        ` · waiting for: ${paySlotList.filter((sl) => !slotSigned(sl, signedRoles)).map(slotLabel).join(" + ")}`}
-                    </div>
-                    {sigs.length > 0 ? (
-                      sigs.map((x) => (
-                        <div key={x.signer_role} style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                          Approved by {paName(x.signed_by)} ({ROLE_LABEL[x.signer_role as Role]}) on {fmtWhen(x.signed_at)}
-                        </div>
-                      ))
-                    ) : a.status === "authorized" && a.authorized_by ? (
-                      <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                        Approved by {paName(a.authorized_by)} (
-                        {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
-                      </div>
-                    ) : null}
-                  </div>
-                  {canApprove && myRole && (
-                    <form action={authorizePaymentAuth.bind(null, a.id, request.id, myRole)}>
-                      <button type="submit" className="primary">
-                        Authorize payment ({myRole})
-                      </button>
-                    </form>
-                  )}
-                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <tbody>
+                    {(
+                      [
+                        ["Date", fmtWhen(a.created_at).slice(0, 10)],
+                        ["Description", a.description],
+                        ["Invoice", inv ? `${inv.supplier ?? "—"}${inv.protocol ? ` · ${inv.protocol}` : ""}` : "—"],
+                        ["Beneficiary", a.beneficiary],
+                        [
+                          "IBAN / payment details",
+                          a.payment_details ? (
+                            <span style={{ whiteSpace: "pre-wrap", fontFamily: "monospace" }}>{a.payment_details}</span>
+                          ) : (
+                            "—"
+                          ),
+                        ],
+                        [
+                          "Payment type",
+                          a.payment_type === "bank_transfer"
+                            ? "Bank transfer"
+                            : a.payment_type === "cash"
+                              ? "Cash"
+                              : (a.payment_type_other ?? "Other"),
+                        ],
+                        ["Bank transfer description", a.bank_description || "—"],
+                        [
+                          "Amount",
+                          <b key="amt">
+                            {money(a.amount)} {a.currency}
+                          </b>,
+                        ],
+                        ["Balance still to pay", a.balance_after != null ? `${money(a.balance_after)} ${a.currency}` : "—"],
+                        [
+                          "Euro equivalent",
+                          a.euro_equivalent != null && a.currency !== "EUR" ? `EUR ${money(a.euro_equivalent)}` : "—",
+                        ],
+                        ["Prepared by", `${paName(a.prepared_by)} on ${fmtWhen(a.created_at)}`],
+                      ] as [string, React.ReactNode][]
+                    ).map(([label, value]) => (
+                      <tr key={label} style={{ borderBottom: "0.5px solid #EEF0F3" }}>
+                        <td style={{ width: 190, padding: "5px 8px 5px 0", color: "var(--ink-soft)", verticalAlign: "top" }}>
+                          {label}
+                        </td>
+                        <td style={{ padding: "5px 0" }}>{value}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td style={{ padding: "5px 8px 5px 0", color: "var(--ink-soft)", verticalAlign: "top" }}>Approval</td>
+                      <td style={{ padding: "5px 0" }}>
+                        {a.status === "authorized" && (
+                          <b style={{ color: "var(--navy)" }}>Authorized on {fmtWhen(a.authorized_at)}</b>
+                        )}
+                        {a.status === "recorded" && "Recorded (no approval required)"}
+                        {a.status === "pending" &&
+                          `Waiting for: ${paySlotList.filter((sl) => !slotSigned(sl, signedRoles)).map(slotLabel).join(" + ")}`}
+                        {sigs.length > 0 ? (
+                          sigs.map((x) => (
+                            <div key={x.signer_role} style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                              Approved by {paName(x.signed_by)} ({ROLE_LABEL[x.signer_role as Role]}) on {fmtWhen(x.signed_at)}
+                            </div>
+                          ))
+                        ) : a.status === "authorized" && a.authorized_by ? (
+                          <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                            Approved by {paName(a.authorized_by)} (
+                            {a.authorized_role ? ROLE_LABEL[a.authorized_role as Role] : "—"}) on {fmtWhen(a.authorized_at)}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                {canApprove && myRole && (
+                  <form action={authorizePaymentAuth.bind(null, a.id, request.id, myRole)} style={{ marginTop: 10 }}>
+                    <button type="submit" className="primary">
+                      Authorize payment ({myRole})
+                    </button>
+                  </form>
+                )}
               </div>
             );
           })}
@@ -655,6 +701,35 @@ export default async function RequestDetailPage({
               {[...paySignedRoles.entries()]
                 .map(([r, sig]) => `${ROLE_LABEL[r]} — ${signerName(sig.signed_by)} (${fmtWhen(sig.signed_at)})`)
                 .join("; ")}
+            </p>
+          )}
+
+          {request.initiated_by === userId &&
+            (request.stage === "payment" || request.stage === "completed") &&
+            incrementLeft > 0 && (
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                  + Additional service (up to {money(incrementLeft)} {request.currency} more, 50% of the initial value)
+                </summary>
+                <form action={addIncrement.bind(null, request.id)} style={{ marginTop: 10 }}>
+                  <div className="field">
+                    <label>Additional amount ({request.currency})</label>
+                    <MoneyInput name="amount" required />
+                  </div>
+                  <div className="field">
+                    <label>Reason for the additional service</label>
+                    <textarea name="reason" required rows={2} />
+                  </div>
+                  <SubmitButton pendingLabel="Saving…">Add additional service</SubmitButton>
+                  <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}>
+                    The request goes back to the payment stage; the extra payment is authorized as usual.
+                  </p>
+                </form>
+              </details>
+            )}
+          {incrementAmount > 0 && request.increment_reason && (
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 10, whiteSpace: "pre-wrap" }}>
+              Additional service {money(incrementAmount)} {request.currency} — {request.increment_reason}
             </p>
           )}
 
@@ -679,7 +754,7 @@ export default async function RequestDetailPage({
                   currency: i.currency,
                 }))}
                 winnerSupplier={winnerOffer?.supplier ?? null}
-                offerValue={winnerOffer ? winnerOffer.price : null}
+                offerValue={winnerOffer ? winnerOffer.price + incrementAmount : null}
                 authorizedTotal={authorizedTotal}
                 currency={request.currency}
                 defaultBankDescription={effectiveCup ?? request.project_code}

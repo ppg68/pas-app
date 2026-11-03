@@ -40,6 +40,8 @@ export async function createRequest(formData: FormData) {
   const currency = String(formData.get("currency") || "EUR").trim() || "EUR";
   const chosenProc = String(formData.get("proc_code") || "").trim() as ProcCode;
   const derogationReason = String(formData.get("derogation_reason") || "").trim();
+  const derogationFlag = formData.get("derogation") === "on";
+  const donorProcedure = String(formData.get("donor_procedure") || "").trim();
   const coordinationCost = formData.get("coordination_cost") === "on";
   const cupCode = String(formData.get("cup_code") || "").trim();
   const institutionalActivity = formData.get("institutional_activity") === "on";
@@ -58,7 +60,7 @@ export async function createRequest(formData: FormData) {
   if (!PROC_CONFIG.some((c) => c.code === chosenProc)) {
     fail("/requests/new", "Choose the procedure.");
   }
-  if (!procedureAllowed(chosenProc, estimatedPrice)) {
+  if (!derogationFlag && !procedureAllowed(chosenProc, estimatedPrice)) {
     fail(
       "/requests/new",
       "The procedure is lower than the one required by the amount. Only Single Quotation instead of Three Quotations is allowed, as a derogation."
@@ -66,9 +68,9 @@ export async function createRequest(formData: FormData) {
   }
   const procCode = chosenProc;
   // amount in the 3Q range but run as SQ: derogation, with the reason and the RAC authorization
-  const derogation = isDerogation(procCode, estimatedPrice);
+  const derogation = derogationFlag || isDerogation(procCode, estimatedPrice);
   if (derogation && !derogationReason) {
-    fail("/requests/new", "Single Quotation instead of Three Quotations is a derogation: it requires a reason.");
+    fail("/requests/new", "A derogation requires the reason supporting it.");
   }
   const supabase = await createClient();
 
@@ -164,6 +166,7 @@ export async function createRequest(formData: FormData) {
       proc_code: procCode,
       derogation,
       derogation_reason: derogation ? derogationReason : null,
+      donor_procedure: donorProcedure || null,
       coordination_cost: coordinationCost,
       cup_code: cupForProject(await fetchProjectCups(supabase), projectCode) ?? (cupCode || null),
       institutional_activity: institutionalActivity,
@@ -811,6 +814,30 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
  * the database authorizes the PA, and closes the request when the winning offer is fully paid, once all
  * the required signatures are in.
  */
+/**
+ * Additional service after (or during) payment: the Budget Holder records an increment, up to 50% of the
+ * initial value of the supply in total. The database checks the limit and reopens the payment stage.
+ */
+export async function addIncrement(requestId: string, formData: FormData) {
+  const path = `/requests/${requestId}`;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) fail(path, "Session expired, please log in again.");
+  const amount = parseFloat(String(formData.get("amount") || "").replace(",", "."));
+  const reason = String(formData.get("reason") || "").trim();
+  if (!Number.isFinite(amount) || amount <= 0) fail(path, "Enter a valid additional amount.");
+  if (!reason) fail(path, "The reason for the additional service is required.");
+
+  const { error } = await supabase.rpc("add_increment", { req_id: requestId, amount, reason });
+  if (error) fail(path, error.message);
+
+  revalidatePath(path);
+  revalidatePath("/");
+  redirect(path);
+}
+
 export async function authorizePaymentAuth(paId: string, requestId: string, role: Role) {
   const path = `/requests/${requestId}`;
   const supabase = await createClient();
