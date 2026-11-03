@@ -19,6 +19,7 @@ import {
 } from "@/lib/domain/procedures";
 import {
   signIrAuth,
+  rejectIrAuth,
   addOffer,
   closeOffers,
   selectWinner,
@@ -359,6 +360,34 @@ export default async function RequestDetailPage({
             (all required IR signatures present)
           </p>
         )}
+        {request.stage === "rejected" && (
+          <p style={{ fontSize: 13, marginTop: 8, color: "#7A5A1C" }}>
+            <b>Rejected</b>
+            {request.rejected_at ? ` on ${fmtWhen(request.rejected_at)}` : ""}
+            {request.rejected_by ? ` by ${signerName(request.rejected_by)}` : ""}: {request.rejected_reason}
+            {request.initiated_by === userId && (
+              <>
+                {" "}
+                <a href="/requests/new">Open a new request with the corrections</a>.
+              </>
+            )}
+          </p>
+        )}
+        {request.stage === "ir_auth" && iCanAct && !iHaveSignedIr && (() => {
+          const openSlot = irSlotList.find((sl) => !irSignatureOf(sl.roles) && slotRoleFor(sl, roles));
+          const rejectRole = openSlot ? slotRoleFor(openSlot, roles) : null;
+          if (!rejectRole) return null;
+          return (
+            <form
+              action={rejectIrAuth.bind(null, request.id, rejectRole)}
+              style={{ marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 10 }}
+            >
+              <label style={{ fontSize: 12 }}>Reject this request (errors in the compilation): reason</label>
+              <textarea name="reason" required rows={2} style={{ width: "100%", margin: "4px 0 8px" }} />
+              <SubmitButton pendingLabel="Rejecting…">Reject</SubmitButton>
+            </form>
+          );
+        })()}
         {request.is_legacy && irSignedRoles.size === 0 && paySignedRoles.size === 0 && (
           <p style={{ fontSize: 12, marginTop: 8, color: "var(--ink-soft)" }}>
             Historical request imported from the IR register: the authorization evidence is outside the app

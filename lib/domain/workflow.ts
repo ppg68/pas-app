@@ -365,6 +365,90 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   }
 }
 
+/**
+ * An approver rejects the request at the IR approval stage (errors in the compilation, etc.).
+ * The reason is mandatory; the request is closed as "rejected" and the requester opens a new one.
+ */
+export async function rejectIrAuth(requestId: string, role: Role, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const path = `/requests/${requestId}`;
+  const reason = String(formData.get("reason") || "").trim();
+  if (!reason) fail(path, "Please write the reason for rejecting the request.");
+
+  const { data: req } = await supabase
+    .from("requests")
+    .select("proc_code, stage, code, description, estimated_price, currency, initiated_by, derogation, coordination_cost, pm_required")
+    .eq("id", requestId)
+    .single();
+  if (!req || req.stage !== "ir_auth") {
+    revalidatePath(path);
+    return;
+  }
+  const slots = irSlots({
+    procCode: req.proc_code,
+    coordinationCost: req.coordination_cost,
+    derogation: req.derogation,
+    pmRequired: req.pm_required,
+  });
+  // same eligibility as signing: a required role, and not the person who created the request
+  if (!slots.some((sl) => sl.roles.includes(role)) || req.initiated_by === user.id) {
+    revalidatePath(path);
+    return;
+  }
+
+  const { error } = await supabase
+    .from("requests")
+    .update({
+      stage: "rejected",
+      rejected_reason: reason,
+      rejected_at: new Date().toISOString(),
+      rejected_by: user.id,
+    })
+    .eq("id", requestId);
+  if (error) fail(path, error.message);
+
+  await supabase.from("audit_log").insert({
+    request_id: requestId,
+    user_id: user.id,
+    role,
+    action: "ir_rejected",
+  });
+
+  try {
+    if (req.initiated_by) {
+      const [{ data: initiator }, { data: rejector }] = await Promise.all([
+        supabase.from("profiles").select("full_name, email").eq("id", req.initiated_by).maybeSingle(),
+        supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+      ]);
+      if (initiator?.email) {
+        const h = await headers();
+        const host = h.get("x-forwarded-host") ?? h.get("host");
+        const proto = h.get("x-forwarded-proto") ?? "https";
+        const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+        await sendEmail({
+          to: initiator.email,
+          subject: `IR ${req.code} rejected`,
+          html: `<p>Hello ${escapeHtml(initiator.full_name)},</p>
+<p>${escapeHtml(rejector?.full_name ?? "An approver")} (${escapeHtml(ROLE_LABEL[role])}) has <b>rejected</b> your internal request:</p>
+<p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}<br>${req.estimated_price} ${escapeHtml(req.currency)}</p>
+<p>Reason: ${escapeHtml(reason)}</p>
+<p>Please open a new request with the corrections.</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+        });
+      }
+    }
+  } catch {
+    // notification is best effort
+  }
+
+  revalidatePath(path);
+  revalidatePath("/");
+}
+
 export async function signIrAuth(requestId: string, role: Role) {
   const supabase = await createClient();
   const {

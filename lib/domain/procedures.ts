@@ -107,6 +107,7 @@ export const STAGE_LABELS = [
   "documents",
   "payment",
   "completed",
+  "rejected",
 ] as const;
 export type Stage = (typeof STAGE_LABELS)[number];
 
@@ -118,6 +119,7 @@ export const STAGE_TITLES: Record<Stage, string> = {
   documents: "Documents",
   payment: "Payment",
   completed: "Closed",
+  rejected: "Rejected",
 };
 
 const PROC_LETTER: Record<ProcCode, string> = { DIR: "A", SQ: "B", "3Q": "C", SP: "D", TEN: "E" };

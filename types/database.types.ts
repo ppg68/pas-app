@@ -688,6 +688,9 @@ export type Database = {
           institutional_activity: boolean
           occasional_collaborator: boolean
           pm_required: boolean
+          rejected_at: string | null
+          rejected_by: string | null
+          rejected_reason: string | null
           proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
           stage: Database["pas"]["Enums"]["request_stage"]
@@ -719,6 +722,9 @@ export type Database = {
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           pm_required?: boolean
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejected_reason?: string | null
           proc_code: Database["pas"]["Enums"]["proc_code"]
           project_code: string
           stage?: Database["pas"]["Enums"]["request_stage"]
@@ -750,6 +756,9 @@ export type Database = {
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           pm_required?: boolean
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejected_reason?: string | null
           proc_code?: Database["pas"]["Enums"]["proc_code"]
           project_code?: string
           stage?: Database["pas"]["Enums"]["request_stage"]
@@ -877,6 +886,7 @@ export type Database = {
         | "documents"
         | "payment"
         | "completed"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1015,6 +1025,7 @@ export const Constants = {
         "documents",
         "payment",
         "completed",
+        "rejected",
       ],
     },
   },
