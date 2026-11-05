@@ -97,7 +97,7 @@ export default async function ContractRequestDetail({
         <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvals</h2>
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 50 }}>{a.signer_role}</b>
+            <b style={{ width: 80 }}>{a.signer_role === "RAC" ? "RAC / CAR" : a.signer_role}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
               <span className="stamp brand">approved {dt(a.signed_at)}</span>

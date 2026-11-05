@@ -341,7 +341,7 @@ export default function SchedaForm({
       {pms && racs && (
         <Section title="Approval">
           <p className="subtitle" style={{ margin: 0 }}>
-            The request is sent to the PM / Programme Manager and to the RAC. Both must approve before Contracts prepares the contract.
+            The request is sent to the PM / Programme Manager and to the RAC or CAR. Both must approve before Contracts prepares the contract.
           </p>
           <div style={row}>
             <div className="field" style={col()}>
@@ -358,7 +358,7 @@ export default function SchedaForm({
               </select>
             </div>
             <div className="field" style={col()}>
-              <label>RAC *</label>
+              <label>RAC / CAR *</label>
               <select name="approver_RAC" required defaultValue="">
                 <option value="" disabled>
                   Choose…

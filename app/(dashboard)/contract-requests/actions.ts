@@ -25,9 +25,16 @@ const opt = (f: FormData, k: string) => str(f, k) || null;
 
 type Holder = { id: string; full_name: string; email: string | null };
 
-async function holders(supabase: Awaited<ReturnType<typeof createClient>>, role: "PM" | "RAC" | "CONTRACTS" | "DG") {
+async function holders(supabase: Awaited<ReturnType<typeof createClient>>, role: "PM" | "RAC" | "CAR" | "CONTRACTS" | "DG") {
   const { data } = await supabase.rpc("contract_role_holders", { r: role });
   return (data ?? []) as Holder[];
+}
+
+/** Second approver: anyone holding the RAC or the CAR role. */
+async function racOrCar(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const [racs, cars] = await Promise.all([holders(supabase, "RAC"), holders(supabase, "CAR")]);
+  const seen = new Set<string>();
+  return [...racs, ...cars].filter((h) => !seen.has(h.id) && seen.add(h.id)).sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 async function baseUrl() {
@@ -132,10 +139,10 @@ export async function createContractRequest(kind: RequestKind, formData: FormDat
 
   const pmId = str(formData, "approver_PM");
   const racId = str(formData, "approver_RAC");
-  if (!pmId || !racId) fail(back, "Choose the PM / Programme Manager and the RAC who will approve.");
+  if (!pmId || !racId) fail(back, "Choose the PM / Programme Manager and the RAC or CAR who will approve.");
   if (pmId === user.id || racId === user.id) fail(back, "You cannot approve your own request.");
 
-  const [pms, racs] = await Promise.all([holders(supabase, "PM"), holders(supabase, "RAC")]);
+  const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
   const pm = pms.find((h) => h.id === pmId);
   const rac = racs.find((h) => h.id === racId);
   if (!pm || !rac) fail(back, "The chosen approver no longer holds the role. Choose again.");
@@ -226,7 +233,7 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
       if (allSigned) {
         const [contracts, racs, dgs] = await Promise.all([
           holders(supabase, "CONTRACTS"),
-          holders(supabase, "RAC"),
+          racOrCar(supabase),
           holders(supabase, "DG"),
         ]);
         const seen = new Set<string>();
@@ -250,8 +257,8 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
       } else if (req.requester_email) {
         mails.push({
           to: req.requester_email,
-          subject: `Contract request ${req.number}: ${role} approved`,
-          html: `<p>Hello ${escapeHtml(req.requester_name)},</p><p>The ${role} approved your contract request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.party_name)}). The other approval is still needed.</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
+          subject: `Contract request ${req.number}: ${role === "RAC" ? "RAC / CAR" : role} approved`,
+          html: `<p>Hello ${escapeHtml(req.requester_name)},</p><p>The ${role === "RAC" ? "RAC / CAR" : role} approved your contract request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.party_name)}). The other approval is still needed.</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
         });
       }
     }

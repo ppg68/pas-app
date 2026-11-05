@@ -32,10 +32,15 @@ export default async function NewContractRequestPage({
   }
 
   const supabase = await createClient();
-  const [{ data: pms }, { data: racs }] = await Promise.all([
+  const [{ data: pms }, { data: racList }, { data: carList }] = await Promise.all([
     supabase.rpc("contract_role_holders", { r: "PM" }),
     supabase.rpc("contract_role_holders", { r: "RAC" }),
+    supabase.rpc("contract_role_holders", { r: "CAR" }),
   ]);
+  const seenIds = new Set<string>();
+  const racs = [...((racList as Holder[] | null) ?? []), ...((carList as Holder[] | null) ?? [])]
+    .filter((h) => !seenIds.has(h.id) && seenIds.add(h.id))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -49,7 +54,7 @@ export default async function NewContractRequestPage({
         kind={kind}
         action={createContractRequest.bind(null, kind)}
         pms={notMe(pms as Holder[] | null)}
-        racs={notMe(racs as Holder[] | null)}
+        racs={notMe(racs)}
         submitLabel="Send for approval"
       />
     </div>
