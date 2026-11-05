@@ -110,6 +110,11 @@ export default async function ContractRequestDetail({
             )}
           </div>
         ))}
+        {!approvals.some((a) => a.signer_role === "PM") && (
+          <p className="subtitle" style={{ margin: "8px 0 0" }}>
+            Filed by the PM ({r.requester_name}): no separate PM approval is needed.
+          </p>
+        )}
         {myPending && r.status === "pending" && (
           <p className="subtitle" style={{ margin: "8px 0 0" }}>
             Check the data below before approving: after approval the request is locked.

@@ -26,6 +26,7 @@ export default function SchedaForm({
   action,
   defaults,
   pms,
+  requesterIsPm,
   racs,
   submitLabel,
 }: {
@@ -34,6 +35,8 @@ export default function SchedaForm({
   defaults?: Partial<ContractRequestRow>;
   /** approver pickers, only when creating */
   pms?: Holder[];
+  /** the requester is a PM: no separate PM approval, only RAC / CAR */
+  requesterIsPm?: boolean;
   racs?: Holder[];
   submitLabel: string;
 }) {
@@ -341,9 +344,12 @@ export default function SchedaForm({
       {pms && racs && (
         <Section title="Approval">
           <p className="subtitle" style={{ margin: 0 }}>
-            The request is sent to the PM / Programme Manager and to the RAC or CAR. Both must approve before Contracts prepares the contract.
+            {requesterIsPm
+              ? "You are a PM: your request counts as the PM approval. Only the RAC or CAR must approve before Contracts prepares the contract."
+              : "The request is sent to the PM / Programme Manager and to the RAC or CAR. Both must approve before Contracts prepares the contract."}
           </p>
           <div style={row}>
+            {!requesterIsPm && (
             <div className="field" style={col()}>
               <label>PM / Programme Manager *</label>
               <select name="approver_PM" required defaultValue="">
@@ -357,6 +363,7 @@ export default function SchedaForm({
                 ))}
               </select>
             </div>
+            )}
             <div className="field" style={col()}>
               <label>RAC / CAR *</label>
               <select name="approver_RAC" required defaultValue="">

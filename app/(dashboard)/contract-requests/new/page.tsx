@@ -44,6 +44,7 @@ export default async function NewContractRequestPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const requesterIsPm = ((pms as Holder[] | null) ?? []).some((h) => h.id === user?.id);
   const notMe = (list: Holder[] | null) => (list ?? []).filter((h) => h.id !== user?.id);
 
   return (
@@ -55,6 +56,7 @@ export default async function NewContractRequestPage({
         action={createContractRequest.bind(null, kind)}
         pms={notMe(pms as Holder[] | null)}
         racs={notMe(racs)}
+        requesterIsPm={requesterIsPm}
         submitLabel="Send for approval"
       />
     </div>

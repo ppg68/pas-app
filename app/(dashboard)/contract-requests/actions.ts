@@ -137,15 +137,21 @@ export async function createContractRequest(kind: RequestKind, formData: FormDat
   const parsed = parseScheda(formData, kind);
   validate(back, kind, parsed);
 
+  const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
+  // The requester is the PM of the project: filing the request is already the PM's sign-off,
+  // so only the RAC / CAR approval is asked.
+  const requesterIsPm = pms.some((h) => h.id === user.id);
   const pmId = str(formData, "approver_PM");
   const racId = str(formData, "approver_RAC");
-  if (!pmId || !racId) fail(back, "Choose the PM / Programme Manager and the RAC or CAR who will approve.");
-  if (pmId === user.id || racId === user.id) fail(back, "You cannot approve your own request.");
+  if (!racId || (!requesterIsPm && !pmId)) {
+    fail(back, requesterIsPm ? "Choose the RAC or CAR who will approve." : "Choose the PM / Programme Manager and the RAC or CAR who will approve.");
+  }
+  if (pmId === user.id && !requesterIsPm) fail(back, "You cannot approve your own request.");
+  if (racId === user.id) fail(back, "You cannot approve your own request.");
 
-  const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
-  const pm = pms.find((h) => h.id === pmId);
+  const pm = requesterIsPm ? null : pms.find((h) => h.id === pmId);
   const rac = racs.find((h) => h.id === racId);
-  if (!pm || !rac) fail(back, "The chosen approver no longer holds the role. Choose again.");
+  if ((!requesterIsPm && !pm) || !rac) fail(back, "The chosen approver no longer holds the role. Choose again.");
 
   const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
 
@@ -161,16 +167,17 @@ export async function createContractRequest(kind: RequestKind, formData: FormDat
     .single();
   if (error || !inserted) fail(back, error?.message ?? "Could not save the request.");
 
-  const { error: apErr } = await supabase.from("contract_approvals").insert([
-    { request_id: inserted.id, signer_role: "PM", user_id: pm.id, user_name: pm.full_name },
-    { request_id: inserted.id, signer_role: "RAC", user_id: rac.id, user_name: rac.full_name },
-  ]);
+  const approvalRows = [
+    ...(pm ? [{ request_id: inserted.id, signer_role: "PM" as const, user_id: pm.id, user_name: pm.full_name }] : []),
+    { request_id: inserted.id, signer_role: "RAC" as const, user_id: rac!.id, user_name: rac!.full_name },
+  ];
+  const { error: apErr } = await supabase.from("contract_approvals").insert(approvalRows);
   if (apErr) {
     await supabase.from("contract_requests").delete().eq("id", inserted.id);
     fail(back, apErr.message);
   }
 
-  await notifyApprovers(inserted.id, inserted.number, profile?.full_name ?? "A colleague", parsed.fields.party_name, [pm, rac]);
+  await notifyApprovers(inserted.id, inserted.number, profile?.full_name ?? "A colleague", parsed.fields.party_name, pm ? [pm, rac!] : [rac!]);
   revalidatePath("/contract-requests");
   redirect(`/contract-requests?created=${encodeURIComponent(inserted.number)}`);
 }
