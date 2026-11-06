@@ -18,6 +18,8 @@ import {
   slotLabel,
   slotSigned,
   buildRequestCode,
+  creatorIsProjectPm,
+  byProjectCode,
   documentsComplete,
   ROLE_LABEL,
   type Role,
@@ -89,7 +91,18 @@ export async function createRequest(formData: FormData) {
 
   // Every signature required (PM + administration CAR/RAC, see irSlots) must be designated before the
   // request is created (checked before the IR number is drawn, so a refused request does not burn a number).
-  const pmRequired = pmSigns(procCode, coordinationCost, (myRoles ?? []).some((r) => r.role === "PM"));
+  const { data: assignmentRows } = await supabase.from("project_assignments").select("project_code, pm_user_id");
+  const assignedPm = byProjectCode(
+    Object.fromEntries((assignmentRows ?? []).map((a) => [a.project_code, a.pm_user_id as string | null])),
+    projectCode
+  );
+  const creatorIsPm = creatorIsProjectPm({
+    creatorId: user.id,
+    creatorHasPmRole: (myRoles ?? []).some((r) => r.role === "PM"),
+    assignedPmId: assignedPm,
+    declaredAsPm: formData.get("compile_as") === "pm",
+  });
+  const pmRequired = pmSigns(procCode, coordinationCost, creatorIsPm);
   const required = irSlots({ procCode, coordinationCost, derogation, pmRequired });
   const pickedIds = required.map((slot) => ({
     slot,

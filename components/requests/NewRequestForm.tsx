@@ -13,6 +13,8 @@ import {
   type ProcCode,
   irSlots,
   pmSigns,
+  creatorIsProjectPm,
+  byProjectCode,
   slotLabel,
   type Role,
 } from "@/lib/domain/procedures";
@@ -29,13 +31,15 @@ export default function NewRequestForm({
   candidates,
   assignments,
   projectCups,
-  creatorIsPm,
+  creatorId,
+  creatorHasPmRole,
 }: {
   candidates: Partial<Record<Role, Candidate[]>>;
   assignments: Record<string, Partial<Record<"PM" | "CAR", string>>>;
   projectCups: Record<string, string>;
-  /** the person compiling the request is a PM: the PM signature is skipped */
-  creatorIsPm: boolean;
+  creatorId: string;
+  /** has the PM role (used only when the project has no PM assigned) */
+  creatorHasPmRole: boolean;
 }) {
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
@@ -43,8 +47,18 @@ export default function NewRequestForm({
   const [coordination, setCoordination] = useState(false);
   const [derogationFlag, setDerogationFlag] = useState(false);
   const [chosen, setChosen] = useState<Record<string, string>>({});
+  const [compileAsPm, setCompileAsPm] = useState(false);
 
   const projectCup = cupForProject(projectCups, project);
+  // the PM signature is skipped only when the person compiling is the PM of THIS project (not just any PM)
+  const creatorIsPm = creatorIsProjectPm({
+    creatorId,
+    creatorHasPmRole,
+    assignedPmId: byProjectCode(assignments, project)?.PM,
+    declaredAsPm: compileAsPm,
+  });
+  // project without a PM assigned and a creator who holds the PM role: ask in which capacity they compile
+  const askCapacity = creatorHasPmRole && !byProjectCode(assignments, project)?.PM;
   const price = parseFloat(amount);
   const validPrice = Number.isFinite(price) && price > 0;
   // the amount only suggests the procedure; whoever compiles the request decides (budget line of the project)
@@ -192,9 +206,22 @@ export default function NewRequestForm({
             Each person you pick receives an email as soon as the request is created. Only registered
             users holding the role are listed.
           </div>
+          {askCapacity && proc && proc !== "DIR" && !coordination && (
+            <div className="field" style={{ gap: 4 }}>
+              <label>I am compiling this request as</label>
+              <label className="checkbox-row">
+                <input type="radio" name="compile_as" value="bh" checked={!compileAsPm} onChange={() => setCompileAsPm(false)} />{" "}
+                Budget Holder — the PM of the project signs as well
+              </label>
+              <label className="checkbox-row">
+                <input type="radio" name="compile_as" value="pm" checked={compileAsPm} onChange={() => setCompileAsPm(true)} />{" "}
+                PM of this project — only the administration (CAR or RAC) signs
+              </label>
+            </div>
+          )}
           {creatorIsPm && proc && proc !== "DIR" && (
             <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-              You are the PM: your signature is not requested (nobody signs their own request).
+              You are the PM of this project: your signature is not requested (nobody signs their own request).
             </div>
           )}
           {slots.map((slot) => {
