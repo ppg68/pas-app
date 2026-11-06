@@ -144,7 +144,7 @@ export async function deleteFile(fileId: string, requestId: string): Promise<Res
 }
 
 /**
- * Closes the procedure for archiving: Elisa (CONTRACTS) or an administrator confirms that the last proof of payment
+ * Closes the procedure for archiving: only CAR, RAC or Contracts access (Elisa) confirm that the last proof of payment
  * is uploaded. The archive script then moves the files to the server and empties the PAS.
  */
 export async function requestArchive(requestId: string): Promise<Result> {
@@ -155,8 +155,8 @@ export async function requestArchive(requestId: string): Promise<Result> {
   if (!user) return { ok: false, error: "Not signed in." };
 
   const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-  const allowed = (roles ?? []).some((r) => r.role === "CONTRACTS" || r.role === "ADMIN");
-  if (!allowed) return { ok: false, error: "Only the Contracts/Accounting role can close a procedure for archiving." };
+  const allowed = (roles ?? []).some((r) => r.role === "CAR" || r.role === "RAC" || r.role === "CONTRACTS");
+  if (!allowed) return { ok: false, error: "Only CAR, RAC or Contracts access can close a procedure for archiving." };
 
   const { data: req } = await supabase
     .from("requests")

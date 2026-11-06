@@ -383,8 +383,8 @@ export default function FilesCard({
           </button>
         ) : (
           <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-            After the last payment, the Accounting role uploads the invoice and proof of payment (with protocol) and
-            closes the procedure for archiving.
+            After the last payment, the invoice and proof of payment (with protocol) are uploaded and CAR, RAC or Contracts
+            access closes the procedure for archiving.
           </span>
         )}
       </div>
