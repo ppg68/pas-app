@@ -91,24 +91,24 @@ export default function NewRequestForm({
     <ApprovalLevelsTable current={proc} />
     <form action={createRequest} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="field">
-        <label>Country (IT for HQ numbering)</label>
+        <label>Country (IT for HQ numbering)<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="country" defaultValue="IT" required />
       </div>
       <div className="field">
-        <label>Project code</label>
+        <label>Project code<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="project_code" required value={project} onChange={(e) => setProject(e.target.value)} />
       </div>
       <div className="field">
-        <label>Budget line</label>
+        <label>Budget line<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="budget_line" required />
       </div>
       <div className="field">
-        <label>Description</label>
+        <label>Description<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="description" required />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <div className="field" style={{ flex: 1 }}>
-          <label>Estimated amount</label>
+          <label>Estimated amount<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
           <MoneyInput name="estimated_price" required value={amount} onValueChange={(v) => setAmount(v)} />
         </div>
         <div className="field" style={{ width: 90 }}>
@@ -126,7 +126,7 @@ export default function NewRequestForm({
       </div>
 
       <div className="field">
-        <label>Procedure</label>
+        <label>Procedure<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <select name="proc_code" required value={proc ?? ""} onChange={(e) => setProcChoice(e.target.value as ProcCode)}>
           <option value="" disabled>
             — choose the procedure —
