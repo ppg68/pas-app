@@ -5,8 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "pas-request-files";
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
-/** Invoice: the accounting protocol (Callisto) is required, it names the Contabilità folder. The proof of payment follows the invoice. */
-const PROTOCOL_DOCS = ["07"];
+/**
+ * Invoice (07): the accounting protocol (Callisto) is required, it names the Contabilità folder.
+ * Proof of payment (10): carries the protocol of the invoice it pays (one IR can have several invoices).
+ */
+const PROTOCOL_DOCS = ["07", "10"];
 
 type Result = { ok: boolean; error?: string };
 
@@ -31,7 +34,17 @@ export async function registerFile(input: {
   }
   const protocol = (input.protocol ?? "").trim() || null;
   if (PROTOCOL_DOCS.includes(input.docKey) && !protocol) {
-    return { ok: false, error: "The accounting protocol is required for invoices." };
+    return { ok: false, error: "The accounting protocol is required (for a proof of payment: the protocol of the invoice it pays)." };
+  }
+
+  if (input.docKey === "10") {
+    const { count } = await supabase
+      .from("request_files")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", input.requestId)
+      .eq("doc_key", "07")
+      .eq("protocol", protocol as string);
+    if (!count) return { ok: false, error: "No invoice with this protocol on this IR. Upload the invoice first." };
   }
 
   const { error } = await supabase.from("request_files").insert({
@@ -149,7 +162,7 @@ export async function requestArchive(requestId: string): Promise<Result> {
   if (!has("07")) return { ok: false, error: "Upload the invoice (07) first." };
   if (!has("10")) return { ok: false, error: "Upload the proof of payment (10) first." };
   if ((files ?? []).some((f) => PROTOCOL_DOCS.includes(f.doc_key) && !f.protocol)) {
-    return { ok: false, error: "Every invoice needs its accounting protocol." };
+    return { ok: false, error: "Every invoice and proof of payment needs its protocol." };
   }
 
   const { error } = await supabase

@@ -19,7 +19,7 @@ export type RequestFile = {
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx";
-const PROTOCOL_DOCS = ["07"]; // only the invoice carries the protocol; the proof of payment follows it
+const PROTOCOL_DOCS = ["07", "10"]; // invoice: typed; proof of payment: chosen among the protocols of the IR invoices
 
 function kb(n: number) {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -51,7 +51,11 @@ export default function FilesCard({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ docKey: string; text: string } | null>(null);
-  const protocolRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const protocolRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
+  // protocols of the invoices already uploaded for this IR: a proof of payment pays one of them
+  const invoiceProtocols = Array.from(
+    new Set(files.filter((f) => f.doc_key === "07" && f.protocol).map((f) => f.protocol as string))
+  );
   const closed = !!archiveRequestedAt;
 
   async function upload(docKey: string, fileList: FileList | null) {
@@ -59,7 +63,13 @@ export default function FilesCard({
     setMessage(null);
     const protocol = protocolRefs.current[docKey]?.value.trim() ?? "";
     if (PROTOCOL_DOCS.includes(docKey) && !protocol) {
-      setMessage({ docKey, text: "Enter the accounting protocol (Callisto) first." });
+      setMessage({
+        docKey,
+        text:
+          docKey === "10"
+            ? "Choose which invoice (protocol) this payment refers to. Upload the invoice first if it is missing."
+            : "Enter the accounting protocol (Callisto) first.",
+      });
       return;
     }
     setBusy(docKey);
@@ -194,7 +204,7 @@ export default function FilesCard({
             ))}
             {canUpload && !closed && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-                {needsProtocol && (
+                {d.key === "07" && (
                   <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
                     <b>1. Protocol (required):</b>
                     <input
@@ -204,6 +214,27 @@ export default function FilesCard({
                       placeholder="e.g. 241/2026"
                       style={{ width: 150, fontSize: 12, background: "#fff", border: "1px solid var(--navy)" }}
                     />
+                    <b>2. File:</b>
+                  </label>
+                )}
+                {d.key === "10" && (
+                  <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
+                    <b>1. Pays invoice (protocol):</b>
+                    <select
+                      key={invoiceProtocols.join("|")}
+                      ref={(el) => {
+                        protocolRefs.current[d.key] = el;
+                      }}
+                      defaultValue={invoiceProtocols.length === 1 ? invoiceProtocols[0] : ""}
+                      style={{ fontSize: 12, background: "#fff", border: "1px solid var(--navy)" }}
+                    >
+                      <option value="">— choose —</option>
+                      {invoiceProtocols.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
                     <b>2. File:</b>
                   </label>
                 )}
