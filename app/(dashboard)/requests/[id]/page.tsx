@@ -30,6 +30,7 @@ import {
 import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
 import IncrementForm from "@/components/requests/IncrementForm";
+import FilesCard, { type RequestFile } from "@/components/requests/FilesCard";
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
 
@@ -203,6 +204,32 @@ export default async function RequestDetailPage({
   });
   const requiredDocs = DOCS_BY_PROC[request.proc_code];
   const docsOk = documentsComplete(request.proc_code, docsMap);
+
+  // Files uploaded to the PAS for this procedure (moved to the server folders when it is closed)
+  const { data: fileRows } = await supabase
+    .from("request_files")
+    .select("id, doc_key, file_name, size_bytes, protocol, uploaded_at, uploaded_by, archived_at")
+    .eq("request_id", id)
+    .order("uploaded_at", { ascending: true });
+  const uploaderIds = Array.from(new Set((fileRows ?? []).map((f) => f.uploaded_by).filter((x): x is string => !!x)));
+  const { data: uploaderProfiles } = uploaderIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", uploaderIds)
+    : { data: [] as { id: string; full_name: string }[] };
+  const requestFiles: RequestFile[] = (fileRows ?? []).map((f) => ({
+    id: f.id,
+    doc_key: f.doc_key,
+    file_name: f.file_name,
+    size_bytes: Number(f.size_bytes),
+    protocol: f.protocol,
+    uploaded_at: f.uploaded_at,
+    uploaded_by_name: (uploaderProfiles ?? []).find((p) => p.id === f.uploaded_by)?.full_name ?? "",
+    archived_at: f.archived_at,
+    mine: f.uploaded_by === userId,
+  }));
+  const fileDocKeys = Array.from(new Set(["01", ...requiredDocs, "09", "10"])).sort();
+  const canUploadFiles = roles.size > 0 || request.initiated_by === userId;
+  const canArchiveFiles = roles.has("CONTRACTS" as Role) || roles.has("ADMIN" as Role);
+  const showFiles = request.stage !== "rejected" && (!request.is_legacy || requestFiles.length > 0);
 
   const showOffers = config.minOffers > 0;
   const offersIndex = STAGE_ORDER.indexOf("offers");
@@ -497,6 +524,19 @@ export default async function RequestDetailPage({
             </p>
           )}
         </div>
+      )}
+
+      {showFiles && (
+        <FilesCard
+          requestId={request.id}
+          docs={fileDocKeys.map((k) => ({ key: k, label: FOLDER_NAMES[k] ?? k }))}
+          files={requestFiles}
+          canUpload={canUploadFiles}
+          canArchive={canArchiveFiles}
+          archiveRequestedAt={request.archive_requested_at ?? null}
+          archiveDoneAt={request.archive_done_at ?? null}
+          stage={request.stage}
+        />
       )}
 
       {/* Documents */}

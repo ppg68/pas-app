@@ -627,6 +627,59 @@ export type Database = {
           },
         ]
       }
+      request_files: {
+        Row: {
+          archived_at: string | null
+          archived_path: string | null
+          doc_key: string
+          file_name: string
+          id: string
+          mime_type: string | null
+          protocol: string | null
+          request_id: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_path?: string | null
+          doc_key: string
+          file_name: string
+          id?: string
+          mime_type?: string | null
+          protocol?: string | null
+          request_id: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          archived_path?: string | null
+          doc_key?: string
+          file_name?: string
+          id?: string
+          mime_type?: string | null
+          protocol?: string | null
+          request_id?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_files_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_approvers: {
         Row: {
           notified_at: string | null
@@ -691,6 +744,9 @@ export type Database = {
           institutional_activity: boolean
           occasional_collaborator: boolean
           pm_required: boolean
+          archive_requested_at: string | null
+          archive_requested_by: string | null
+          archive_done_at: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejected_reason: string | null
@@ -728,6 +784,9 @@ export type Database = {
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           pm_required?: boolean
+          archive_requested_at?: string | null
+          archive_requested_by?: string | null
+          archive_done_at?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejected_reason?: string | null
@@ -765,6 +824,9 @@ export type Database = {
           institutional_activity?: boolean
           occasional_collaborator?: boolean
           pm_required?: boolean
+          archive_requested_at?: string | null
+          archive_requested_by?: string | null
+          archive_done_at?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejected_reason?: string | null
