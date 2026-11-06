@@ -23,8 +23,6 @@ import {
   addOffer,
   closeOffers,
   selectWinner,
-  toggleDoc,
-  advanceToPayment,
   authorizePaymentAuth,
 } from "@/lib/domain/workflow";
 import SubmitButton from "@/components/SubmitButton";
@@ -235,7 +233,6 @@ export default async function RequestDetailPage({
   const showOffers = config.minOffers > 0;
   const offersIndex = STAGE_ORDER.indexOf("offers");
   const winnerIndex = STAGE_ORDER.indexOf("winner");
-  const documentsIndex = STAGE_ORDER.indexOf("documents");
   const paymentIndex = STAGE_ORDER.indexOf("payment");
   const effectiveCup = cupForProject(await fetchProjectCups(supabase), request.project_code) ?? request.cup_code;
 
@@ -530,76 +527,22 @@ export default async function RequestDetailPage({
       {showFiles && (
         <FilesCard
           requestId={request.id}
-          docs={fileDocKeys.map((k) => ({ key: k, label: FOLDER_NAMES[k] ?? k }))}
+          docs={fileDocKeys.map((k) => ({
+            key: k,
+            label: FOLDER_NAMES[k] ?? k,
+            kind: !requiredDocs.includes(k) ? ("closing" as const) : isOptionalDoc(request.proc_code, k) ? ("optional" as const) : ("required" as const),
+            checked: !!docsMap[k],
+          }))}
           files={requestFiles}
           canUpload={canUploadFiles}
           canArchive={canArchiveFiles}
           archiveRequestedAt={request.archive_requested_at ?? null}
           archiveDoneAt={request.archive_done_at ?? null}
           stage={request.stage}
+          canFlag={request.stage === "documents"}
+          docsOk={docsOk}
+          folderPath={request.folder_path ?? null}
         />
-      )}
-
-      {/* Documents */}
-      {stageIndex >= documentsIndex && (
-        <div className="card">
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Documents</h2>
-          {requiredDocs.map((docKey) => {
-            const checked = !!docsMap[docKey];
-            const optional = isOptionalDoc(request.proc_code, docKey);
-            return (
-              <div
-                key={docKey}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 13,
-                  padding: "6px 0",
-                }}
-              >
-                <span>
-                  {FOLDER_NAMES[docKey]} {optional && "(optional)"} —{" "}
-                  {checked ? "completed" : "to do"}
-                </span>
-                {request.stage === "documents" && (
-                  <form action={toggleDoc.bind(null, request.id, docKey, !checked)}>
-                    <button
-                      type="submit"
-                      style={{
-                        border: "1px solid var(--line)",
-                        borderRadius: 999,
-                        padding: "3px 10px",
-                        fontSize: 11,
-                        background: "transparent",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {checked ? "Undo" : "Mark complete"}
-                    </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
-
-          {request.stage === "documents" ? (
-            <form
-              action={advanceToPayment.bind(null, request.id)}
-              style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}
-            >
-              <button type="submit" disabled={!docsOk} className="primary">
-                Go to payment
-              </button>
-            </form>
-          ) : (
-            request.folder_path && (
-              <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
-                Folder: {request.folder_path}
-              </p>
-            )
-          )}
-        </div>
       )}
 
       {/* Payment: one payment authorization (PR04.AA05) per payment, approved by PM + CAR / RAC */}

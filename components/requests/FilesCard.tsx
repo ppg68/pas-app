@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { toggleDoc, advanceToPayment } from "@/lib/domain/workflow";
 import { registerFile, getFileUrl, deleteFile, updateFileProtocol, requestArchive } from "@/lib/domain/files";
 
 export type RequestFile = {
@@ -38,15 +39,23 @@ export default function FilesCard({
   archiveRequestedAt,
   archiveDoneAt,
   stage,
+  canFlag,
+  docsOk,
+  folderPath,
 }: {
   requestId: string;
-  docs: { key: string; label: string }[];
+  docs: { key: string; label: string; kind: "required" | "optional" | "closing"; checked: boolean }[];
   files: RequestFile[];
   canUpload: boolean;
   canArchive: boolean;
   archiveRequestedAt: string | null;
   archiveDoneAt: string | null;
   stage: string;
+  /** documents stage: a folder can be marked complete without uploading (files kept on the server) */
+  canFlag: boolean;
+  /** all required documents are complete: the request can go to payment */
+  docsOk: boolean;
+  folderPath: string | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -198,7 +207,32 @@ export default function FilesCard({
         const needsProtocol = PROTOCOL_DOCS.includes(d.key);
         return (
           <div key={d.key} style={{ borderTop: "0.5px solid #EEF0F3", padding: "8px 0", fontSize: 13 }}>
-            <div style={{ fontWeight: 500 }}>{d.label}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 500 }}>
+                {d.label}{" "}
+                <span style={{ fontWeight: 400, fontSize: 12, color: list.length || d.checked ? "var(--navy)" : "var(--ink-soft)" }}>
+                  {list.length
+                    ? `— ✓ ${list.length} file${list.length > 1 ? "s" : ""}`
+                    : d.checked
+                      ? "— ✓ complete (kept on the server)"
+                      : d.kind === "optional"
+                        ? "— optional"
+                        : d.kind === "closing"
+                          ? "— needed to close"
+                          : "— to do"}
+                </span>
+              </span>
+              {canFlag && d.kind !== "closing" && list.length === 0 && (
+                <form action={toggleDoc.bind(null, requestId, d.key, !d.checked)}>
+                  <button
+                    type="submit"
+                    style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 11, background: "transparent", cursor: "pointer" }}
+                  >
+                    {d.checked ? "Undo" : "Mark complete (saved on the server)"}
+                  </button>
+                </form>
+              )}
+            </div>
             {list.length === 0 && <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>No file yet.</div>}
             {list.map((f) => (
               <div
@@ -320,6 +354,21 @@ export default function FilesCard({
           </div>
         );
       })}
+
+      {stage === "documents" && (
+        <form
+          action={advanceToPayment.bind(null, requestId)}
+          style={{ borderTop: "0.5px solid #EEF0F3", paddingTop: 10, marginTop: 4, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}
+        >
+          {!docsOk && <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Complete the required folders (upload, or mark complete) to continue.</span>}
+          <button type="submit" disabled={!docsOk} className="primary">
+            Go to payment
+          </button>
+        </form>
+      )}
+      {folderPath && (
+        <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "8px 0 0" }}>Server folder: {folderPath}</p>
+      )}
 
       <div style={{ borderTop: "0.5px solid #EEF0F3", paddingTop: 10, marginTop: 4, fontSize: 13 }}>
         {archiveDoneAt ? (
