@@ -142,9 +142,47 @@ export default function FilesCard({
       )
     )
       return;
-    const res = await requestArchive(requestId);
-    if (!res.ok) window.alert(res.error ?? "Could not close the procedure.");
-    router.refresh();
+    setBusy("close");
+    try {
+      // the whole-procedure PDF (IR, approvals, payment authorizations) is stored with the documents: it replaces
+      // the old "01 Internal Request" and "09 Payment authorization" folders
+      const pdfRes = await fetch(`/requests/${requestId}/pdf`);
+      if (!pdfRes.ok) {
+        window.alert("Could not generate the procedure PDF. Nothing was changed.");
+        return;
+      }
+      const blob = await pdfRes.blob();
+      const cd = pdfRes.headers.get("Content-Disposition") ?? "";
+      const name = /filename="([^"]+)"/.exec(cd)?.[1] ?? "Procedure.pdf";
+      const supabase = createClient();
+      const path = `${requestId}/00/${crypto.randomUUID()}_${safeName(name)}`;
+      const { error: upErr } = await supabase.storage
+        .from("pas-request-files")
+        .upload(path, blob, { contentType: "application/pdf", upsert: false });
+      if (upErr) {
+        window.alert(`Could not store the procedure PDF: ${upErr.message}`);
+        return;
+      }
+      const reg = await registerFile({
+        requestId,
+        docKey: "00",
+        fileName: name,
+        storagePath: path,
+        sizeBytes: blob.size,
+        mimeType: "application/pdf",
+        protocol: null,
+      });
+      if (!reg.ok) {
+        await supabase.storage.from("pas-request-files").remove([path]);
+        window.alert(reg.error ?? "Could not save the procedure PDF.");
+        return;
+      }
+      const res = await requestArchive(requestId);
+      if (!res.ok) window.alert(res.error ?? "Could not close the procedure.");
+    } finally {
+      setBusy(null);
+      router.refresh();
+    }
   }
 
   return (

@@ -47,6 +47,20 @@ export async function registerFile(input: {
     if (!count) return { ok: false, error: "No invoice with this protocol on this IR. Upload the invoice first." };
   }
 
+  // "00 Procedure": the whole-procedure PDF generated when the procedure is closed. Only one: a retry replaces it.
+  if (input.docKey === "00") {
+    const { data: old } = await supabase
+      .from("request_files")
+      .select("id, storage_path")
+      .eq("request_id", input.requestId)
+      .eq("doc_key", "00")
+      .is("archived_at", null);
+    if (old && old.length) {
+      await supabase.from("request_files").delete().in("id", old.map((o) => o.id));
+      await supabase.storage.from(BUCKET).remove(old.map((o) => o.storage_path));
+    }
+  }
+
   const { error } = await supabase.from("request_files").insert({
     request_id: input.requestId,
     doc_key: input.docKey,
@@ -59,13 +73,15 @@ export async function registerFile(input: {
   });
   if (error) return { ok: false, error: error.message };
 
-  await supabase.from("request_documents").upsert({
-    request_id: input.requestId,
-    doc_key: input.docKey,
-    checked: true,
-    checked_by: user.id,
-    checked_at: new Date().toISOString(),
-  });
+  if (input.docKey !== "00") {
+    await supabase.from("request_documents").upsert({
+      request_id: input.requestId,
+      doc_key: input.docKey,
+      checked: true,
+      checked_by: user.id,
+      checked_at: new Date().toISOString(),
+    });
+  }
   revalidatePath(`/requests/${input.requestId}`);
   return { ok: true };
 }

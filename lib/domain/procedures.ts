@@ -87,6 +87,7 @@ export function isOptionalDoc(procCode: ProcCode, key: string): boolean {
 }
 
 export const FOLDER_NAMES: Record<string, string> = {
+  "00": "00 Procedure", // whole-procedure PDF (IR + approvals + payment authorizations), added when the procedure is closed
   "01": "01 Internal Request",
   "02": "02 Quotations request",
   "03": "03 Quotations received",
