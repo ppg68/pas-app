@@ -92,6 +92,18 @@ export default async function RequestListPage() {
     (invs ?? []).forEach((i) => addProtocol(i.request_id as string, i.protocol));
     if (!invs || invs.length < 1000) break;
   }
+  // protocols typed on the invoices uploaded in the "Procedure files" box (they stay after the archiving)
+  for (let from = 0; ; from += 1000) {
+    const { data: fileProtocols } = await supabase
+      .from("request_files")
+      .select("request_id, protocol")
+      .eq("doc_key", "07")
+      .not("protocol", "is", null)
+      .order("uploaded_at", { ascending: true })
+      .range(from, from + 999);
+    (fileProtocols ?? []).forEach((f) => addProtocol(f.request_id, f.protocol));
+    if (!fileProtocols || fileProtocols.length < 1000) break;
+  }
   requests.forEach((r) => addProtocol(r.id, r.legacy_protocol));
 
   const nameById = new Map((initiators ?? []).map((p) => [p.id, p.full_name]));
