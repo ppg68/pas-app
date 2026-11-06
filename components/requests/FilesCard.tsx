@@ -195,13 +195,17 @@ export default function FilesCard({
             {canUpload && !closed && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
                 {needsProtocol && (
-                  <input
-                    ref={(el) => {
-                      protocolRefs.current[d.key] = el;
-                    }}
-                    placeholder="Protocol (Callisto), e.g. 241/2026"
-                    style={{ width: 220, fontSize: 12 }}
-                  />
+                  <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
+                    <b>1. Protocol (required):</b>
+                    <input
+                      ref={(el) => {
+                        protocolRefs.current[d.key] = el;
+                      }}
+                      placeholder="e.g. 241/2026"
+                      style={{ width: 150, fontSize: 12, background: "#fff", border: "1px solid var(--navy)" }}
+                    />
+                    <b>2. File:</b>
+                  </label>
                 )}
                 <input
                   type="file"
