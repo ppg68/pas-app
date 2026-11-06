@@ -31,6 +31,7 @@ export type RequestRow = {
   stage: Stage;
   folder_path: string | null;
   ir_number: string | null;
+  protocol: string;
   created_at: string;
   initiatedByName: string;
   winnerSupplier: string;
@@ -41,6 +42,7 @@ export type RequestRow = {
 type SortKey =
   | "created"
   | "code"
+  | "protocol"
   | "description"
   | "project"
   | "procedure"
@@ -59,6 +61,7 @@ function irNumber(r: RequestRow): string {
 const SORTERS: Record<SortKey, (a: RequestRow, b: RequestRow) => number> = {
   created: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   code: (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }),
+  protocol: (a, b) => a.protocol.localeCompare(b.protocol, undefined, { numeric: true }),
   description: (a, b) => a.description.localeCompare(b.description),
   project: (a, b) => (a.project_code || "").localeCompare(b.project_code || ""),
   procedure: (a, b) => a.proc_code.localeCompare(b.proc_code),
@@ -70,6 +73,7 @@ const SORTERS: Record<SortKey, (a: RequestRow, b: RequestRow) => number> = {
 
 const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: "code", label: "IR" },
+  { key: "protocol", label: "Protocol" },
   { key: "description", label: "Description" },
   { key: "created", label: "Date" },
   { key: "project", label: "Project" },
@@ -83,11 +87,12 @@ const HEADERS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: null, label: "Derog." },
 ];
 
-// Frozen columns (stay in view while scrolling to the right): link, [delete], IR, Description.
+// Frozen columns (stay in view while scrolling to the right): link, [delete], IR, Protocol, Description.
 const W_LINK = 34;
 const W_DELETE = 30;
 const W_IR = 70;
-const W_DESC = 280;
+const W_PROT = 110;
+const W_DESC = 260;
 
 function frozen(left: number, width: number): React.CSSProperties {
   return { left, width, minWidth: width, maxWidth: width };
@@ -140,6 +145,7 @@ This permanently removes the request together with its offers, signatures, docum
       list = list.filter((r) =>
         [
           r.code,
+          r.protocol,
           r.project_code,
           r.description,
           r.budget_line,
@@ -154,7 +160,8 @@ This permanently removes the request together with its offers, signatures, docum
   }, [requests, searchQuery, stageFilter, awaitingOnly, sortKey, sortDir]);
 
   const irLeft = W_LINK + (canDelete ? W_DELETE : 0);
-  const descLeft = irLeft + W_IR;
+  const protLeft = irLeft + W_IR;
+  const descLeft = protLeft + W_PROT;
 
   async function exportExcel() {
     if (requests.length === 0) return;
@@ -165,6 +172,7 @@ This permanently removes the request together with its offers, signatures, docum
         const c = procConfigFor(r.proc_code);
         return {
           "IR Code": r.code,
+          Protocol: r.protocol,
           "Country/Office": r.country,
           Project: r.project_code,
           "Budget line": r.budget_line,
@@ -261,14 +269,15 @@ This permanently removes the request together with its offers, signatures, docum
                   <th
                     key={h.label}
                     className={
-                      [h.key ? "sortable" : "", i < 2 ? "col-frozen" : "", i === 1 ? "col-frozen-edge" : ""]
+                      [h.key ? "sortable" : "", i < 3 ? "col-frozen" : "", i === 2 ? "col-frozen-edge" : ""]
                         .filter(Boolean)
                         .join(" ") || undefined
                     }
                     style={{
                       textAlign: h.align ?? "left",
                       ...(i === 0 ? frozen(irLeft, W_IR) : {}),
-                      ...(i === 1 ? frozen(descLeft, W_DESC) : {}),
+                      ...(i === 1 ? frozen(protLeft, W_PROT) : {}),
+                      ...(i === 2 ? frozen(descLeft, W_DESC) : {}),
                     }}
                     onClick={h.key ? () => toggleSort(h.key!) : undefined}
                   >
@@ -310,6 +319,13 @@ This permanently removes the request together with its offers, signatures, docum
                   )}
                   <td className="col-frozen" style={{ ...frozen(irLeft, W_IR), whiteSpace: "nowrap" }} title={r.code}>
                     {irNumber(r) || r.code}
+                  </td>
+                  <td
+                    className="col-frozen"
+                    style={{ ...frozen(protLeft, W_PROT), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    title={r.protocol || undefined}
+                  >
+                    {r.protocol}
                   </td>
                   <td className="col-frozen col-frozen-edge" style={frozen(descLeft, W_DESC)}>
                     {r.description}

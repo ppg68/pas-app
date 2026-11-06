@@ -7,7 +7,7 @@ export default async function RequestListPage() {
   const { data: requestsRaw } = await supabase
     .from("requests")
     .select(
-      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, ir_number, pm_required, created_at, initiated_by, legacy_initiator_name"
+      "id, code, country, project_code, budget_line, description, estimated_price, currency, proc_code, derogation, derogation_reason, coordination_cost, cup_code, institutional_activity, occasional_collaborator, stage, winner_offer_id, folder_path, ir_number, legacy_protocol, pm_required, created_at, initiated_by, legacy_initiator_name"
     )
     .order("created_at", { ascending: false });
 
@@ -71,6 +71,29 @@ export default async function RequestListPage() {
   ]);
   const offers = offerChunks.flat();
 
+  // Accounting protocol(s) of each IR: protocols of the invoices linked to it (kept by Elisa; RLS limits the
+  // invoices to the CONTRACTS role) plus the protocol stored on historical requests.
+  const protocolsByRequest = new Map<string, string[]>();
+  const addProtocol = (requestId: string, protocol: string | null | undefined) => {
+    const p = (protocol ?? "").trim();
+    if (!p) return;
+    const list = protocolsByRequest.get(requestId) ?? [];
+    if (!list.includes(p)) list.push(p);
+    protocolsByRequest.set(requestId, list);
+  };
+  for (let from = 0; ; from += 1000) {
+    const { data: invs } = await supabase
+      .from("invoices")
+      .select("request_id, protocol")
+      .not("request_id", "is", null)
+      .not("protocol", "is", null)
+      .order("created_at", { ascending: true })
+      .range(from, from + 999);
+    (invs ?? []).forEach((i) => addProtocol(i.request_id as string, i.protocol));
+    if (!invs || invs.length < 1000) break;
+  }
+  requests.forEach((r) => addProtocol(r.id, r.legacy_protocol));
+
   const nameById = new Map((initiators ?? []).map((p) => [p.id, p.full_name]));
   const offersByRequest = new Map<string, { id: string; supplier: string }[]>();
   (offers ?? []).forEach((o) => {
@@ -90,6 +113,7 @@ export default async function RequestListPage() {
         ? requestOffers.find((o) => o.id === r.winner_offer_id)?.supplier ?? ""
         : "",
       offersCount: requestOffers.length,
+      protocol: (protocolsByRequest.get(r.id) ?? []).join(" · "),
     };
   });
 
