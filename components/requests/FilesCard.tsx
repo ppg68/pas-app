@@ -50,6 +50,7 @@ export default function FilesCard({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [addingInvoice, setAddingInvoice] = useState(false);
   const [message, setMessage] = useState<{ docKey: string; text: string } | null>(null);
   const protocolRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
   // protocols of the invoices already uploaded for this IR: a proof of payment pays one of them
@@ -61,7 +62,11 @@ export default function FilesCard({
   async function upload(docKey: string, fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     setMessage(null);
-    const protocol = protocolRefs.current[docKey]?.value.trim() ?? "";
+    // a proof of payment for the only invoice of the IR needs no choice: it takes that invoice's protocol
+    const protocol =
+      docKey === "10" && invoiceProtocols.length === 1
+        ? invoiceProtocols[0]
+        : (protocolRefs.current[docKey]?.value.trim() ?? "");
     if (PROTOCOL_DOCS.includes(docKey) && !protocol) {
       setMessage({
         docKey,
@@ -102,6 +107,7 @@ export default function FilesCard({
       }
     }
     setBusy(null);
+    if (docKey === "07") setAddingInvoice(false);
     router.refresh();
   }
 
@@ -204,7 +210,16 @@ export default function FilesCard({
             ))}
             {canUpload && !closed && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-                {d.key === "07" && (
+                {d.key === "07" && list.length > 0 && !addingInvoice && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingInvoice(true)}
+                    style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 11, background: "transparent", cursor: "pointer" }}
+                  >
+                    + Add another invoice (new protocol)
+                  </button>
+                )}
+                {d.key === "07" && (list.length === 0 || addingInvoice) && (
                   <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
                     <b>1. Protocol (required):</b>
                     <input
@@ -217,15 +232,22 @@ export default function FilesCard({
                     <b>2. File:</b>
                   </label>
                 )}
-                {d.key === "10" && (
+                {d.key === "10" && invoiceProtocols.length === 0 && (
+                  <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Upload the invoice (07) first.</span>
+                )}
+                {d.key === "10" && invoiceProtocols.length === 1 && (
+                  <span style={{ fontSize: 12 }}>
+                    Payment of invoice <b>{invoiceProtocols[0]}</b> — just choose the file:
+                  </span>
+                )}
+                {d.key === "10" && invoiceProtocols.length > 1 && (
                   <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
                     <b>1. Pays invoice (protocol):</b>
                     <select
-                      key={invoiceProtocols.join("|")}
                       ref={(el) => {
                         protocolRefs.current[d.key] = el;
                       }}
-                      defaultValue={invoiceProtocols.length === 1 ? invoiceProtocols[0] : ""}
+                      defaultValue=""
                       style={{ fontSize: 12, background: "#fff", border: "1px solid var(--navy)" }}
                     >
                       <option value="">— choose —</option>
@@ -238,6 +260,7 @@ export default function FilesCard({
                     <b>2. File:</b>
                   </label>
                 )}
+                {!((d.key === "07" && list.length > 0 && !addingInvoice) || (d.key === "10" && invoiceProtocols.length === 0)) && (
                 <input
                   type="file"
                   multiple
@@ -249,6 +272,7 @@ export default function FilesCard({
                   }}
                   style={{ fontSize: 12 }}
                 />
+                )}
                 {busy === d.key && <span style={{ fontSize: 12 }}>Uploading…</span>}
               </div>
             )}
