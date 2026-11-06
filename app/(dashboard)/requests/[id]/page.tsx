@@ -236,6 +236,31 @@ export default async function RequestDetailPage({
   const paymentIndex = STAGE_ORDER.indexOf("payment");
   const effectiveCup = cupForProject(await fetchProjectCups(supabase), request.project_code) ?? request.cup_code;
 
+  // new payment authorization form: in the payment card for the first payment, in its own card at the bottom for tranches
+  const paForm = (
+      <PaymentAuthorizationForm
+        requestId={request.id}
+        fixed={{
+          ir: request.code,
+          project: request.project_code,
+          budgetLine: request.budget_line,
+          procedure: config.label,
+        }}
+        invoices={(requestInvoices ?? []).map((i) => ({
+          id: i.id,
+          label: `${i.supplier ?? "—"} — ${money(i.amount)} ${i.currency}${i.protocol ? ` — ${i.protocol}` : ""}`,
+          supplier: i.supplier,
+          amount: i.amount,
+          currency: i.currency,
+        }))}
+        winnerSupplier={winnerOffer?.supplier ?? null}
+        offerValue={winnerOffer ? winnerOffer.price + incrementAmount : null}
+        authorizedTotal={authorizedTotal}
+        currency={request.currency}
+        defaultBankDescription={effectiveCup ?? request.project_code}
+      />
+  );
+
   return (
     <div style={{ maxWidth: 700 }}>
       <div style={{ marginBottom: 20 }}>
@@ -699,32 +724,12 @@ export default async function RequestDetailPage({
             </p>
           )}
 
-          {request.stage === "payment" && request.initiated_by === userId && (
-            <details style={{ marginTop: 12 }} open={(payAuths ?? []).length === 0}>
+          {request.stage === "payment" && request.initiated_by === userId && (payAuths ?? []).length === 0 && (
+            <details style={{ marginTop: 12 }} open>
               <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                 + New payment authorization
               </summary>
-              <PaymentAuthorizationForm
-                requestId={request.id}
-                fixed={{
-                  ir: request.code,
-                  project: request.project_code,
-                  budgetLine: request.budget_line,
-                  procedure: config.label,
-                }}
-                invoices={(requestInvoices ?? []).map((i) => ({
-                  id: i.id,
-                  label: `${i.supplier ?? "—"} — ${money(i.amount)} ${i.currency}${i.protocol ? ` — ${i.protocol}` : ""}`,
-                  supplier: i.supplier,
-                  amount: i.amount,
-                  currency: i.currency,
-                }))}
-                winnerSupplier={winnerOffer?.supplier ?? null}
-                offerValue={winnerOffer ? winnerOffer.price + incrementAmount : null}
-                authorizedTotal={authorizedTotal}
-                currency={request.currency}
-                defaultBankDescription={effectiveCup ?? request.project_code}
-              />
+              {paForm}
             </details>
           )}
         </div>
@@ -749,6 +754,18 @@ export default async function RequestDetailPage({
           </details>
           </div>
         )}
+
+      {/* Further payments (tranches): rarely needed, so kept at the bottom */}
+      {request.stage === "payment" && request.initiated_by === userId && (payAuths ?? []).length > 0 && (
+        <div className="card">
+          <details>
+            <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              + Another payment authorization (only for payments in tranches)
+            </summary>
+            {paForm}
+          </details>
+        </div>
+      )}
     </div>
   );
 }
