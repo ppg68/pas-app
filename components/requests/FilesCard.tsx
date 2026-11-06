@@ -19,7 +19,7 @@ export type RequestFile = {
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx";
-const PROTOCOL_DOCS = ["07", "10"];
+const PROTOCOL_DOCS = ["07"]; // only the invoice carries the protocol; the proof of payment follows it
 
 function kb(n: number) {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
