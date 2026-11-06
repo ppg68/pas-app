@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/domain/procedures";
 import { fetchProjectCups } from "@/lib/domain/projectCups";
+import { fetchProjectPms } from "@/lib/domain/projectPm";
 import NewRequestForm, { type Candidate } from "@/components/requests/NewRequestForm";
 
 const APPROVER_ROLES: Role[] = ["PM", "CAR", "RAC"];
@@ -46,6 +47,12 @@ export default async function NewRequestPage({
       ...(a.pm_user_id ? { PM: a.pm_user_id } : {}),
       ...(a.car_user_id ? { CAR: a.car_user_id } : {}),
     };
+  });
+
+  // the PM written in the project card (Progetti approvati) wins over the old project_assignments table
+  const projectPms = await fetchProjectPms(supabase);
+  Object.entries(projectPms).forEach(([code, pmId]) => {
+    assignments[code] = { ...(assignments[code] ?? {}), PM: pmId };
   });
 
   return (
