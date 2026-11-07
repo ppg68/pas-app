@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-label="PAS - Purchasing Approval System">
 <title>PAS - Purchasing Approval System</title>
 <rect x="10" y="10" width="130" height="130" rx="26" fill="#1A3A5C"/>
-<g fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-<path d="M32 80V36M32 36H44A11 11 0 0 1 44 58H32" />
-<path d="M58 80L74 36L90 80M64 66H84" />
-<path d="M120 43C113 35 99 36 99 46C99 56 121 55 121 67C121 79 105 81 97 72" />
+<g transform="translate(1.5 0)" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M32 80V36M32 36H42A10 10 0 0 1 42 56H32"/>
+<path d="M62 80L73 36L84 80M66 66H80"/>
+<path d="M114 42C108 35 95 36 95 45C95 54 115 53 115 64C115 75 100 77 93 70"/>
 </g>
 <path d="M44 108L62 124L106 98" fill="none" stroke="#C4574A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
