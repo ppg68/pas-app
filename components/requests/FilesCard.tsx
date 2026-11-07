@@ -19,7 +19,7 @@ export type RequestFile = {
 };
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx";
+const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip";
 const PROTOCOL_DOCS = ["07", "10"]; // invoice: typed; proof of payment: chosen among the protocols of the IR invoices
 
 function kb(n: number) {
@@ -96,7 +96,10 @@ export default function FilesCard({
       const path = `${requestId}/${docKey}/${crypto.randomUUID()}_${safeName(file.name)}`;
       const { error: upErr } = await supabase.storage
         .from("pas-request-files")
-        .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        .upload(path, file, {
+          contentType: file.type || (file.name.toLowerCase().endsWith(".zip") ? "application/zip" : undefined),
+          upsert: false,
+        });
       if (upErr) {
         setMessage({ docKey, text: `Upload failed: ${upErr.message}` });
         continue;
@@ -198,7 +201,7 @@ export default function FilesCard({
     <div className="card">
       <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Procedure files</h2>
       <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-        PDF, images, Word or Excel, max 20 MB each. When the procedure is closed the files are moved to the server
+        PDF, images, Word, Excel or ZIP (a zipped folder stays a ZIP), max 20 MB each, as many files as you need per folder. When the procedure is closed the files are moved to the server
         archive and removed from here.
       </p>
 
