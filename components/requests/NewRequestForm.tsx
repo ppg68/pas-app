@@ -13,7 +13,6 @@ import {
   type ProcCode,
   irSlots,
   pmSigns,
-  creatorIsProjectPm,
   byProjectCode,
   slotLabel,
   type Role,
@@ -31,14 +30,12 @@ export default function NewRequestForm({
   candidates,
   assignments,
   projectCups,
-  creatorId,
   creatorHasPmRole,
 }: {
   candidates: Partial<Record<Role, Candidate[]>>;
   assignments: Record<string, Partial<Record<"PM" | "CAR", string>>>;
   projectCups: Record<string, string>;
-  creatorId: string;
-  /** has the PM role (used only when the project has no PM assigned) */
+  /** has the PM role: only then can the person choose to compile as PM */
   creatorHasPmRole: boolean;
 }) {
   const [project, setProject] = useState("");
@@ -50,15 +47,10 @@ export default function NewRequestForm({
   const [compileAsPm, setCompileAsPm] = useState(false);
 
   const projectCup = cupForProject(projectCups, project);
-  // the PM signature is skipped only when the person compiling is the PM of THIS project (not just any PM)
-  const creatorIsPm = creatorIsProjectPm({
-    creatorId,
-    creatorHasPmRole,
-    assignedPmId: byProjectCode(assignments, project)?.PM,
-    declaredAsPm: compileAsPm,
-  });
-  // project without a PM assigned and a creator who holds the PM role: ask in which capacity they compile
-  const askCapacity = creatorHasPmRole && !byProjectCode(assignments, project)?.PM;
+  // whoever holds the PM role says in which capacity they compile: as PM only the administration signs,
+  // as Budget Holder the PM signs as well (the PM of a project can change or delegate: nothing is decided automatically)
+  const creatorIsPm = creatorHasPmRole && compileAsPm;
+  const askCapacity = creatorHasPmRole;
   const price = parseFloat(amount);
   const validPrice = Number.isFinite(price) && price > 0;
   // the amount only suggests the procedure; whoever compiles the request decides (budget line of the project)
@@ -94,7 +86,7 @@ export default function NewRequestForm({
   function suggestion(roles: Role[]): string {
     const list = slotCandidates(roles);
     for (const r of roles) {
-      const assigned = r === "PM" || r === "CAR" ? assignments[project.trim()]?.[r] : undefined;
+      const assigned = r === "PM" || r === "CAR" ? byProjectCode(assignments, project)?.[r] : undefined;
       if (assigned && list.some((c) => c.id === assigned)) return assigned;
     }
     return list.length === 1 ? list[0].id : "";
@@ -211,17 +203,17 @@ export default function NewRequestForm({
               <label>I am compiling this request as</label>
               <label className="checkbox-row">
                 <input type="radio" name="compile_as" value="bh" checked={!compileAsPm} onChange={() => setCompileAsPm(false)} />{" "}
-                Budget Holder — the PM of the project signs as well
+                Budget Holder — a PM signs as well
               </label>
               <label className="checkbox-row">
                 <input type="radio" name="compile_as" value="pm" checked={compileAsPm} onChange={() => setCompileAsPm(true)} />{" "}
-                PM of this project — only the administration (CAR or RAC) signs
+                PM — only the administration (CAR or RAC) signs
               </label>
             </div>
           )}
           {creatorIsPm && proc && proc !== "DIR" && (
             <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-              You are the PM of this project: your signature is not requested (nobody signs their own request).
+              You compile as PM: your signature is not requested, only the administration (CAR or RAC) signs.
             </div>
           )}
           {slots.map((slot) => {

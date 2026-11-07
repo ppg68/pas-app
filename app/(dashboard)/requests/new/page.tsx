@@ -49,7 +49,7 @@ export default async function NewRequestPage({
     };
   });
 
-  // the PM written in the project card (Progetti approvati) wins over the old project_assignments table
+  // the PM written in the project card (Progetti approvati) is only a SUGGESTION for the PM approver
   const projectPms = await fetchProjectPms(supabase);
   Object.entries(projectPms).forEach(([code, pmId]) => {
     assignments[code] = { ...(assignments[code] ?? {}), PM: pmId };
@@ -61,7 +61,7 @@ export default async function NewRequestPage({
 
       {error && <div className="banner error">{error}</div>}
 
-      <NewRequestForm candidates={candidates} assignments={assignments} projectCups={projectCups} creatorId={user?.id ?? ""} creatorHasPmRole={creatorHasPmRole} />
+      <NewRequestForm candidates={candidates} assignments={assignments} projectCups={projectCups} creatorHasPmRole={creatorHasPmRole} />
     </div>
   );
 }

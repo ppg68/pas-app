@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { fetchProjectPms, pmForProject } from "@/lib/domain/projectPm";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { sendEmail, escapeHtml } from "@/lib/notify";
 import {
@@ -19,8 +18,6 @@ import {
   slotLabel,
   slotSigned,
   buildRequestCode,
-  creatorIsProjectPm,
-  byProjectCode,
   documentsComplete,
   ROLE_LABEL,
   type Role,
@@ -92,21 +89,9 @@ export async function createRequest(formData: FormData) {
 
   // Every signature required (PM + administration CAR/RAC, see irSlots) must be designated before the
   // request is created (checked before the IR number is drawn, so a refused request does not burn a number).
-  // PM of the project: from Progetti approvati (pas.project_pms); the old project_assignments table is only a fallback
-  const projectPms = await fetchProjectPms(supabase);
-  const { data: assignmentRows } = await supabase.from("project_assignments").select("project_code, pm_user_id");
-  const assignedPm =
-    pmForProject(projectPms, projectCode) ??
-    byProjectCode(
-      Object.fromEntries((assignmentRows ?? []).map((a) => [a.project_code, a.pm_user_id as string | null])),
-      projectCode
-    );
-  const creatorIsPm = creatorIsProjectPm({
-    creatorId: user.id,
-    creatorHasPmRole: (myRoles ?? []).some((r) => r.role === "PM"),
-    assignedPmId: assignedPm,
-    declaredAsPm: formData.get("compile_as") === "pm",
-  });
+  // whoever holds the PM role declares in the form whether they compile as PM (only CAR/RAC sign) or as Budget Holder
+  // (the PM signs too). The PM of a project can change or delegate, so nothing is decided from the project.
+  const creatorIsPm = (myRoles ?? []).some((r) => r.role === "PM") && formData.get("compile_as") === "pm";
   const pmRequired = pmSigns(procCode, coordinationCost, creatorIsPm);
   const required = irSlots({ procCode, coordinationCost, derogation, pmRequired });
   const pickedIds = required.map((slot) => ({

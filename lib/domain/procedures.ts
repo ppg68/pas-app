@@ -145,23 +145,6 @@ export function pmSigns(procCode: ProcCode, coordinationCost: boolean, creatorIs
   return procCode !== "DIR" && !coordinationCost && !creatorIsPm;
 }
 
-/**
- * Is the person compiling the request the PM *of this project*? A PM compiling as Budget Holder on someone
- * else's project still needs that project's PM signature.
- *  - project with an assigned PM (project_assignments): automatic, true only for that person;
- *  - project without an assigned PM: the person with the PM role declares in the form whether they compile
- *    as PM of the project (declaredAsPm) or as Budget Holder (default, the safer choice).
- */
-export function creatorIsProjectPm(opts: {
-  creatorId: string;
-  creatorHasPmRole: boolean;
-  assignedPmId: string | null | undefined;
-  declaredAsPm: boolean;
-}): boolean {
-  if (opts.assignedPmId) return opts.assignedPmId === opts.creatorId;
-  return opts.creatorHasPmRole && opts.declaredAsPm;
-}
-
 /** Case-insensitive lookup of a project code ("179it" = "179IT") in a map keyed by project code. */
 export function byProjectCode<T>(map: Record<string, T>, projectCode: string): T | undefined {
   const key = projectCode.trim().toUpperCase();
