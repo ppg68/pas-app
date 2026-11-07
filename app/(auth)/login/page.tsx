@@ -90,7 +90,10 @@ function LoginForm() {
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <div className="login-brand">PAS</div>
+        <div className="login-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pas-logo.svg" width={64} height={64} alt="PAS - Purchasing Approval System" />
+        </div>
         <p className="login-sub">{title}</p>
 
         {callbackError && !error && (

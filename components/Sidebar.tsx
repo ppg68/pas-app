@@ -26,7 +26,8 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        PAS
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pas-logo-light.svg" width={44} height={44} alt="PAS" />
         <span>Istituto Oikos</span>
       </div>
 
