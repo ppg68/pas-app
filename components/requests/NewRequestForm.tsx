@@ -104,6 +104,22 @@ export default function NewRequestForm({
         <label>Project code<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="project_code" required value={project} onChange={(e) => setProject(e.target.value)} />
       </div>
+      {askCapacity && (
+        <div className="field" style={{ gap: 4 }}>
+          <label>I am compiling this request as<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
+          <label className="checkbox-row">
+            <input type="radio" name="compile_as" value="bh" checked={!compileAsPm} onChange={() => setCompileAsPm(false)} />{" "}
+            Budget Holder — a PM signs as well
+          </label>
+          <label className="checkbox-row">
+            <input type="radio" name="compile_as" value="pm" checked={compileAsPm} onChange={() => setCompileAsPm(true)} />{" "}
+            PM — only the administration (CAR or RAC) signs
+          </label>
+          {(proc === "DIR" || coordination) && (
+            <div className="hint">Direct purchases and coordination costs do not need the PM signature: this choice has no effect.</div>
+          )}
+        </div>
+      )}
       <div className="field">
         <label>Budget line<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="budget_line" required />
@@ -198,19 +214,6 @@ export default function NewRequestForm({
             Each person you pick receives an email as soon as the request is created. Only registered
             users holding the role are listed.
           </div>
-          {askCapacity && proc && proc !== "DIR" && !coordination && (
-            <div className="field" style={{ gap: 4 }}>
-              <label>I am compiling this request as</label>
-              <label className="checkbox-row">
-                <input type="radio" name="compile_as" value="bh" checked={!compileAsPm} onChange={() => setCompileAsPm(false)} />{" "}
-                Budget Holder — a PM signs as well
-              </label>
-              <label className="checkbox-row">
-                <input type="radio" name="compile_as" value="pm" checked={compileAsPm} onChange={() => setCompileAsPm(true)} />{" "}
-                PM — only the administration (CAR or RAC) signs
-              </label>
-            </div>
-          )}
           {creatorIsPm && proc && proc !== "DIR" && (
             <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
               You compile as PM: your signature is not requested, only the administration (CAR or RAC) signs.
