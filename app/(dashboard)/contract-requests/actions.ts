@@ -116,6 +116,7 @@ function validate(path: string, kind: RequestKind, p: ReturnType<typeof parseSch
   if (!f.activities) fail(path, "Describe the activities to be carried out.");
   if (!f.end_date) fail(path, "Enter the end date.");
   if (f.start_date && f.end_date && f.end_date < f.start_date) fail(path, "The end date is before the start date.");
+  if (kind === "company" && !f.address) fail(path, "Enter the registered office of the company.");
   if (kind === "company" && !f.legal_rep) fail(path, "Enter the legal representative of the company.");
   if (kind === "company" ? !f.contact_person || !f.contact_email : !f.email) {
     fail(path, kind === "company" ? "Enter the supplier contact person and email." : "Enter the supplier email.");
