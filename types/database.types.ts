@@ -721,6 +721,7 @@ export type Database = {
           budget_line: string
           code: string
           coordination_cost: boolean
+          direct_supplier: string | null
           country: string
           created_at: string
           cup_code: string | null
@@ -761,6 +762,7 @@ export type Database = {
           budget_line: string
           code: string
           coordination_cost?: boolean
+          direct_supplier?: string | null
           country: string
           created_at?: string
           cup_code?: string | null
@@ -801,6 +803,7 @@ export type Database = {
           budget_line?: string
           code?: string
           coordination_cost?: boolean
+          direct_supplier?: string | null
           country?: string
           created_at?: string
           cup_code?: string | null

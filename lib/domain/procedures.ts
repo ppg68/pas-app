@@ -72,7 +72,7 @@ export function isDerogation(chosen: ProcCode, amount: number | string): boolean
 }
 
 export const DOCS_BY_PROC: Record<ProcCode, string[]> = {
-  DIR: ["07"],
+  DIR: ["03", "07"], // 03: optional quote / screenshot of the online purchase (invoice may come after payment)
   SQ: ["02", "03", "06", "07", "08"],
   "3Q": ["02", "03", "04", "05", "06", "07", "08"],
   SP: ["02", "03", "04", "05", "06", "07", "08"],
@@ -83,7 +83,7 @@ export const OPTIONAL_DOCS = new Set(["02", "05", "06", "08"]);
 
 /** Optional folders for a procedure: the comparative bid (04) is required only for Three Quotations. */
 export function isOptionalDoc(procCode: ProcCode, key: string): boolean {
-  return OPTIONAL_DOCS.has(key) || (key === "04" && procCode !== "3Q");
+  return OPTIONAL_DOCS.has(key) || (key === "04" && procCode !== "3Q") || (key === "03" && procCode === "DIR");
 }
 
 export const FOLDER_NAMES: Record<string, string> = {

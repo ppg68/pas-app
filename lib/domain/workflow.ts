@@ -60,6 +60,11 @@ export async function createRequest(formData: FormData) {
   if (!PROC_CONFIG.some((c) => c.code === chosenProc)) {
     fail("/requests/new", "Choose the procedure.");
   }
+  // direct purchases have no offers: the supplier is typed here
+  const directSupplier = chosenProc === "DIR" ? String(formData.get("direct_supplier") || "").trim() : "";
+  if (chosenProc === "DIR" && !directSupplier) {
+    fail("/requests/new", "Enter the supplier of the direct purchase.");
+  }
   if (!derogationFlag && !procedureAllowed(chosenProc, estimatedPrice)) {
     fail(
       "/requests/new",
@@ -171,6 +176,7 @@ export async function createRequest(formData: FormData) {
       derogation_reason: derogation ? derogationReason : null,
       donor_procedure: donorProcedure || null,
       coordination_cost: coordinationCost,
+      direct_supplier: directSupplier || null,
       cup_code: cupForProject(await fetchProjectCups(supabase), projectCode) ?? (cupCode || null),
       institutional_activity: institutionalActivity,
       occasional_collaborator: occasionalCollaborator,

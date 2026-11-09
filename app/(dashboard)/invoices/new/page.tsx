@@ -47,7 +47,7 @@ export default async function NewInvoicePage({
   // not yet closed.
   const { data: open } = await supabase
     .from("requests")
-    .select("id, code, ir_number, country, description, project_code, currency, proc_code, estimated_price, stage, winner_offer_id")
+    .select("id, code, ir_number, country, description, project_code, currency, proc_code, estimated_price, stage, winner_offer_id, direct_supplier")
     .eq("is_legacy", false)
     .in("stage", ["documents", "payment"])
     .order("created_at", { ascending: false });
@@ -65,7 +65,7 @@ export default async function NewInvoicePage({
       currency: r.currency,
       procedure: procConfigFor(r.proc_code).label,
       stage: r.stage,
-      supplier: w?.supplier ?? null,
+      supplier: w?.supplier ?? r.direct_supplier ?? null,
       value: w?.price ?? r.estimated_price,
     };
   });

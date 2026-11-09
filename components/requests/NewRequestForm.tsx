@@ -138,6 +138,13 @@ export default function NewRequestForm({
         <label>Description<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="description" required />
       </div>
+      {proc === "DIR" && (
+        <div className="field">
+          <label>Supplier<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
+          <input name="direct_supplier" required />
+          <div className="hint">Shown in the Requests table, so the administration can match the invoice to this IR.</div>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10 }}>
         <div className="field" style={{ flex: 1 }}>
           <label>Estimated amount<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
