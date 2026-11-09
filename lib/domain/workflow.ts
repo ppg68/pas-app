@@ -50,7 +50,7 @@ export async function createRequest(formData: FormData) {
   if (
     !country ||
     !projectCode ||
-    !budgetLine ||
+    (!budgetLine && !coordinationCost) ||
     !description ||
     !Number.isFinite(estimatedPrice) ||
     estimatedPrice <= 0

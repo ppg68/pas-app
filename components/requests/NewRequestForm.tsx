@@ -103,6 +103,15 @@ export default function NewRequestForm({
       <div className="field">
         <label>Project code<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
         <input name="project_code" required value={project} onChange={(e) => setProject(e.target.value)} />
+        <label className="checkbox-row" style={{ marginTop: 6 }}>
+          <input
+            type="checkbox"
+            name="coordination_cost"
+            checked={coordination}
+            onChange={(e) => setCoordination(e.target.checked)}
+          />{" "}
+          Coordination cost (no linked project)
+        </label>
       </div>
       {askCapacity && (
         <div className="field" style={{ gap: 4 }}>
@@ -121,8 +130,9 @@ export default function NewRequestForm({
         </div>
       )}
       <div className="field">
-        <label>Budget line<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
-        <input name="budget_line" required />
+        <label>Budget line{!coordination && <span style={{ color: "var(--brick)" }} title="Required"> *</span>}</label>
+        <input name="budget_line" required={!coordination} />
+        {coordination && <div className="hint">Not needed for coordination costs (purchases on the structure).</div>}
       </div>
       <div className="field">
         <label>Description<span style={{ color: "var(--brick)" }} title="Required"> *</span></label>
@@ -189,15 +199,6 @@ export default function NewRequestForm({
         </div>
       )}
 
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          name="coordination_cost"
-          checked={coordination}
-          onChange={(e) => setCoordination(e.target.checked)}
-        />{" "}
-        Coordination cost (no linked project)
-      </label>
       <label className="checkbox-row">
         <input type="checkbox" name="institutional_activity" /> Institutional activity
       </label>
