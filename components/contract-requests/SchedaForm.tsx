@@ -77,12 +77,12 @@ export default function SchedaForm({
           )}
         </div>
         <div className="field">
-          <label>{company ? "Registered office *" : "Residence"}</label>
-          <input name="address" defaultValue={d.address ?? ""} placeholder="e.g. 20134 Milano – Via … 1" required={company} />
+          <label>{company ? "Registered office *" : "Residence *"}</label>
+          <input name="address" defaultValue={d.address ?? ""} placeholder="e.g. 20134 Milano – Via … 1" required />
         </div>
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Tax code (C.F.)</label>
+            <label>Tax code (C.F.) — C.F. or P.IVA required</label>
             <input name="tax_code" defaultValue={d.tax_code ?? ""} />
           </div>
           <div className="field" style={col()}>
