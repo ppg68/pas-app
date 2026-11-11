@@ -315,6 +315,33 @@ export default async function RequestDetailPage({
           )}
     </>
   );
+  const showWinnerBlock = showOffers && stageIndex >= winnerIndex;
+  const winnerBlock = (
+    <>
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Winner</h2>
+          {request.stage === "winner" ? (
+            <form action={selectWinner.bind(null, request.id)} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(offers ?? []).map((o) => (
+                <label key={o.id} style={{ fontSize: 13, display: "flex", gap: 6 }}>
+                  <input type="radio" name="offer_id" value={o.id} required />
+                  {o.supplier} — {o.price} {request.currency}
+                </label>
+              ))}
+              <input name="note" placeholder="Note (optional)" />
+              <button type="submit" className="primary" style={{ width: "fit-content" }}>
+                Confirm winner
+              </button>
+            </form>
+          ) : (
+            <p style={{ fontSize: 13 }}>
+              {request.winner_offer_id
+                ? (offers ?? []).find((o) => o.id === request.winner_offer_id)?.supplier
+                : "—"}
+              {request.winner_note ? ` · ${request.winner_note}` : ""}
+            </p>
+          )}
+    </>
+  );
 
   return (
     <div style={{ maxWidth: 700 }}>
@@ -527,33 +554,8 @@ export default async function RequestDetailPage({
       {/* Offers: shown inside the files card, right after 03 Quotations received, when that folder is listed */}
       {offersCardAlone && <div className="card">{offersBlock}</div>}
 
-      {/* Winner */}
-      {showOffers && stageIndex >= winnerIndex && (
-        <div className="card">
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Winner</h2>
-          {request.stage === "winner" ? (
-            <form action={selectWinner.bind(null, request.id)} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {(offers ?? []).map((o) => (
-                <label key={o.id} style={{ fontSize: 13, display: "flex", gap: 6 }}>
-                  <input type="radio" name="offer_id" value={o.id} required />
-                  {o.supplier} — {o.price} {request.currency}
-                </label>
-              ))}
-              <input name="note" placeholder="Note (optional)" />
-              <button type="submit" className="primary" style={{ width: "fit-content" }}>
-                Confirm winner
-              </button>
-            </form>
-          ) : (
-            <p style={{ fontSize: 13 }}>
-              {request.winner_offer_id
-                ? (offers ?? []).find((o) => o.id === request.winner_offer_id)?.supplier
-                : "—"}
-              {request.winner_note ? ` · ${request.winner_note}` : ""}
-            </p>
-          )}
-        </div>
-      )}
+      {/* Winner: inside the files card, after the offers, when folder 03 is listed */}
+      {showWinnerBlock && !offersInFiles && <div className="card">{winnerBlock}</div>}
 
       {showFiles && (
         <FilesCard
@@ -574,7 +576,7 @@ export default async function RequestDetailPage({
           docsOk={docsOk}
           folderPath={request.folder_path ?? null}
           afterDocKey="03"
-          afterDoc={offersInFiles ? offersBlock : undefined}
+          afterDoc={offersInFiles ? (<>{offersBlock}{showWinnerBlock && <div style={{ borderTop: "0.5px solid #EEF0F3", marginTop: 10, paddingTop: 10 }}>{winnerBlock}</div>}</>) : undefined}
         />
       )}
 
