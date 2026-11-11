@@ -322,7 +322,7 @@ export default async function RequestDetailPage({
           {request.stage === "winner" ? (
             <form action={selectWinner.bind(null, request.id)} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(offers ?? []).map((o) => (
-                <label key={o.id} style={{ fontSize: 13, display: "flex", gap: 6 }}>
+                <label key={o.id} className="checkbox-row" style={{ fontSize: 13 }}>
                   <input type="radio" name="offer_id" value={o.id} required />
                   {o.supplier} — {o.price} {request.currency}
                 </label>
