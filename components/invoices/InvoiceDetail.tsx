@@ -42,7 +42,7 @@ export type DetailContract = {
   invoicedOthers: number;
 };
 
-const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
+const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" };
 
 type TextKey =
   | "contract_number"

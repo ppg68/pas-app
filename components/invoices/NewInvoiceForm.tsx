@@ -32,7 +32,7 @@ export type AwaitingRequest = {
   value: number;
 };
 
-const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
+const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" };
 
 export default function NewInvoiceForm({
   contracts,
