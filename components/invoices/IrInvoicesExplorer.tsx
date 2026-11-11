@@ -52,7 +52,7 @@ type PaFilter = "all" | "signed" | "unsigned";
 const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
 type Col = {
-  key: keyof IrInvoiceListRow;
+  key: keyof IrInvoiceListRow | "remaining";
   label: string;
   sort?: SortBy;
   align?: "right";
@@ -263,7 +263,7 @@ This cannot be undone.`)) return;
   }
 
   function renderCell(r: IrInvoiceListRow, col: Col) {
-    const value = r[col.key];
+    const value = r[col.key as keyof IrInvoiceListRow];
     // Contract #: shown as a link to the contract record; the pencil switches to editing the number.
     if (col.key === "contract_number" && r.contractUuid && editingContract !== r.id) {
       return (
