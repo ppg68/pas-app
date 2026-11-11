@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toggleDoc, advanceToPayment } from "@/lib/domain/workflow";
@@ -42,6 +42,8 @@ export default function FilesCard({
   canFlag,
   docsOk,
   folderPath,
+  afterDocKey,
+  afterDoc,
 }: {
   requestId: string;
   docs: { key: string; label: string; kind: "required" | "optional" | "closing"; checked: boolean }[];
@@ -56,6 +58,9 @@ export default function FilesCard({
   /** all required documents are complete: the request can go to payment */
   docsOk: boolean;
   folderPath: string | null;
+  /** content shown right after the folder with this key (e.g. the offers, after 03 Quotations received) */
+  afterDocKey?: string;
+  afterDoc?: ReactNode;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -209,7 +214,8 @@ export default function FilesCard({
         const list = files.filter((f) => f.doc_key === d.key);
         const needsProtocol = PROTOCOL_DOCS.includes(d.key);
         return (
-          <div key={d.key} style={{ borderTop: "0.5px solid #EEF0F3", padding: "8px 0", fontSize: 13 }}>
+          <Fragment key={d.key}>
+          <div style={{ borderTop: "0.5px solid #EEF0F3", padding: "8px 0", fontSize: 13 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 500 }}>
                 {d.label}{" "}
@@ -355,6 +361,10 @@ export default function FilesCard({
               <div style={{ color: "var(--brick)", fontSize: 12, marginTop: 4 }}>{message.text}</div>
             )}
           </div>
+          {afterDoc && d.key === afterDocKey && (
+            <div style={{ borderTop: "0.5px solid #EEF0F3", padding: "10px 0" }}>{afterDoc}</div>
+          )}
+          </Fragment>
         );
       })}
 

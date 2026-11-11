@@ -261,6 +261,61 @@ export default async function RequestDetailPage({
       />
   );
 
+  const showOffersBlock = showOffers && stageIndex >= offersIndex;
+  const offersInFiles = showOffersBlock && showFiles && fileDocKeys.includes("03");
+  const offersCardAlone = showOffersBlock && !offersInFiles;
+  const offersBlock = (
+    <>
+          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>
+            Offers (minimum {config.minOffers})
+          </h2>
+          {(offers ?? []).length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>No offers yet.</p>
+          )}
+          {(offers ?? []).map((o) => (
+            <div key={o.id} style={{ fontSize: 13, padding: "4px 0" }}>
+              {o.supplier} — {o.price} {request.currency}
+              {request.winner_offer_id === o.id && (
+                <strong style={{ color: "var(--navy)" }}> · winner</strong>
+              )}
+            </div>
+          ))}
+
+          {request.stage === "offers" && (
+            <>
+              <form
+                action={addOffer.bind(null, request.id)}
+                style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}
+              >
+                <div>
+                  <label>
+                    Supplier
+                  </label>
+                  <input name="supplier" required />
+                </div>
+                <div>
+                  <label>
+                    Price
+                  </label>
+                  <MoneyInput name="price" required />
+                </div>
+                <button type="submit" className="primary">
+                  Add
+                </button>
+              </form>
+
+              {(offers ?? []).length >= config.minOffers && (
+                <form action={closeOffers.bind(null, request.id)} style={{ marginTop: 10 }}>
+                  <button type="submit" className="primary">
+                    Close offer collection
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+    </>
+  );
+
   return (
     <div style={{ maxWidth: 700 }}>
       <div style={{ marginBottom: 20 }}>
@@ -469,58 +524,8 @@ export default async function RequestDetailPage({
         )}
       </div>
 
-      {/* Offers */}
-      {showOffers && stageIndex >= offersIndex && (
-        <div className="card">
-          <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>
-            Offers (minimum {config.minOffers})
-          </h2>
-          {(offers ?? []).length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>No offers yet.</p>
-          )}
-          {(offers ?? []).map((o) => (
-            <div key={o.id} style={{ fontSize: 13, padding: "4px 0" }}>
-              {o.supplier} — {o.price} {request.currency}
-              {request.winner_offer_id === o.id && (
-                <strong style={{ color: "var(--navy)" }}> · winner</strong>
-              )}
-            </div>
-          ))}
-
-          {request.stage === "offers" && (
-            <>
-              <form
-                action={addOffer.bind(null, request.id)}
-                style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}
-              >
-                <div>
-                  <label>
-                    Supplier
-                  </label>
-                  <input name="supplier" required />
-                </div>
-                <div>
-                  <label>
-                    Price
-                  </label>
-                  <MoneyInput name="price" required />
-                </div>
-                <button type="submit" className="primary">
-                  Add
-                </button>
-              </form>
-
-              {(offers ?? []).length >= config.minOffers && (
-                <form action={closeOffers.bind(null, request.id)} style={{ marginTop: 10 }}>
-                  <button type="submit" className="primary">
-                    Close offer collection
-                  </button>
-                </form>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {/* Offers: shown inside the files card, right after 03 Quotations received, when that folder is listed */}
+      {offersCardAlone && <div className="card">{offersBlock}</div>}
 
       {/* Winner */}
       {showOffers && stageIndex >= winnerIndex && (
@@ -568,6 +573,8 @@ export default async function RequestDetailPage({
           canFlag={request.stage === "documents"}
           docsOk={docsOk}
           folderPath={request.folder_path ?? null}
+          afterDocKey="03"
+          afterDoc={offersInFiles ? offersBlock : undefined}
         />
       )}
 
