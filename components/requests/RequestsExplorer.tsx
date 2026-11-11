@@ -29,6 +29,8 @@ export type RequestRow = {
   institutional_activity: boolean;
   occasional_collaborator: boolean;
   stage: Stage;
+  archive_requested_at?: string | null;
+  archive_done_at?: string | null;
   folder_path: string | null;
   ir_number: string | null;
   protocol: string;
@@ -38,6 +40,15 @@ export type RequestRow = {
   offersCount: number;
   awaitingMe: boolean;
 };
+
+/** A closed IR: "Closed" until the procedure is closed for archiving, then waiting for the server script, then archived. */
+function stageText(r: Pick<RequestRow, "stage" | "archive_requested_at" | "archive_done_at">): string {
+  if (r.stage === "completed") {
+    if (r.archive_done_at) return "Closed · archived";
+    if (r.archive_requested_at) return "Closed · awaiting archive";
+  }
+  return STAGE_TITLES[r.stage];
+}
 
 type SortKey =
   | "created"
@@ -109,7 +120,7 @@ export default function RequestsExplorer({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
+  const [stageFilter, setStageFilter] = useState<Stage | "awaiting_archive" | "all">("all");
   const [awaitingOnly, setAwaitingOnly] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -139,7 +150,10 @@ This permanently removes the request together with its offers, signatures, docum
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = requests.filter(
-      (r) => (stageFilter === "all" || r.stage === stageFilter) && (!awaitingOnly || r.awaitingMe)
+      (r) =>
+        (stageFilter === "all" ||
+          (stageFilter === "awaiting_archive" ? r.stage === "completed" && !!r.archive_requested_at && !r.archive_done_at : r.stage === stageFilter)) &&
+        (!awaitingOnly || r.awaitingMe)
     );
     if (q) {
       list = list.filter((r) =>
@@ -186,7 +200,7 @@ This permanently removes the request together with its offers, signatures, docum
           "Occasional collaborator": r.occasional_collaborator ? "x" : "",
           Derogation: r.derogation ? `Yes — ${r.derogation_reason ?? ""}` : "No",
           "Coordination cost": r.coordination_cost ? "Yes" : "No",
-          Stage: STAGE_TITLES[r.stage],
+          Stage: stageText(r),
           "Initiated by": r.initiatedByName,
           "No. of offers": r.offersCount,
         };
@@ -237,13 +251,14 @@ This permanently removes the request together with its offers, signatures, docum
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | "all")}>
+          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | "awaiting_archive" | "all")}>
             <option value="all">All stages</option>
             {STAGE_LABELS.map((s) => (
               <option key={s} value={s}>
                 {STAGE_TITLES[s]}
               </option>
             ))}
+            <option value="awaiting_archive">Closed · awaiting archive</option>
           </select>
           <label className="checkbox-row" style={{ whiteSpace: "nowrap" }}>
             <input type="checkbox" checked={awaitingOnly} onChange={(e) => setAwaitingOnly(e.target.checked)} />{" "}
@@ -349,7 +364,7 @@ This permanently removes the request together with its offers, signatures, docum
                     {formatMoney(r.estimated_price)} {r.currency}
                   </td>
                   <td>
-                    <span className="stamp brand">{STAGE_TITLES[r.stage]}</span>
+                    <span className="stamp brand">{stageText(r)}</span>
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{r.initiatedByName}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{r.cup_code}</td>
