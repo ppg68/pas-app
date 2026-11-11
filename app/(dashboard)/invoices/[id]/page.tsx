@@ -68,6 +68,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     budget_line: invoice.budget_line,
     cup: invoice.cup,
     notes: invoice.notes,
+    file_name: invoice.file_name,
   };
 
   return (

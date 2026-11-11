@@ -235,6 +235,8 @@ export default function FilesCard({
       {docs.map((d) => {
         const list = files.filter((f) => f.doc_key === d.key);
         const needsProtocol = PROTOCOL_DOCS.includes(d.key);
+        // 07 Invoice: loaded by Administration in Invoices (with IR number and protocol); here it is only shown
+        const viewOnly = d.key === "07";
         return (
           <Fragment key={d.key}>
           <div style={{ borderTop: "0.5px solid #EEF0F3", padding: "8px 0", fontSize: 13 }}>
@@ -287,7 +289,7 @@ export default function FilesCard({
                 {needsProtocol && (
                   <span style={{ fontSize: 11 }}>
                     protocol: <b>{f.protocol || "—"}</b>
-                    {!f.archived_at && !closed && canUpload && (
+                    {!f.archived_at && !closed && canUpload && !viewOnly && (
                       <button
                         type="button"
                         onClick={() => void editProtocol(f)}
@@ -298,7 +300,7 @@ export default function FilesCard({
                     )}
                   </span>
                 )}
-                {!f.archived_at && !closed && (f.mine || canArchive) && (
+                {!f.archived_at && !closed && !viewOnly && (f.mine || canArchive) && (
                   <button
                     type="button"
                     onClick={() => void remove(f)}
@@ -310,7 +312,12 @@ export default function FilesCard({
                 )}
               </div>
             ))}
-            {canUpload && !closed && (
+            {viewOnly && list.length === 0 && (
+              <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                The invoice is loaded by Administration in Invoices (with this IR number and the protocol): it shows here by itself.
+              </div>
+            )}
+            {canUpload && !closed && !viewOnly && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
                 {d.key === "07" && list.length > 0 && !addingInvoice && (
                   <button

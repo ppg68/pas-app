@@ -344,6 +344,9 @@ export type Database = {
           created_at: string
           cup: string | null
           currency: string
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
           due_date: string | null
           id: string
           ir_number: string | null
@@ -367,6 +370,9 @@ export type Database = {
           created_at?: string
           cup?: string | null
           currency?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
           due_date?: string | null
           id?: string
           ir_number?: string | null
@@ -390,6 +396,9 @@ export type Database = {
           created_at?: string
           cup?: string | null
           currency?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
           due_date?: string | null
           id?: string
           ir_number?: string | null

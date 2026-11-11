@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import MoneyInput from "@/components/MoneyInput";
 import SubmitButton from "@/components/SubmitButton";
+import InvoiceFileInput, { type UploadedInvoiceFile } from "@/components/invoices/InvoiceFileInput";
 import { createInvoiceFromForm } from "@/app/(dashboard)/invoices/actions";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
@@ -45,6 +46,7 @@ export default function NewInvoiceForm({
   awaiting?: AwaitingRequest[];
 }) {
   const [pickFilter, setPickFilter] = useState("");
+  const [file, setFile] = useState<UploadedInvoiceFile | null>(null);
   const [picked, setPicked] = useState("");
   const [contractNumber, setContractNumber] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -276,6 +278,18 @@ export default function NewInvoiceForm({
             <input name="cup" />
           )}
         </div>
+      </div>
+
+      <div>
+        <InvoiceFileInput onUploaded={(f) => setFile(f)} label="Invoice file (shown in folder 07 of the IR)" />
+        {file && (
+          <>
+            <input type="hidden" name="file_path" value={file.path} />
+            <input type="hidden" name="file_name" value={file.name} />
+            <input type="hidden" name="file_size" value={file.size} />
+            <span style={{ fontSize: 12, color: "var(--navy)" }}>✓ {file.name} uploaded</span>
+          </>
+        )}
       </div>
 
       <div className="field">

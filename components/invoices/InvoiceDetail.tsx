@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import MoneyInput from "@/components/MoneyInput";
 import Link from "next/link";
-import { updateInvoiceField } from "@/app/(dashboard)/invoices/actions";
+import { updateInvoiceField, attachInvoiceFile, removeInvoiceFile, getInvoiceFileUrl } from "@/app/(dashboard)/invoices/actions";
+import InvoiceFileInput from "@/components/invoices/InvoiceFileInput";
+import { useRouter } from "next/navigation";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
 import { irKey, type IrRef } from "@/lib/domain/irRefs";
@@ -25,6 +27,7 @@ export type InvoiceRecord = {
   budget_line: string | null;
   cup: string | null;
   notes: string | null;
+  file_name: string | null;
 };
 
 export type DetailContract = {
@@ -66,6 +69,16 @@ export default function InvoiceDetail({
 }) {
   const [r, setR] = useState(record);
   const [saved, setSaved] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function downloadFile() {
+    const res = await getInvoiceFileUrl(r.id);
+    if (!res.ok || !res.url) {
+      window.alert(res.error ?? "Could not open the file.");
+      return;
+    }
+    window.open(res.url, "_blank", "noopener");
+  }
 
   const byNumber = useMemo(() => {
     const m = new Map<string, DetailContract>();
@@ -253,6 +266,46 @@ export default function InvoiceDetail({
       </div>
 
       {textField("Notes", "notes", { flex: 1, minWidth: 220 })}
+      <div>
+        <div className="field-label" style={{ marginBottom: 6 }}>Invoice file</div>
+        {r.file_name && (
+          <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 8, fontSize: 13 }}>
+            <button type="button" onClick={() => void downloadFile()} style={{ border: "none", background: "transparent", color: "var(--navy)", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+              {r.file_name}
+            </button>
+            <button
+              type="button"
+              title="Remove the file"
+              onClick={async () => {
+                if (!window.confirm("Remove the invoice file? It also disappears from folder 07 of the IR.")) return;
+                await removeInvoiceFile(r.id);
+                setR({ ...r, file_name: null });
+                router.refresh();
+              }}
+              style={{ border: "none", background: "transparent", color: "var(--brick)", cursor: "pointer" }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <InvoiceFileInput
+          label={r.file_name ? "Replace the file" : "Upload the invoice (shown in folder 07 of the IR)"}
+          onUploaded={async (f) => {
+            const res = await attachInvoiceFile(r.id, f);
+            if (!res.ok) {
+              window.alert(res.error ?? "Could not save the file.");
+              return;
+            }
+            setR({ ...r, file_name: f.name });
+            router.refresh();
+          }}
+        />
+        {!r.request_id && (
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
+            Enter the IR number: the file then appears in folder 07 of that IR, with the protocol.
+          </p>
+        )}
+      </div>
 
       {r.request_id && (
         <div style={{ fontSize: 13 }}>

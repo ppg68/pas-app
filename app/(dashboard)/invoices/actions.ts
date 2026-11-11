@@ -24,6 +24,130 @@ const DATE_FIELDS = new Set(["due_date", "payment_date"]);
 // contract_value and balance_due are no longer editable: they are computed from the linked contract.
 const NUMBER_FIELDS = new Set(["amount"]);
 
+type Sb = Awaited<ReturnType<typeof createClient>>;
+const BUCKET = "pas-request-files";
+
+/**
+ * Keeps folder 07 of the IR in step with the invoice: when the invoice has a file and is linked to an IR, the file
+ * (and the invoice protocol) appears in 07 of that IR; when the link or the protocol changes, 07 follows.
+ */
+async function syncInvoiceFile(supabase: Sb, invoiceId: string) {
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("request_id, protocol, file_name, file_path, file_size")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (!inv?.file_path) return;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // rows of this file in other IRs (the invoice was moved): remove them and clear 07 there when it is now empty
+  const { data: others } = await supabase
+    .from("request_files")
+    .select("id, request_id")
+    .eq("storage_path", inv.file_path)
+    .is("archived_at", null);
+  for (const o of others ?? []) {
+    if (o.request_id === inv.request_id) continue;
+    await supabase.from("request_files").delete().eq("id", o.id);
+    await uncheckIfEmpty(supabase, o.request_id);
+  }
+  if (!inv.request_id) return;
+
+  const { data: existing } = await supabase
+    .from("request_files")
+    .select("id")
+    .eq("request_id", inv.request_id)
+    .eq("storage_path", inv.file_path)
+    .maybeSingle();
+  if (existing) {
+    await supabase.from("request_files").update({ protocol: inv.protocol }).eq("id", existing.id);
+  } else {
+    await supabase.from("request_files").insert({
+      request_id: inv.request_id,
+      doc_key: "07",
+      file_name: inv.file_name ?? "invoice",
+      storage_path: inv.file_path,
+      size_bytes: inv.file_size ?? 0,
+      protocol: inv.protocol,
+      uploaded_by: user?.id ?? null,
+    });
+  }
+  await supabase.from("request_documents").upsert({
+    request_id: inv.request_id,
+    doc_key: "07",
+    checked: true,
+    checked_by: user?.id ?? null,
+    checked_at: new Date().toISOString(),
+  });
+  revalidatePath(`/requests/${inv.request_id}`);
+}
+
+async function uncheckIfEmpty(supabase: Sb, requestId: string) {
+  const { count } = await supabase
+    .from("request_files")
+    .select("id", { count: "exact", head: true })
+    .eq("request_id", requestId)
+    .eq("doc_key", "07");
+  if (!count) await supabase.from("request_documents").update({ checked: false }).eq("request_id", requestId).eq("doc_key", "07");
+  revalidatePath(`/requests/${requestId}`);
+}
+
+/** Removes the invoice file from storage and from folder 07 (the invoice row is updated by the caller). */
+async function dropInvoiceFile(supabase: Sb, invoiceId: string) {
+  const { data: inv } = await supabase.from("invoices").select("file_path").eq("id", invoiceId).maybeSingle();
+  if (!inv?.file_path) return;
+  const { data: rows } = await supabase
+    .from("request_files")
+    .select("id, request_id")
+    .eq("storage_path", inv.file_path)
+    .is("archived_at", null);
+  for (const r of rows ?? []) {
+    await supabase.from("request_files").delete().eq("id", r.id);
+    await uncheckIfEmpty(supabase, r.request_id);
+  }
+  await supabase.storage.from(BUCKET).remove([inv.file_path]);
+}
+
+/** After the browser has uploaded the file to storage: record it on the invoice and send it to folder 07. */
+export async function attachInvoiceFile(invoiceId: string, file: { path: string; name: string; size: number }) {
+  if (!file.path.startsWith("invoices/")) return { ok: false, error: "Invalid file path." };
+  if (file.size > 20 * 1024 * 1024) return { ok: false, error: "File larger than 20 MB." };
+  const supabase = await createClient();
+  await dropInvoiceFile(supabase, invoiceId); // replacing: the old file goes away
+  const { error } = await supabase
+    .from("invoices")
+    .update({ file_name: file.name, file_path: file.path, file_size: file.size })
+    .eq("id", invoiceId);
+  if (error) return { ok: false, error: error.message };
+  await syncInvoiceFile(supabase, invoiceId);
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { ok: true };
+}
+
+export async function removeInvoiceFile(invoiceId: string) {
+  const supabase = await createClient();
+  await dropInvoiceFile(supabase, invoiceId);
+  await supabase.from("invoices").update({ file_name: null, file_path: null, file_size: null }).eq("id", invoiceId);
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { ok: true };
+}
+
+/** Download link (60 s) of the invoice file. */
+export async function getInvoiceFileUrl(invoiceId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const supabase = await createClient();
+  const { data: inv } = await supabase.from("invoices").select("file_path, file_name").eq("id", invoiceId).maybeSingle();
+  if (!inv?.file_path) return { ok: false, error: "No file on this invoice." };
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(inv.file_path, 60, { download: inv.file_name ?? true });
+  if (error || !data) return { ok: false, error: "The file is no longer available here (it may be archived on the server)." };
+  return { ok: true, url: data.signedUrl };
+}
+
 /** Whitelisted inline-edit save for a single cell in the Invoices table. */
 export async function updateInvoiceField(invoiceId: string, field: string, rawValue: string) {
   const supabase = await createClient();
@@ -105,6 +229,8 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
     });
   }
 
+  if (field === "ir_number" || field === "protocol") await syncInvoiceFile(supabase, invoiceId);
+
   revalidatePath("/invoices");
 }
 
@@ -170,6 +296,9 @@ export async function createInvoiceFromForm(formData: FormData) {
       budget_line: str(formData, "budget_line") || reqBudget,
       cup,
       notes: str(formData, "notes") || null,
+      ...(str(formData, "file_path").startsWith("invoices/")
+        ? { file_path: str(formData, "file_path"), file_name: str(formData, "file_name") || "invoice", file_size: parseInt(str(formData, "file_size")) || 0 }
+        : {}),
     })
     .select("id")
     .single();
@@ -177,6 +306,8 @@ export async function createInvoiceFromForm(formData: FormData) {
   if (error || !data) {
     redirect("/invoices/new?error=" + encodeURIComponent(error?.message ?? "Unable to create the invoice."));
   }
+
+  await syncInvoiceFile(supabase, data.id);
 
   if (requestId) {
     const {
@@ -199,6 +330,7 @@ export async function createInvoiceFromForm(formData: FormData) {
 /** Delete from the invoice detail page, then go back to the list. */
 export async function deleteInvoiceAndGoBack(invoiceId: string) {
   const supabase = await createClient();
+  await dropInvoiceFile(supabase, invoiceId);
   await supabase.from("invoices").delete().eq("id", invoiceId);
   revalidatePath("/invoices");
   redirect("/invoices");
@@ -206,6 +338,7 @@ export async function deleteInvoiceAndGoBack(invoiceId: string) {
 
 export async function deleteInvoice(invoiceId: string) {
   const supabase = await createClient();
+  await dropInvoiceFile(supabase, invoiceId);
   await supabase.from("invoices").delete().eq("id", invoiceId);
   revalidatePath("/invoices");
 }
