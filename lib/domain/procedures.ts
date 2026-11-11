@@ -79,7 +79,7 @@ export const DOCS_BY_PROC: Record<ProcCode, string[]> = {
   TEN: ["02", "03", "04", "05", "06", "07", "08"],
 };
 
-export const OPTIONAL_DOCS = new Set(["02", "05", "06", "08"]);
+export const OPTIONAL_DOCS = new Set(["05", "06", "08"]);
 
 /** Optional folders for a procedure: the comparative bid (04) is required only for Three Quotations. */
 export function isOptionalDoc(procCode: ProcCode, key: string): boolean {
