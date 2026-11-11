@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail, escapeHtml } from "@/lib/notify";
 
 const BUCKET = "pas-request-files";
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -82,8 +84,51 @@ export async function registerFile(input: {
       checked_at: new Date().toISOString(),
     });
   }
+  if (input.docKey === "10") await notifyPaymentMade(supabase, input.requestId, user.id, protocol);
   revalidatePath(`/requests/${input.requestId}`);
   return { ok: true };
+}
+
+/**
+ * First proof of payment uploaded on an IR: the Budget Holder who opened it learns the payment has been made.
+ * One email per IR (later proofs, e.g. payments in tranches, do not repeat it). Best effort.
+ */
+async function notifyPaymentMade(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  uploaderId: string,
+  protocol: string | null
+) {
+  try {
+    const { count } = await supabase
+      .from("request_files")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", requestId)
+      .eq("doc_key", "10");
+    if ((count ?? 0) !== 1) return;
+    const { data: req } = await supabase
+      .from("requests")
+      .select("code, description, initiated_by")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (!req?.initiated_by || req.initiated_by === uploaderId) return;
+    const { data: bh } = await supabase.from("profiles").select("full_name, email").eq("id", req.initiated_by).maybeSingle();
+    if (!bh?.email) return;
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const link = host ? `${proto}://${host}/requests/${requestId}` : "";
+    await sendEmail({
+      to: bh.email,
+      subject: `IR ${req.code}: payment made`,
+      html: `<p>Hello ${escapeHtml(bh.full_name)},</p>
+<p>The payment for this internal request has been made: the proof of payment${protocol ? ` (invoice protocol ${escapeHtml(protocol)})` : ""} is now in the procedure files.</p>
+<p><b>${escapeHtml(req.code)}</b><br>${escapeHtml(req.description)}</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+    });
+  } catch {
+    // notification is best effort
+  }
 }
 
 /** Short-lived download link (60 s). The row is read under RLS first, so only allowed users get one. */
