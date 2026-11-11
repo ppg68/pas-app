@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/domain/procedures";
 import { fetchProjectCups } from "@/lib/domain/projectCups";
 import { fetchProjectPms } from "@/lib/domain/projectPm";
+import ProcedureGuide from "@/components/requests/ProcedureGuide";
 import NewRequestForm, { type Candidate } from "@/components/requests/NewRequestForm";
 
 const APPROVER_ROLES: Role[] = ["PM", "CAR", "RAC"];
@@ -57,7 +58,10 @@ export default async function NewRequestPage({
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h1 style={{ marginBottom: 16 }}>New request</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>New request</h1>
+        <ProcedureGuide currentStage="request" />
+      </div>
 
       {error && <div className="banner error">{error}</div>}
 

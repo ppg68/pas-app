@@ -28,6 +28,7 @@ import {
 import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
 import IncrementForm from "@/components/requests/IncrementForm";
+import ProcedureGuide from "@/components/requests/ProcedureGuide";
 import FilesCard, { type RequestFile } from "@/components/requests/FilesCard";
 
 const STAGE_ORDER = ["ir_auth", "offers", "winner", "documents", "payment", "completed"] as const;
@@ -346,7 +347,10 @@ export default async function RequestDetailPage({
   return (
     <div style={{ maxWidth: 700 }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{request.code}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 500, margin: 0 }}>{request.code}</h1>
+          <ProcedureGuide currentStage={request.stage} />
+        </div>
         <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           {request.description} · {config.label} · {request.estimated_price} {request.currency}
           {effectiveCup ? ` · CUP\\AID ${effectiveCup}` : ""}
