@@ -224,6 +224,20 @@ export default function FilesCard({
     }
   }
 
+  // payment authorization comes before the proof of payment: the button sits right above folder 10
+  const goToPayment =
+    stage === "documents" ? (
+        <form
+          action={advanceToPayment.bind(null, requestId)}
+          style={{ borderTop: "0.5px solid #EEF0F3", paddingTop: 10, marginTop: 0, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}
+        >
+          {!docsOk && <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Upload the required documents to continue.</span>}
+          <button type="submit" disabled={!docsOk} className="primary">
+            Go to payment
+          </button>
+        </form>
+    ) : null;
+
   return (
     <div className="card">
       <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Procedure files</h2>
@@ -239,6 +253,7 @@ export default function FilesCard({
         const viewOnly = d.key === "07";
         return (
           <Fragment key={d.key}>
+          {d.key === "10" && goToPayment}
           <div style={{ borderTop: "0.5px solid #EEF0F3", padding: "8px 0", fontSize: 13 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 500 }}>
@@ -396,17 +411,6 @@ export default function FilesCard({
         );
       })}
 
-      {stage === "documents" && (
-        <form
-          action={advanceToPayment.bind(null, requestId)}
-          style={{ borderTop: "0.5px solid #EEF0F3", paddingTop: 10, marginTop: 4, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}
-        >
-          {!docsOk && <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Complete the required folders (upload, or mark complete) to continue.</span>}
-          <button type="submit" disabled={!docsOk} className="primary">
-            Go to payment
-          </button>
-        </form>
-      )}
       {previewFile && (
         <div
           onClick={closePreview}
