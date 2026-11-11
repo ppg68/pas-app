@@ -49,7 +49,7 @@ type PaFilter = "all" | "signed" | "unsigned";
 const cellInputStyle: React.CSSProperties = { minWidth: 90 };
 
 type Col = {
-  key: keyof IrInvoiceRow;
+  key: keyof IrInvoiceListRow;
   label: string;
   sort?: SortBy;
   align?: "right";
@@ -66,6 +66,7 @@ const COLUMNS: Col[] = [
   { key: "payment_date", label: "Payment date", sort: "payment", type: "date" },
   { key: "currency", label: "Cur.", type: "text", width: 64 },
   { key: "amount", label: "Amount", sort: "amount", align: "right", type: "number" },
+  { key: "paid", label: "Paid", align: "right", type: "number" },
   { key: "pa_signed", label: "PA signed", type: "checkbox" },
   { key: "project_code", label: "Project", type: "text", width: 90 },
   { key: "budget_line", label: "Budget line", type: "text", width: 120 },
@@ -228,6 +229,7 @@ This cannot be undone.`)) return;
         "Contract #": r.contract_number || "",
         Supplier: r.supplier || "",
         "Due date": r.due_date || "",
+        "Paid": r.paid || "",
         "Payment date": payText(r),
         "Payment note": r.payment_note || "",
         Currency: r.currency,
@@ -291,6 +293,18 @@ This cannot be undone.`)) return;
           style={cellInputStyle}
           title={value && !r.contractUuid ? "No matching contract found" : undefined}
         />
+      );
+    }
+    // Paid: total of the payments with a date (computed, edited in the invoice payments)
+    if (col.key === "paid") {
+      const st = payStatus(r);
+      return (
+        <span
+          title={r.toPay > 0 ? `${formatMoney(r.toPay)} authorized, date still to enter` : "Total of the payments with a date"}
+          style={{ fontWeight: 500, color: st === "partial" ? "var(--brick)" : undefined }}
+        >
+          {r.paid > 0 ? formatMoney(r.paid) : "—"}
+        </span>
       );
     }
     // Payment date: read-only, comes from the invoice payments (detail page); "Partial" while only part is paid

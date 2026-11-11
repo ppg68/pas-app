@@ -64,10 +64,19 @@ export default function InvoicePayments({
   return (
     <div>
       <div className="field-label" style={{ marginBottom: 6 }}>Payments — {status}</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+        <div className="field" style={{ width: 150 }}>
+          <label>Total paid ({currency})</label>
+          <input value={formatMoney(paid)} readOnly style={{ textAlign: "right", fontWeight: 600, background: "#EEF0F3" }} />
+        </div>
+        <div className="field" style={{ width: 150 }}>
+          <label>Remaining ({currency})</label>
+          <input value={formatMoney(Math.max(remaining, 0))} readOnly style={{ textAlign: "right", background: "#EEF0F3" }} />
+        </div>
+      </div>
       <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 8px" }}>
-        Invoice {formatMoney(amount)} {currency} · paid <b>{formatMoney(paid)}</b>
-        {toPay > 0 && <> · authorized, date to enter <b>{formatMoney(toPay)}</b></>} · remaining{" "}
-        <b>{formatMoney(Math.max(remaining, 0))}</b>. A payment counts as paid once its date is entered.
+        {toPay > 0 && <>Authorized, date still to enter: <b>{formatMoney(toPay)}</b>. </>}
+        A payment counts as paid once its date is entered.
       </p>
       {rows.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>No payment yet.</p>}
       {rows.map((p) => (
