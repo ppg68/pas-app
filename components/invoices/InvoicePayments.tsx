@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import MoneyInput from "@/components/MoneyInput";
 import { addInvoicePayment, updateInvoicePayment, deleteInvoicePayment } from "@/app/(dashboard)/invoices/actions";
@@ -30,6 +30,8 @@ export default function InvoicePayments({
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(payments);
+  // after a save the server sends the list again (new rows, rows created elsewhere): follow it
+  useEffect(() => setRows(payments), [payments]);
 
   const paid = rows.filter((p) => p.payment_date).reduce((s, p) => s + (p.amount || 0), 0);
   const toPay = rows.filter((p) => !p.payment_date).reduce((s, p) => s + (p.amount || 0), 0);
