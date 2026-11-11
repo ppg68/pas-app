@@ -20,12 +20,21 @@ export type RequestFile = {
 };
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip";
+const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip,.eml,.msg";
 const PREVIEW_EXT = /\.(pdf|jpe?g|png|webp|docx|xlsx)$/i;
 const DOCX_EXT = /\.docx$/i;
 const XLSX_EXT = /\.xlsx$/i;
 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
 const PROTOCOL_DOCS = ["07", "10"]; // invoice: typed; proof of payment: chosen among the protocols of the IR invoices
+
+// browsers often send no type (or a wrong one) for saved e-mails: decide it from the extension
+function mimeFor(file: File): string | undefined {
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".eml")) return "message/rfc822";
+  if (n.endsWith(".msg")) return "application/vnd.ms-outlook";
+  if (n.endsWith(".zip")) return file.type || "application/zip";
+  return file.type || undefined;
+}
 
 function kb(n: number) {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -105,7 +114,7 @@ export default function FilesCard({
       const { error: upErr } = await supabase.storage
         .from("pas-request-files")
         .upload(path, file, {
-          contentType: file.type || (file.name.toLowerCase().endsWith(".zip") ? "application/zip" : undefined),
+          contentType: mimeFor(file),
           upsert: false,
         });
       if (upErr) {
@@ -118,7 +127,7 @@ export default function FilesCard({
         fileName: file.name,
         storagePath: path,
         sizeBytes: file.size,
-        mimeType: file.type || null,
+        mimeType: mimeFor(file) ?? null,
         protocol: protocol || null,
       });
       if (!res.ok) {
@@ -249,7 +258,7 @@ export default function FilesCard({
     <div className="card">
       <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Procedure files</h2>
       <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-        PDF, images, Word, Excel or ZIP (a zipped folder stays a ZIP), max 20 MB each, as many files as you need per folder. When the procedure is closed the files are moved to the server
+        PDF, images, Word, Excel, saved e-mails (.eml, .msg) or ZIP (a zipped folder stays a ZIP), max 20 MB each, as many files as you need per folder. When the procedure is closed the files are moved to the server
         archive and removed from here.
       </p>
 
