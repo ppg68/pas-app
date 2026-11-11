@@ -240,13 +240,21 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
     if (req) {
       const allSigned = Boolean((data as { all_signed?: boolean } | null)?.all_signed);
       if (allSigned) {
-        const [contracts, racs, dgs] = await Promise.all([
-          holders(supabase, "CONTRACTS"),
+        // only the people involved: the requester (below) and the approvers chosen on this
+        // request (PM, RAC/CAR); other role holders are not notified
+        // Contracts always gets it (it prepares the contract)
+        const [{ data: aps }, pms, racs, contracts] = await Promise.all([
+          supabase.from("contract_approvals").select("user_id").eq("request_id", id),
+          holders(supabase, "PM"),
           racOrCar(supabase),
-          holders(supabase, "DG"),
+          holders(supabase, "CONTRACTS"),
         ]);
+        const chosen = new Set((aps ?? []).map((a) => a.user_id));
         const seen = new Set<string>();
-        const to = [...contracts, ...racs, ...dgs].filter((h) => h.email && !seen.has(h.email) && seen.add(h.email));
+        const to = [
+          ...contracts,
+          ...[...pms, ...racs].filter((h) => chosen.has(h.id)),
+        ].filter((h) => h.email && req.requester_email !== h.email && !seen.has(h.email) && seen.add(h.email));
         for (const h of to) {
           mails.push({
             to: h.email!,
