@@ -31,6 +31,7 @@ export type RequestRow = {
   stage: Stage;
   archive_requested_at?: string | null;
   archive_done_at?: string | null;
+  is_legacy?: boolean | null;
   folder_path: string | null;
   ir_number: string | null;
   protocol: string;
@@ -41,12 +42,21 @@ export type RequestRow = {
   awaitingMe: boolean;
 };
 
-/** A closed IR: "Closed" until the procedure is closed for archiving, then waiting for the server script, then archived. */
-function stageText(r: Pick<RequestRow, "stage" | "archive_requested_at" | "archive_done_at">): string {
-  if (r.stage === "completed") {
-    if (r.archive_done_at) return "Closed · archived";
-    if (r.archive_requested_at) return "Closed · awaiting archive";
-  }
+/**
+ * A closed IR made in the PAS is "awaiting archive" until its files are on the server (Administration closes the
+ * procedure, then the script moves the files), then "archived". IRs imported from the old register have no files.
+ */
+type ArchiveState = "none" | "awaiting" | "archived";
+function archiveState(r: Pick<RequestRow, "stage" | "archive_done_at" | "is_legacy">): ArchiveState {
+  if (r.stage !== "completed") return "none";
+  if (r.archive_done_at) return "archived";
+  return r.is_legacy ? "none" : "awaiting";
+}
+
+function stageText(r: Pick<RequestRow, "stage" | "archive_done_at" | "is_legacy">): string {
+  const a = archiveState(r);
+  if (a === "archived") return "Closed · archived";
+  if (a === "awaiting") return "Closed · awaiting archive";
   return STAGE_TITLES[r.stage];
 }
 
@@ -120,7 +130,7 @@ export default function RequestsExplorer({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [stageFilter, setStageFilter] = useState<Stage | "awaiting_archive" | "all">("all");
+  const [stageFilter, setStageFilter] = useState<Stage | "awaiting_archive" | "archived" | "all">("all");
   const [awaitingOnly, setAwaitingOnly] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -152,7 +162,11 @@ This permanently removes the request together with its offers, signatures, docum
     let list = requests.filter(
       (r) =>
         (stageFilter === "all" ||
-          (stageFilter === "awaiting_archive" ? r.stage === "completed" && !!r.archive_requested_at && !r.archive_done_at : r.stage === stageFilter)) &&
+          (stageFilter === "awaiting_archive"
+            ? archiveState(r) === "awaiting"
+            : stageFilter === "archived"
+              ? archiveState(r) === "archived"
+              : r.stage === stageFilter)) &&
         (!awaitingOnly || r.awaitingMe)
     );
     if (q) {
@@ -251,7 +265,7 @@ This permanently removes the request together with its offers, signatures, docum
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | "awaiting_archive" | "all")}>
+          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | "awaiting_archive" | "archived" | "all")}>
             <option value="all">All stages</option>
             {STAGE_LABELS.map((s) => (
               <option key={s} value={s}>
@@ -259,6 +273,7 @@ This permanently removes the request together with its offers, signatures, docum
               </option>
             ))}
             <option value="awaiting_archive">Closed · awaiting archive</option>
+            <option value="archived">Closed · archived</option>
           </select>
           <label className="checkbox-row" style={{ whiteSpace: "nowrap" }}>
             <input type="checkbox" checked={awaitingOnly} onChange={(e) => setAwaitingOnly(e.target.checked)} />{" "}
