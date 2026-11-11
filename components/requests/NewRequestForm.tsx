@@ -55,7 +55,7 @@ export default function NewRequestForm({
   const validPrice = Number.isFinite(price) && price > 0;
   // the amount only suggests the procedure; whoever compiles the request decides (budget line of the project)
   const indicated = validPrice ? computeProcedure(price) : null;
-  const proc: ProcCode | null = procChoice || indicated;
+  const proc: ProcCode | null = procChoice || null;
   // automatic when the amount is in the 3Q range but SQ is chosen; otherwise ticked by hand
   const autoDerogation = !!proc && validPrice && isDerogation(proc, price);
   const derogation = autoDerogation || derogationFlag;
@@ -200,6 +200,8 @@ export default function NewRequestForm({
         <div className="field">
           <label>Reason supporting the derogation (required)</label>
           <input name="derogation_reason" required />
+          <label style={{ marginTop: 8 }}>Date of the derogation</label>
+          <input name="derogation_date" type="date" />
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
             CAR and RAC both sign the IR approval.
           </div>

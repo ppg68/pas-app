@@ -728,6 +728,7 @@ export type Database = {
           currency: string
           derogation: boolean
           derogation_reason: string | null
+          derogation_date: string | null
           donor_procedure: string | null
           increment_amount: number
           increment_reason: string | null
@@ -769,6 +770,7 @@ export type Database = {
           currency?: string
           derogation?: boolean
           derogation_reason?: string | null
+          derogation_date?: string | null
           donor_procedure?: string | null
           increment_amount?: number
           increment_reason?: string | null
@@ -810,6 +812,7 @@ export type Database = {
           currency?: string
           derogation?: boolean
           derogation_reason?: string | null
+          derogation_date?: string | null
           donor_procedure?: string | null
           increment_amount?: number
           increment_reason?: string | null

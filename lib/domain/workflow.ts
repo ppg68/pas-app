@@ -40,6 +40,7 @@ export async function createRequest(formData: FormData) {
   const currency = String(formData.get("currency") || "EUR").trim() || "EUR";
   const chosenProc = String(formData.get("proc_code") || "").trim() as ProcCode;
   const derogationReason = String(formData.get("derogation_reason") || "").trim();
+  const derogationDate = String(formData.get("derogation_date") || "").trim();
   const derogationFlag = formData.get("derogation") === "on";
   const donorProcedure = String(formData.get("donor_procedure") || "").trim();
   const coordinationCost = formData.get("coordination_cost") === "on";
@@ -174,6 +175,7 @@ export async function createRequest(formData: FormData) {
       proc_code: procCode,
       derogation,
       derogation_reason: derogation ? derogationReason : null,
+      derogation_date: derogation && derogationDate ? derogationDate : null,
       donor_procedure: donorProcedure || null,
       coordination_cost: coordinationCost,
       direct_supplier: directSupplier || null,

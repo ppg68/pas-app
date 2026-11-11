@@ -337,6 +337,7 @@ export default async function RequestDetailPage({
                 "Derogation",
                 request.derogation ? `Yes — ${request.derogation_reason ?? "no reason given"}` : "No",
               ],
+              ["Derogation date", request.derogation && request.derogation_date ? new Date(request.derogation_date).toLocaleDateString("en-GB") : "—"],
               ["Coordination cost", request.coordination_cost ? "Yes (no linked project)" : "No"],
               ["Institutional activity", request.institutional_activity ? "Yes" : "No"],
               ["Occasional collaborator", request.occasional_collaborator ? "Yes" : "No"],

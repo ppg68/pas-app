@@ -108,6 +108,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       ["Donor Procedure Type (if applicable)", r.donor_procedure || "—"],
       ["CUP\\AID", cup ?? "—"],
       ["Derogation", r.derogation ? `Yes - ${r.derogation_reason ?? "no reason given"}` : "No"],
+      ["Derogation date", r.derogation && r.derogation_date ? new Date(r.derogation_date).toLocaleDateString("en-GB") : "—"],
       ["Coordination cost", r.coordination_cost ? "Yes (no linked project)" : "No"],
       ["Institutional activity", r.institutional_activity ? "Yes" : "No"],
       ["Occasional collaborator", r.occasional_collaborator ? "Yes" : "No"],
