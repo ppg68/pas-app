@@ -1,5 +1,6 @@
 "use client";
 
+import OfficePreview from "@/components/requests/OfficePreview";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -20,7 +21,9 @@ export type RequestFile = {
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip";
-const PREVIEW_EXT = /\.(pdf|jpe?g|png|webp)$/i;
+const PREVIEW_EXT = /\.(pdf|jpe?g|png|webp|docx|xlsx)$/i;
+const DOCX_EXT = /\.docx$/i;
+const XLSX_EXT = /\.xlsx$/i;
 const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
 const PROTOCOL_DOCS = ["07", "10"]; // invoice: typed; proof of payment: chosen among the protocols of the IR invoices
 
@@ -63,7 +66,7 @@ export default function FilesCard({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; image: boolean } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; image: boolean; office?: { blob: Blob; kind: "docx" | "xlsx" } } | null>(null);
   const [addingInvoice, setAddingInvoice] = useState(false);
   const [message, setMessage] = useState<{ docKey: string; text: string } | null>(null);
   const protocolRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
@@ -138,7 +141,7 @@ export default function FilesCard({
   }
 
   function closePreview() {
-    if (previewFile) URL.revokeObjectURL(previewFile.url);
+    if (previewFile?.url) URL.revokeObjectURL(previewFile.url);
     setPreviewFile(null);
   }
 
@@ -151,6 +154,10 @@ export default function FilesCard({
     try {
       // shown from a local blob so the storage headers cannot block the viewer
       const blob = await (await fetch(res.url)).blob();
+      if (DOCX_EXT.test(f.file_name) || XLSX_EXT.test(f.file_name)) {
+        setPreviewFile({ name: f.file_name, url: "", image: false, office: { blob, kind: DOCX_EXT.test(f.file_name) ? "docx" : "xlsx" } });
+        return;
+      }
       const type = IMAGE_EXT.test(f.file_name) ? blob.type : "application/pdf";
       const url = URL.createObjectURL(new Blob([blob], { type }));
       setPreviewFile({ name: f.file_name, url, image: IMAGE_EXT.test(f.file_name) });
@@ -426,7 +433,9 @@ export default function FilesCard({
                 Close
               </button>
             </div>
-            {previewFile.image ? (
+            {previewFile.office ? (
+              <OfficePreview blob={previewFile.office.blob} kind={previewFile.office.kind} />
+            ) : previewFile.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewFile.url} alt={previewFile.name} style={{ flex: 1, minHeight: 0, objectFit: "contain", background: "#f3f4f6" }} />
             ) : (
