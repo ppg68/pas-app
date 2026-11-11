@@ -450,6 +450,36 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          note: string | null
+          payment_authorization_id: string | null
+          payment_date: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          note?: string | null
+          payment_authorization_id?: string | null
+          payment_date?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          note?: string | null
+          payment_authorization_id?: string | null
+          payment_date?: string | null
+        }
+        Relationships: []
+      }
       contract_requests: {
         Row: ContractRequestRow
         Insert: Partial<ContractRequestRow>

@@ -42,8 +42,25 @@ export default async function InvoicesPage() {
     if (c.number) byNumber.set(normalizeContractNumber(c.number), c.id);
   });
 
+  // payments of every invoice: dated ones count as paid, undated ones are authorized and still to be paid
+  const paidBy = new Map<string, number>();
+  const toPayBy = new Map<string, number>();
+  for (let from = 0; ; from += 1000) {
+    const { data: pays } = await supabase
+      .from("invoice_payments")
+      .select("invoice_id, payment_date, amount")
+      .range(from, from + 999);
+    (pays ?? []).forEach((p) => {
+      const m = p.payment_date ? paidBy : toPayBy;
+      m.set(p.invoice_id, (m.get(p.invoice_id) ?? 0) + (p.amount ?? 0));
+    });
+    if (!pays || pays.length < 1000) break;
+  }
+
   const rows: IrInvoiceListRow[] = (invoices ?? []).map((inv) => ({
     ...inv,
+    paid: paidBy.get(inv.id) ?? 0,
+    toPay: toPayBy.get(inv.id) ?? 0,
     contractUuid:
       inv.contract_id ??
       (inv.contract_number ? (byNumber.get(normalizeContractNumber(inv.contract_number)) ?? null) : null),

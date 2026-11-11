@@ -899,7 +899,7 @@ export async function authorizePaymentAuth(paId: string, requestId: string, role
 
   const { data: pa } = await supabase
     .from("payment_authorizations")
-    .select("prepared_by, amount, currency, beneficiary")
+    .select("prepared_by, amount, currency, beneficiary, invoice_id")
     .eq("id", paId)
     .maybeSingle();
 
@@ -921,6 +921,18 @@ export async function authorizePaymentAuth(paId: string, requestId: string, role
         currency: pa.currency,
       },
     });
+  }
+
+  if (pa && outcome.authorized && pa.invoice_id) {
+    // the invoice gets a payment row for this authorization: Administration fills in the date when it pays
+    try {
+      await supabase.from("invoice_payments").upsert(
+        { invoice_id: pa.invoice_id, payment_authorization_id: paId, amount: pa.amount, note: "Payment authorization approved" },
+        { onConflict: "payment_authorization_id", ignoreDuplicates: true }
+      );
+    } catch {
+      // best effort
+    }
   }
 
   if (pa && outcome.authorized) {

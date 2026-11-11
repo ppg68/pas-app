@@ -21,6 +21,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
   const projectCups = await fetchProjectCups(supabase);
   const irRefs = await fetchIrRefs(supabase);
+  const { data: payments } = await supabase
+    .from("invoice_payments")
+    .select("id, payment_date, amount, note, payment_authorization_id")
+    .eq("invoice_id", id)
+    .order("payment_date", { ascending: true, nullsFirst: false });
   const [{ data: contracts }, { data: oldInvoices }, { data: irInvoices }] = await Promise.all([
     supabase.from("contracts").select("id, legacy_id, subject, amount, currency, project_code"),
     supabase.from("contract_invoices").select("contract_id, amount"),
@@ -83,7 +88,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           .join(" · ") || "Changes are saved automatically."}
       </p>
 
-      <InvoiceDetail record={record} contracts={detailContracts} projectCups={projectCups} irRefs={irRefs} />
+      <InvoiceDetail record={record} contracts={detailContracts} projectCups={projectCups} irRefs={irRefs} payments={payments ?? []} />
 
       <div style={{ marginTop: 16 }}>
         <ConfirmForm

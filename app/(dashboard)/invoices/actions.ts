@@ -20,7 +20,8 @@ const TEXT_FIELDS = new Set([
   "cup",
   "notes",
 ]);
-const DATE_FIELDS = new Set(["due_date", "payment_date"]);
+// payment_date is derived from the invoice payments (see recomputeInvoicePayment)
+const DATE_FIELDS = new Set(["due_date"]);
 // contract_value and balance_due are no longer editable: they are computed from the linked contract.
 const NUMBER_FIELDS = new Set(["amount"]);
 
@@ -148,6 +149,63 @@ export async function getInvoiceFileUrl(invoiceId: string): Promise<{ ok: boolea
   return { ok: true, url: data.signedUrl };
 }
 
+/** An invoice counts as paid when the dated payments cover its amount (1 currency unit of tolerance). */
+const PAID_TOLERANCE = 1;
+
+/**
+ * invoices.payment_date = date of the last payment once the invoice is fully paid; empty while it is unpaid or
+ * only partly paid (the contract pages read it as "paid").
+ */
+async function recomputeInvoicePayment(supabase: Sb, invoiceId: string) {
+  const [{ data: inv }, { data: pays }] = await Promise.all([
+    supabase.from("invoices").select("amount, payment_date").eq("id", invoiceId).maybeSingle(),
+    supabase.from("invoice_payments").select("payment_date, amount").eq("invoice_id", invoiceId),
+  ]);
+  if (!inv) return;
+  const dated = (pays ?? []).filter((p) => p.payment_date);
+  const paid = dated.reduce((sum, p) => sum + (p.amount ?? 0), 0);
+  const last = dated.map((p) => p.payment_date as string).sort().pop() ?? null;
+  const fullyPaid = dated.length > 0 && paid >= (inv.amount ?? 0) - PAID_TOLERANCE;
+  const next = fullyPaid ? last : null;
+  if (next !== inv.payment_date) await supabase.from("invoices").update({ payment_date: next }).eq("id", invoiceId);
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+}
+
+export async function addInvoicePayment(invoiceId: string, payment: { payment_date: string; amount: number; note: string }) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("invoice_payments").insert({
+    invoice_id: invoiceId,
+    payment_date: payment.payment_date || null,
+    amount: Number.isFinite(payment.amount) && payment.amount > 0 ? payment.amount : 0,
+    note: payment.note.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  await recomputeInvoicePayment(supabase, invoiceId);
+  return { ok: true };
+}
+
+export async function updateInvoicePayment(paymentId: string, invoiceId: string, field: "payment_date" | "amount" | "note", raw: string) {
+  const supabase = await createClient();
+  const patch: { payment_date?: string | null; amount?: number; note?: string | null } = {};
+  if (field === "payment_date") patch.payment_date = raw.trim() || null;
+  else if (field === "amount") {
+    const n = parseFloat(raw);
+    patch.amount = Number.isFinite(n) && n > 0 ? n : 0;
+  } else patch.note = raw.trim() || null;
+  const { error } = await supabase.from("invoice_payments").update(patch).eq("id", paymentId);
+  if (error) return { ok: false, error: error.message };
+  await recomputeInvoicePayment(supabase, invoiceId);
+  return { ok: true };
+}
+
+export async function deleteInvoicePayment(paymentId: string, invoiceId: string) {
+  const supabase = await createClient();
+  await supabase.from("invoice_payments").delete().eq("id", paymentId);
+  await recomputeInvoicePayment(supabase, invoiceId);
+  return { ok: true };
+}
+
 /** Whitelisted inline-edit save for a single cell in the Invoices table. */
 export async function updateInvoiceField(invoiceId: string, field: string, rawValue: string) {
   const supabase = await createClient();
@@ -230,6 +288,7 @@ export async function updateInvoiceField(invoiceId: string, field: string, rawVa
   }
 
   if (field === "ir_number" || field === "protocol") await syncInvoiceFile(supabase, invoiceId);
+  if (field === "amount") await recomputeInvoicePayment(supabase, invoiceId);
 
   revalidatePath("/invoices");
 }
@@ -308,6 +367,11 @@ export async function createInvoiceFromForm(formData: FormData) {
   }
 
   await syncInvoiceFile(supabase, data.id);
+  if (str(formData, "payment_date")) {
+    // an invoice entered already paid: that date and the whole amount are its one payment
+    await supabase.from("invoice_payments").insert({ invoice_id: data.id, payment_date: str(formData, "payment_date"), amount });
+    await recomputeInvoicePayment(supabase, data.id);
+  }
 
   if (requestId) {
     const {

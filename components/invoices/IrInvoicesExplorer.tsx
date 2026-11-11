@@ -11,7 +11,25 @@ import { updateInvoiceField, deleteInvoice } from "@/app/(dashboard)/invoices/ac
 import type { Database } from "@/types/database.types";
 
 export type IrInvoiceRow = Database["pas"]["Tables"]["invoices"]["Row"];
-export type IrInvoiceListRow = IrInvoiceRow & { contractUuid: string | null };
+export type IrInvoiceListRow = IrInvoiceRow & {
+  contractUuid: string | null;
+  /** sum of the payments with a date / of the authorized payments still without a date */
+  paid: number;
+  toPay: number;
+};
+
+/** Paid when the dated payments cover the amount (1 currency unit of tolerance, as on the server). */
+function payStatus(r: Pick<IrInvoiceListRow, "paid" | "amount">): "unpaid" | "partial" | "paid" {
+  if (r.paid > 0 && r.paid >= (r.amount ?? 0) - 1) return "paid";
+  return r.paid > 0 ? "partial" : "unpaid";
+}
+
+function payText(r: IrInvoiceListRow): string {
+  const st = payStatus(r);
+  if (st === "paid") return r.payment_date ?? "Paid";
+  if (st === "partial") return `Partial ${formatMoney(r.paid)} / ${formatMoney(r.amount ?? 0)}`;
+  return "";
+}
 /** Minimal contract data used to compute "Contract value" and "Balance due" on each invoice. */
 export type ContractRef = {
   id: string;
@@ -25,7 +43,7 @@ export type ContractRef = {
 
 type SortBy = "default" | "payment" | "due" | "amount" | "supplier";
 type SortDir = "asc" | "desc";
-type PaidFilter = "all" | "unpaid" | "paid";
+type PaidFilter = "all" | "unpaid" | "partial" | "paid";
 type PaFilter = "all" | "signed" | "unsigned";
 
 const cellInputStyle: React.CSSProperties = { minWidth: 90 };
@@ -175,8 +193,9 @@ This cannot be undone.`)) return;
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = rows;
-    if (paidFilter === "unpaid") list = list.filter((r) => !r.payment_date);
-    if (paidFilter === "paid") list = list.filter((r) => !!r.payment_date);
+    if (paidFilter === "unpaid") list = list.filter((r) => payStatus(r) === "unpaid");
+    if (paidFilter === "partial") list = list.filter((r) => payStatus(r) === "partial");
+    if (paidFilter === "paid") list = list.filter((r) => payStatus(r) === "paid");
     if (paFilter === "signed") list = list.filter((r) => r.pa_signed);
     if (paFilter === "unsigned") list = list.filter((r) => !r.pa_signed);
     if (q) {
@@ -209,7 +228,7 @@ This cannot be undone.`)) return;
         "Contract #": r.contract_number || "",
         Supplier: r.supplier || "",
         "Due date": r.due_date || "",
-        "Payment date": r.payment_date || "",
+        "Payment date": payText(r),
         "Payment note": r.payment_note || "",
         Currency: r.currency,
         Amount: r.amount,
@@ -272,6 +291,18 @@ This cannot be undone.`)) return;
           style={cellInputStyle}
           title={value && !r.contractUuid ? "No matching contract found" : undefined}
         />
+      );
+    }
+    // Payment date: read-only, comes from the invoice payments (detail page); "Partial" while only part is paid
+    if (col.key === "payment_date") {
+      const st = payStatus(r);
+      return (
+        <span
+          title={st === "unpaid" && r.toPay > 0 ? "Payment authorized: enter its date in the invoice payments" : "From the invoice payments"}
+          style={{ color: st === "partial" ? "var(--brick)" : undefined, fontWeight: st === "partial" ? 600 : undefined }}
+        >
+          {st === "paid" ? (r.payment_date ? new Date(r.payment_date).toLocaleDateString("en-GB") : "Paid") : st === "partial" ? payText(r) : r.toPay > 0 ? "to pay" : "—"}
+        </span>
       );
     }
     if (col.key === "cup" && projectCupOf(r)) {
@@ -378,7 +409,8 @@ This cannot be undone.`)) return;
           title="Filter by payment"
         >
           <option value="all">All payments</option>
-          <option value="unpaid">Unpaid (no payment date)</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partly paid</option>
           <option value="paid">Paid</option>
         </select>
         <select

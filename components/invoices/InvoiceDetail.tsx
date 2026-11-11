@@ -5,6 +5,7 @@ import MoneyInput from "@/components/MoneyInput";
 import Link from "next/link";
 import { updateInvoiceField, attachInvoiceFile, removeInvoiceFile, getInvoiceFileUrl } from "@/app/(dashboard)/invoices/actions";
 import InvoiceFileInput from "@/components/invoices/InvoiceFileInput";
+import InvoicePayments, { type InvoicePaymentRow } from "@/components/invoices/InvoicePayments";
 import { useRouter } from "next/navigation";
 import { formatMoney, normalizeContractNumber } from "@/lib/domain/contracts";
 import { cupForProject } from "@/lib/domain/projectCups";
@@ -61,7 +62,9 @@ export default function InvoiceDetail({
   contracts,
   projectCups,
   irRefs,
+  payments,
 }: {
+  payments: InvoicePaymentRow[];
   record: InvoiceRecord;
   contracts: DetailContract[];
   projectCups: Record<string, string>;
@@ -248,9 +251,10 @@ export default function InvoiceDetail({
 
       <div style={row}>
         {dateField("Due date", "due_date")}
-        {dateField("Payment date", "payment_date")}
         {textField("Payment note", "payment_note", { flex: 2, minWidth: 220 })}
       </div>
+
+      <InvoicePayments invoiceId={r.id} amount={r.amount} currency={r.currency} payments={payments} />
 
       <div style={row}>
         {textField("Project", "project_code", { minWidth: 130 })}
