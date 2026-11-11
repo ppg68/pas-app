@@ -3,7 +3,7 @@
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { toggleDoc, advanceToPayment } from "@/lib/domain/workflow";
+import { advanceToPayment } from "@/lib/domain/workflow";
 import { registerFile, getFileUrl, deleteFile, updateFileProtocol, requestArchive } from "@/lib/domain/files";
 
 export type RequestFile = {
@@ -41,7 +41,6 @@ export default function FilesCard({
   archiveRequestedAt,
   archiveDoneAt,
   stage,
-  canFlag,
   docsOk,
   folderPath,
   afterDocKey,
@@ -55,8 +54,6 @@ export default function FilesCard({
   archiveRequestedAt: string | null;
   archiveDoneAt: string | null;
   stage: string;
-  /** documents stage: a folder can be marked complete without uploading (files kept on the server) */
-  canFlag: boolean;
   /** all required documents are complete: the request can go to payment */
   docsOk: boolean;
   folderPath: string | null;
@@ -256,16 +253,6 @@ export default function FilesCard({
                           : "— to do"}
                 </span>
               </span>
-              {canFlag && d.kind !== "closing" && list.length === 0 && (
-                <form action={toggleDoc.bind(null, requestId, d.key, !d.checked)}>
-                  <button
-                    type="submit"
-                    style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 11, background: "transparent", cursor: "pointer" }}
-                  >
-                    {d.checked ? "Undo" : "Mark complete (saved on the server)"}
-                  </button>
-                </form>
-              )}
             </div>
             {list.length === 0 && <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>No file yet.</div>}
             {list.map((f) => (

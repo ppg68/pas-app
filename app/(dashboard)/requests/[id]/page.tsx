@@ -572,7 +572,6 @@ export default async function RequestDetailPage({
           archiveRequestedAt={request.archive_requested_at ?? null}
           archiveDoneAt={request.archive_done_at ?? null}
           stage={request.stage}
-          canFlag={request.stage === "documents"}
           docsOk={docsOk}
           folderPath={request.folder_path ?? null}
           afterDocKey="03"
