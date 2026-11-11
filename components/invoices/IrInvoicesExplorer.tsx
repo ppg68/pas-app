@@ -18,6 +18,9 @@ export type IrInvoiceListRow = IrInvoiceRow & {
   toPay: number;
 };
 
+/** Invoice amount minus the paid total (not below zero); follows the amount when it is edited in the list. */
+const remainingOf = (r: Pick<IrInvoiceListRow, "paid" | "amount">) => Math.max((r.amount ?? 0) - r.paid, 0);
+
 /** Paid when the dated payments cover the amount (1 currency unit of tolerance, as on the server). */
 function payStatus(r: Pick<IrInvoiceListRow, "paid" | "amount">): "unpaid" | "partial" | "paid" {
   if (r.paid > 0 && r.paid >= (r.amount ?? 0) - 1) return "paid";
@@ -67,6 +70,7 @@ const COLUMNS: Col[] = [
   { key: "currency", label: "Cur.", type: "text", width: 64 },
   { key: "amount", label: "Amount", sort: "amount", align: "right", type: "number" },
   { key: "paid", label: "Paid", align: "right", type: "number" },
+  { key: "remaining", label: "Remaining", align: "right", type: "number" },
   { key: "pa_signed", label: "PA signed", type: "checkbox" },
   { key: "project_code", label: "Project", type: "text", width: 90 },
   { key: "budget_line", label: "Budget line", type: "text", width: 120 },
@@ -230,6 +234,7 @@ This cannot be undone.`)) return;
         Supplier: r.supplier || "",
         "Due date": r.due_date || "",
         "Paid": r.paid || "",
+        "Remaining": remainingOf(r) || "",
         "Payment date": payText(r),
         "Payment note": r.payment_note || "",
         Currency: r.currency,
@@ -304,6 +309,14 @@ This cannot be undone.`)) return;
           style={{ fontWeight: 500, color: st === "partial" ? "var(--brick)" : undefined }}
         >
           {r.paid > 0 ? formatMoney(r.paid) : "—"}
+        </span>
+      );
+    }
+    // Remaining: invoice amount minus the paid total
+    if (col.key === "remaining") {
+      return (
+        <span title="Invoice amount minus the paid total" style={{ fontWeight: 500 }}>
+          {remainingOf(r) > 0.005 ? formatMoney(remainingOf(r)) : "—"}
         </span>
       );
     }
