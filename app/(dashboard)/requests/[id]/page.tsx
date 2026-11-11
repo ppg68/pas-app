@@ -734,12 +734,10 @@ export default async function RequestDetailPage({
           )}
 
           {request.stage === "payment" && request.initiated_by === userId && (payAuths ?? []).length === 0 && (
-            <details style={{ marginTop: 12 }} open>
-              <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-                + New payment authorization
-              </summary>
+            <div style={{ marginTop: 12 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 6px" }}>New payment authorization</h3>
               {paForm}
-            </details>
+            </div>
           )}
         </div>
       )}
