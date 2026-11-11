@@ -95,6 +95,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     title: "Request details",
     rows: [
       ["IR number", r.ir_number ?? r.legacy_ir_number ?? "—"],
+      ["Procedure", config.label || "—"],
+      ["Donor procedure", r.donor_procedure || "—"],
       ["Compiled by", r.initiated_by ? name(r.initiated_by) : (r.legacy_initiator_name ?? "—")],
       ["Date", when(r.created_at)],
       ["Office / country", r.country],
