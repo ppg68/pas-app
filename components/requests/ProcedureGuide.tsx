@@ -97,22 +97,41 @@ export default function ProcedureGuide({ currentStage }: { currentStage?: string
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Come funziona la procedura"
+        title="Come funziona la procedura, passo per passo"
         aria-label="Guida alla procedura"
         style={{
-          border: "1px solid var(--line)",
-          borderRadius: "50%",
-          width: 26,
-          height: 26,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          border: "none",
+          borderRadius: 999,
+          padding: "6px 14px 6px 8px",
           fontSize: 14,
-          fontWeight: 700,
+          fontWeight: 600,
           cursor: "pointer",
-          background: "transparent",
-          color: "var(--navy)",
+          background: "var(--navy)",
+          color: "#fff",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
           flexShrink: 0,
         }}
       >
-        ?
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            background: "#fff",
+            color: "var(--navy)",
+            fontWeight: 800,
+            fontSize: 14,
+          }}
+        >
+          ?
+        </span>
+        Guida
       </button>
       {open && (
         <div
