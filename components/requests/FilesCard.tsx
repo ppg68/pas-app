@@ -20,6 +20,8 @@ export type RequestFile = {
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip";
+const PREVIEW_EXT = /\.(pdf|jpe?g|png|webp)$/i;
+const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
 const PROTOCOL_DOCS = ["07", "10"]; // invoice: typed; proof of payment: chosen among the protocols of the IR invoices
 
 function kb(n: number) {
@@ -64,6 +66,7 @@ export default function FilesCard({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; image: boolean } | null>(null);
   const [addingInvoice, setAddingInvoice] = useState(false);
   const [message, setMessage] = useState<{ docKey: string; text: string } | null>(null);
   const protocolRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
@@ -135,6 +138,28 @@ export default function FilesCard({
       return;
     }
     window.open(res.url, "_blank", "noopener");
+  }
+
+  function closePreview() {
+    if (previewFile) URL.revokeObjectURL(previewFile.url);
+    setPreviewFile(null);
+  }
+
+  async function preview(f: RequestFile) {
+    const res = await getFileUrl(f.id, true);
+    if (!res.ok || !res.url) {
+      window.alert(res.error ?? "Could not open the preview.");
+      return;
+    }
+    try {
+      // shown from a local blob so the storage headers cannot block the viewer
+      const blob = await (await fetch(res.url)).blob();
+      const type = IMAGE_EXT.test(f.file_name) ? blob.type : "application/pdf";
+      const url = URL.createObjectURL(new Blob([blob], { type }));
+      setPreviewFile({ name: f.file_name, url, image: IMAGE_EXT.test(f.file_name) });
+    } catch {
+      window.alert("Could not open the preview.");
+    }
   }
 
   async function remove(f: RequestFile) {
@@ -259,6 +284,15 @@ export default function FilesCard({
                     {f.file_name}
                   </button>
                 )}
+                {!f.archived_at && PREVIEW_EXT.test(f.file_name) && (
+                  <button
+                    type="button"
+                    onClick={() => void preview(f)}
+                    style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "1px 8px", fontSize: 11, background: "transparent", cursor: "pointer", color: "var(--navy)" }}
+                  >
+                    Preview
+                  </button>
+                )}
                 <span style={{ color: "var(--ink-soft)", fontSize: 11 }}>
                   {kb(f.size_bytes)} · {f.uploaded_by_name}
                   {f.archived_at ? " · archived on the server" : ""}
@@ -378,6 +412,30 @@ export default function FilesCard({
             Go to payment
           </button>
         </form>
+      )}
+      {previewFile && (
+        <div
+          onClick={closePreview}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 10, width: "min(1000px, 100%)", height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid var(--line)", fontSize: 13, gap: 8 }}>
+              <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewFile.name}</b>
+              <button type="button" className="primary" onClick={closePreview}>
+                Close
+              </button>
+            </div>
+            {previewFile.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewFile.url} alt={previewFile.name} style={{ flex: 1, minHeight: 0, objectFit: "contain", background: "#f3f4f6" }} />
+            ) : (
+              <iframe src={previewFile.url} title={previewFile.name} style={{ flex: 1, border: "none" }} />
+            )}
+          </div>
+        </div>
       )}
       {folderPath && (
         <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "8px 0 0" }}>Server folder: {folderPath}</p>

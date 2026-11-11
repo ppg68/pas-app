@@ -87,7 +87,8 @@ export async function registerFile(input: {
 }
 
 /** Short-lived download link (60 s). The row is read under RLS first, so only allowed users get one. */
-export async function getFileUrl(fileId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+/** `inline`: link that shows the file in the browser (preview) instead of downloading it. */
+export async function getFileUrl(fileId: string, inline = false): Promise<{ ok: boolean; url?: string; error?: string }> {
   const supabase = await createClient();
   const { data: f } = await supabase
     .from("request_files")
@@ -98,7 +99,7 @@ export async function getFileUrl(fileId: string): Promise<{ ok: boolean; url?: s
   if (f.archived_at) return { ok: false, error: "This file has been archived on the server." };
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(f.storage_path, 60, { download: f.file_name });
+    .createSignedUrl(f.storage_path, inline ? 300 : 60, inline ? undefined : { download: f.file_name });
   if (error || !data) return { ok: false, error: error?.message ?? "Could not create the link." };
   return { ok: true, url: data.signedUrl };
 }
