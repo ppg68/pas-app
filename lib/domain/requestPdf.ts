@@ -20,7 +20,7 @@ function clean(text: string): string {
 
 /** Builds the A4 PDF of a whole IR procedure: header, then one table per section. */
 export async function buildRequestPdf(
-  header: { title: string; subtitle: string; generated: string },
+  header: { title: string; subtitle: string; generated: string; lines?: string[] },
   sections: PdfSection[]
 ) {
   const pdf = await PDFDocument.create();
@@ -72,6 +72,10 @@ export async function buildRequestPdf(
   // header
   page.drawText(clean(header.title), { x: MARGIN, y: y - 14, size: 16, font: bold, color: ink });
   y -= 22;
+  for (const t of header.lines ?? []) {
+    page.drawText(clean(t), { x: MARGIN, y: y - 10, size: 10, font: bold, color: ink });
+    y -= 14;
+  }
   for (const l of wrap(header.subtitle, font, 10, PAGE_W - 2 * MARGIN)) {
     page.drawText(l, { x: MARGIN, y: y - 10, size: 10, font, color: soft });
     y -= 13;
