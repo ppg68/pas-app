@@ -716,7 +716,8 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     const free = (invs ?? []).filter((i) => !usedIds.has(i.id));
     if (free.length === 1) invoiceId = free[0].id;
   }
-  const currency = (text("currency") || req.currency || "EUR").toUpperCase();
+  // always the currency of the IR (the form shows it read-only)
+  const currency = (req.currency || "EUR").toUpperCase();
 
   const { data: created, error } = await supabase.from("payment_authorizations").insert({
     request_id: requestId,

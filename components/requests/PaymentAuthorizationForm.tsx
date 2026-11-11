@@ -41,7 +41,8 @@ export default function PaymentAuthorizationForm({
   const [invoiceId, setInvoiceId] = useState(only?.id ?? "");
   const [beneficiary, setBeneficiary] = useState(only?.supplier ?? winnerSupplier ?? "");
   const [amount, setAmount] = useState(only ? String(only.amount) : "");
-  const [cur, setCur] = useState(only?.currency ?? currency);
+  // the payment is always in the currency of the IR (it is not a free field: it keeps the balance consistent)
+  const cur = currency;
   const [balance, setBalance] = useState(
     only && offerValue != null
       ? String(Math.round((offerValue - authorizedTotal - only.amount) * 100) / 100)
@@ -68,11 +69,10 @@ export default function PaymentAuthorizationForm({
     const inv = invoices.find((i) => i.id === id);
     if (!inv) return;
     if (inv.supplier) setBeneficiary(inv.supplier);
-    setCur(inv.currency);
     onAmount(String(inv.amount));
   }
 
-  const rowStyle: React.CSSProperties = { display: "flex", gap: 10 };
+  const rowStyle: React.CSSProperties = { display: "flex", gap: 10, alignItems: "flex-end" };
 
   return (
     <form
@@ -150,7 +150,7 @@ export default function PaymentAuthorizationForm({
         </div>
         <div className="field" style={{ width: 90 }}>
           <label>Currency</label>
-          <input name="currency" value={cur} onChange={(e) => setCur(e.target.value)} />
+          <input name="currency" value={cur} readOnly tabIndex={-1} style={{ background: "#EEF0F3", color: "var(--ink-soft)" }} title="Currency of the IR" />
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Balance still to be paid</label>
