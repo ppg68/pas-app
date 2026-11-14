@@ -147,10 +147,10 @@ export default async function ExpenseDetail({
           <span style={{ flex: 1 }}>{r.registered_by_name ?? ""}</span>
           {r.registered_at ? (
             <span className="stamp brand">
-              recorded {dt(r.registered_at)} · {r.callisto_protocol}
+              imported {dt(r.registered_at)}{r.callisto_protocol ? ` · ${r.callisto_protocol}` : ""}
             </span>
           ) : (
-            <span className="stamp">{r.status === "approved" ? "to do" : "after approval"}</span>
+            <span className="stamp warn">{r.status === "approved" ? "to import" : "after approval"}</span>
           )}
         </div>
         {canEdit && (
@@ -193,21 +193,28 @@ export default async function ExpenseDetail({
 
       {r.status === "approved" && canRecord && (
         <div className="card" style={{ marginBottom: 14 }}>
-          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Record in Callisto</h2>
+          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Callisto import</h2>
           <p className="subtitle" style={{ margin: "0 0 10px" }}>
-            Use the summary below (account, project, budget line). Then enter the accounting protocol: the report is closed.
+            Download the Excel, import it in Callisto, then flag the report as imported: it is the memo of what is still to be imported.
+          </p>
+          <p style={{ margin: "0 0 10px" }}>
+            <a href={`/expenses/${id}/callisto`} className="ghost">
+              Excel for Callisto
+            </a>
           </p>
           <form action={registerExpenseReport.bind(null, id)} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div className="field" style={{ maxWidth: 260 }}>
-              <label>Accounting protocol *</label>
-              <input name="callisto_protocol" required />
-            </div>
-            <div className="field">
-              <label>Note (optional)</label>
-              <input name="registration_note" />
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div className="field" style={{ width: 240 }}>
+                <label>Accounting protocol (optional)</label>
+                <input name="callisto_protocol" />
+              </div>
+              <div className="field" style={{ flex: 1, minWidth: 200 }}>
+                <label>Note (optional)</label>
+                <input name="registration_note" />
+              </div>
             </div>
             <SubmitButton style={{ width: "fit-content" }} pendingLabel="Saving…">
-              Record and close
+              Imported in Callisto
             </SubmitButton>
           </form>
         </div>

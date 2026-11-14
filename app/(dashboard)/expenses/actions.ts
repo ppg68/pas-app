@@ -348,8 +348,7 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
 /** Administration: records the report in Callisto (protocol) and closes it. */
 export async function registerExpenseReport(id: string, formData: FormData) {
   const supabase = await createClient();
-  const protocol = str(formData, "callisto_protocol");
-  if (!protocol) fail(`/expenses/${id}`, "Enter the accounting protocol.");
+  const protocol = str(formData, "callisto_protocol"); // optional
   const { error } = await supabase.rpc("register_expense_report", { rid: id, protocol, note: str(formData, "registration_note") });
   if (error) fail(`/expenses/${id}`, error.message);
 
@@ -366,7 +365,7 @@ export async function registerExpenseReport(id: string, formData: FormData) {
           await sendEmail({
             to: rep.requester_email!,
             subject: `Expense report ${rep.number}: recorded`,
-            html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>Your expense report <b>${escapeHtml(rep.number)}</b> (€ ${rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 })}) has been recorded in Callisto, protocol ${escapeHtml(protocol)}. The sheet is closed.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
+            html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>Your expense report <b>${escapeHtml(rep.number)}</b> (€ ${rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 })}) has been recorded in Callisto${protocol ? `, protocol ${escapeHtml(protocol)}` : ""}. The sheet is closed.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
           });
         } catch (e) {
           console.error("[expenses] registration email failed", e);

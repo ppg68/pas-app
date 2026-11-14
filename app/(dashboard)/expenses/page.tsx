@@ -7,14 +7,21 @@ type Item = Pick<
   "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol"
 >;
 
-export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
-  const { created } = await searchParams;
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string; filter?: string }> }) {
+  const { created, filter } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  const isAdministration = (myRoles ?? []).some((x) => ["ADMIN", "RAC", "CAR"].includes(x.role as string));
   const { data } = await supabase
     .from("expense_reports")
     .select("id, number, status, worker_name, subject, internal_code, total_eur, requester_name, created_at, callisto_protocol")
     .order("created_at", { ascending: false });
-  const rows = (data ?? []) as Item[];
+  const all = (data ?? []) as Item[];
+  const toImport = all.filter((r) => r.status === "approved");
+  const rows = isAdministration && filter === "callisto" ? toImport : all;
   const { data: aps } = await supabase.from("expense_approvals").select("report_id, signer_role, signed_at");
   const approvals = (aps ?? []) as Pick<ExpenseApproval, "report_id" | "signer_role" | "signed_at">[];
   const missing = (id: string) =>
@@ -36,6 +43,21 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
           </Link>
         </div>
       </div>
+
+      {isAdministration && (
+        <div className="banner" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {toImport.length > 0 ? (
+            <>
+              <span>
+                <b>{toImport.length}</b> approved report{toImport.length === 1 ? "" : "s"} still to import in Callisto.
+              </span>
+              {filter === "callisto" ? <Link href="/expenses">Show all</Link> : <Link href="/expenses?filter=callisto">Show only these</Link>}
+            </>
+          ) : (
+            <span>Nothing to import in Callisto: every approved report is flagged.</span>
+          )}
+        </div>
+      )}
 
       {created && <div className="banner">Expense report {created} sent. The approvers have been notified by email.</div>}
 
@@ -68,7 +90,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                   </td>
                   <td>
                     <span className={`stamp ${r.status === "pending" || r.status === "approved" ? "warn" : r.status === "registered" ? "brand" : ""}`}>
-                      {STATUS_LABEL[r.status]}
+                      {r.status === "approved" && isAdministration ? "To import in Callisto" : STATUS_LABEL[r.status]}
                     </span>
                     {r.status === "pending" && missing(r.id) ? (
                       <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {missing(r.id)}</span>
