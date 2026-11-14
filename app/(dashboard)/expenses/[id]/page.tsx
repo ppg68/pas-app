@@ -79,7 +79,10 @@ export default async function ExpenseDetail({
   }
   const s = expenseSections(r, lines, approvals, files, tripNumber);
   const budgetLines = [...new Set(lines.map((l) => (l.budget_line ?? "").trim()).filter(Boolean))].sort();
-  const hasFiles = files.length > 0;
+  // every row but the mileage ones needs its receipt (older reports used receipts by budget line)
+  const filesByLine = new Set(files.map((f) => f.line_id));
+  const missingRows = lines.filter((l) => l.section !== "km" && !filesByLine.has(l.id));
+  const hasFiles = missingRows.length === 0 || files.some((f) => !f.line_id);
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -113,7 +116,7 @@ export default async function ExpenseDetail({
       {error && <div className="banner error">{error}</div>}
       {isNew && canEdit && (
         <div className="banner">
-          Report saved. Attach the receipts below, divided by budget line, then press <b>Send to the approvers</b>.
+          Report saved. Check it, then press <b>Send to the approvers</b>: until then nobody is notified and you can still edit it.
         </div>
       )}
 
@@ -183,7 +186,7 @@ export default async function ExpenseDetail({
         )}
         {r.status === "pending" && !hasFiles && (
           <p className="subtitle" style={{ margin: "8px 0 0" }}>
-            Approvals open once at least one receipt is attached.
+            Approvals open once the receipt of every row is attached (edit the report to add the missing ones).
           </p>
         )}
       </div>
@@ -217,6 +220,7 @@ export default async function ExpenseDetail({
         reportId={id}
         files={files}
         budgetLines={budgetLines}
+        lines={lines.filter((l) => l.section !== "km")}
         canAdd={isOwner && (r.status === "pending" || r.status === "approved")}
         canRemove={(isOwner && canEdit) || isAdmin}
       />

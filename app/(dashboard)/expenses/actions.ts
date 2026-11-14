@@ -6,10 +6,16 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import { MIN_EXPENSE_DATE, lineAmountEur, round2, type LineInput } from "@/lib/domain/expenses";
+import { MIN_EXPENSE_DATE, lineAmountEur, round2, type ExpenseSaveResult, type LineInput } from "@/lib/domain/expenses";
 
 function fail(path: string, message: string): never {
   redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
+}
+
+class FormError extends Error {}
+/** validation problem: returned to the form (nothing is lost on screen) instead of redirecting */
+function bad(message: string): never {
+  throw new FormError(message);
 }
 
 const str = (f: FormData, k: string) => String(f.get(k) || "").trim();
@@ -48,15 +54,16 @@ async function baseUrl() {
 
 const SECTIONS = ["km", "transport", "meals", "equipment", "invoices"];
 
-function parseReport(f: FormData, path: string) {
-  let raw: LineInput[] = [];
+function parseReport(f: FormData) {
+  let raw: (LineInput & { line_id?: string })[] = [];
   try {
     raw = JSON.parse(str(f, "lines_json") || "[]");
   } catch {
-    fail(path, "The expense rows could not be read. Reload the page and try again.");
+    bad("The expense rows could not be read. Reload the page and try again.");
   }
-  const lines = raw
-    .filter((l) => SECTIONS.includes(l.section))
+  const kept = raw.filter((l) => SECTIONS.includes(l.section));
+  const lineIds = kept.map((l) => (typeof l.line_id === "string" ? l.line_id : ""));
+  const lines = kept
     .map((l, i) => {
       const amount_eur = lineAmountEur(l);
       const isKm = l.section === "km";
@@ -76,19 +83,19 @@ function parseReport(f: FormData, path: string) {
       };
     });
 
-  if (lines.length === 0) fail(path, "Add at least one expense row.");
+  if (lines.length === 0) bad("Add at least one expense row.");
   lines.forEach((l, i) => {
     const n = `Row ${i + 1}`;
-    if (!l.line_date) fail(path, `${n}: enter the document date.`);
-    if (l.line_date < MIN_EXPENSE_DATE) fail(path, `${n}: expenses dated before 1 January 2026 are no longer accepted.`);
-    if (!l.budget_line) fail(path, `${n}: enter the budget line.`);
+    if (!l.line_date) bad(`${n}: enter the document date.`);
+    if (l.line_date < MIN_EXPENSE_DATE) bad(`${n}: expenses dated before 1 January 2026 are no longer accepted.`);
+    if (!l.budget_line) bad(`${n}: enter the budget line.`);
     if (l.section === "km") {
-      if (!l.km || !l.fuel_price) fail(path, `${n}: enter the km and the ACI fuel cost per litre.`);
+      if (!l.km || !l.fuel_price) bad(`${n}: enter the km and the ACI fuel cost per litre.`);
     } else {
-      if (!l.amount_orig) fail(path, `${n}: enter the amount.`);
-      if (l.currency !== "EUR" && !l.exchange_rate) fail(path, `${n}: enter the exchange rate for ${l.currency}.`);
+      if (!l.amount_orig) bad(`${n}: enter the amount.`);
+      if (l.currency !== "EUR" && !l.exchange_rate) bad(`${n}: enter the exchange rate for ${l.currency}.`);
     }
-    if (!(l.amount_eur > 0)) fail(path, `${n}: the amount in euros is zero.`);
+    if (!(l.amount_eur > 0)) bad(`${n}: the amount in euros is zero.`);
   });
 
   const report = {
@@ -102,30 +109,30 @@ function parseReport(f: FormData, path: string) {
     notes: opt(f, "notes"),
     total_eur: round2(lines.reduce((s, l) => s + l.amount_eur, 0)),
   };
-  if (!report.worker_name || !report.subject) fail(path, "Enter the name of the worker and the object of the expenses.");
-  if (!report.internal_code) fail(path, "Enter the internal project code.");
-  return { report, lines };
+  if (!report.worker_name || !report.subject) bad("Enter the name of the worker and the object of the expenses.");
+  if (!report.internal_code) bad("Enter the internal project code.");
+  return { report, lines, lineIds };
 }
 
-export async function createExpenseReport(formData: FormData) {
+async function createImpl(formData: FormData): Promise<ExpenseSaveResult> {
   const back = "/expenses/new";
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) fail(back, "Session expired, please log in again.");
+  if (!user) bad("Session expired, please log in again.");
 
-  const { report, lines } = parseReport(formData, back);
+  const { report, lines } = parseReport(formData);
 
   // the superior is optional (any registered person); the RAC / CAR signature is always required
   const [people, racs] = await Promise.all([superiors(supabase), racOrCar(supabase)]);
   const pmId = str(formData, "approver_PM");
   const racId = str(formData, "approver_RAC");
-  if (!racId) fail(back, "Choose the RAC or CAR who will approve.");
-  if (racId === user.id || pmId === user.id) fail(back, "You cannot approve your own report.");
+  if (!racId) bad("Choose the RAC or CAR who will approve.");
+  if (racId === user.id || pmId === user.id) bad("You cannot approve your own report.");
   const pm = pmId ? people.find((h) => h.id === pmId) : null;
   const rac = racs.find((h) => h.id === racId);
-  if ((pmId && !pm) || !rac) fail(back, "The chosen approver is no longer available. Choose again.");
+  if ((pmId && !pm) || !rac) bad("The chosen approver is no longer available. Choose again.");
 
   const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
 
@@ -139,9 +146,12 @@ export async function createExpenseReport(formData: FormData) {
     })
     .select("id, number")
     .single();
-  if (error || !inserted) fail(back, error?.message ?? "Could not save the report.");
+  if (error || !inserted) bad(error?.message ?? "Could not save the report.");
 
-  const { error: lineErr } = await supabase.from("expense_lines").insert(lines.map((l) => ({ ...l, report_id: inserted.id })));
+  const { data: insLines, error: lineErr } = await supabase
+    .from("expense_lines")
+    .insert(lines.map((l) => ({ ...l, report_id: inserted.id })))
+    .select("id, seq");
   const approvalRows = [
     ...(pm ? [{ report_id: inserted.id, signer_role: "PM" as const, user_id: pm.id, user_name: pm.full_name }] : []),
     { report_id: inserted.id, signer_role: "RAC" as const, user_id: rac!.id, user_name: rac!.full_name },
@@ -149,13 +159,25 @@ export async function createExpenseReport(formData: FormData) {
   const { error: apErr } = lineErr ? { error: lineErr } : await supabase.from("expense_approvals").insert(approvalRows);
   if (apErr) {
     await supabase.from("expense_reports").delete().eq("id", inserted.id);
-    fail(back, apErr.message);
+    bad(apErr.message);
   }
 
-  // the approvers are told once the receipts are attached: the requester continues on the report page
+  // the approvers are told when the requester presses "Send to the approvers" on the report page
   revalidatePath("/expenses");
-  redirect(`/expenses/${inserted.id}?new=1`);
+  const lineIds = (insLines ?? []).sort((x, y) => x.seq - y.seq).map((x) => x.id);
+  return { id: inserted.id, lineIds };
 }
+
+export async function createExpenseReport(formData: FormData): Promise<ExpenseSaveResult> {
+  try {
+    return await createImpl(formData);
+  } catch (e) {
+    if (e instanceof FormError) return { error: e.message };
+    throw e;
+  }
+}
+
+
 
 /** The approvers are emailed when the requester confirms the receipts are attached. */
 export async function sendExpenseReport(id: string) {
@@ -166,8 +188,16 @@ export async function sendExpenseReport(id: string) {
     .eq("id", id)
     .maybeSingle();
   if (!rep) fail("/expenses", "Report not found.");
-  const { count } = await supabase.from("expense_files").select("id", { count: "exact", head: true }).eq("report_id", id);
-  if (!count) fail(`/expenses/${id}`, "Attach at least one receipt first.");
+  const [{ data: fl }, { data: ln }] = await Promise.all([
+    supabase.from("expense_files").select("line_id").eq("report_id", id),
+    supabase.from("expense_lines").select("id, section, seq").eq("report_id", id).order("seq"),
+  ]);
+  const legacy = (fl ?? []).some((f) => !f.line_id); // receipts attached by budget line (older reports)
+  const withFile = new Set((fl ?? []).map((f) => f.line_id));
+  const missing = (ln ?? []).filter((l) => l.section !== "km" && !withFile.has(l.id));
+  if (missing.length > 0 && !legacy) {
+    fail(`/expenses/${id}`, `Attach the receipt of every expense row (missing: row ${missing.map((m) => m.seq).join(", ")}). Mileage rows need none.`);
+  }
   const { data: aps } = await supabase.from("expense_approvals").select("user_id, signer_role").eq("report_id", id);
   // the superior (if any) approves first; otherwise the RAC / CAR
   const first = (aps ?? []).find((a) => a.signer_role === "PM") ?? (aps ?? []).find((a) => a.signer_role === "RAC");
@@ -193,18 +223,49 @@ ${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
   redirect(`/expenses?created=${encodeURIComponent(rep.number)}`);
 }
 
-export async function updateExpenseReport(id: string, formData: FormData) {
-  const path = `/expenses/${id}/edit`;
+async function updateImpl(id: string, formData: FormData): Promise<ExpenseSaveResult> {
   const supabase = await createClient();
-  const { report, lines } = parseReport(formData, path);
+  const { report, lines, lineIds } = parseReport(formData);
   const { error } = await supabase.from("expense_reports").update(report).eq("id", id);
-  if (error) fail(path, error.message);
-  const { error: delErr } = await supabase.from("expense_lines").delete().eq("report_id", id);
-  if (delErr) fail(path, delErr.message);
-  const { error: insErr } = await supabase.from("expense_lines").insert(lines.map((l) => ({ ...l, report_id: id })));
-  if (insErr) fail(path, insErr.message);
+  if (error) bad(error.message);
+
+  // rows that already exist keep their id (their receipt stays attached); the others are added; the missing ones are removed
+  const { data: ex } = await supabase.from("expense_lines").select("id").eq("report_id", id);
+  const existing = new Set((ex ?? []).map((x) => x.id));
+  const keep = new Set(lineIds.filter((x) => x && existing.has(x)));
+  const gone = [...existing].filter((x) => !keep.has(x));
+  if (gone.length) {
+    const { error: delErr } = await supabase.from("expense_lines").delete().in("id", gone);
+    if (delErr) bad(delErr.message);
+  }
+  const ids: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const rid = lineIds[i];
+    if (rid && keep.has(rid)) {
+      const { error: uErr } = await supabase.from("expense_lines").update(lines[i]).eq("id", rid);
+      if (uErr) bad(uErr.message);
+      ids.push(rid);
+    } else {
+      const { data: ins, error: iErr } = await supabase
+        .from("expense_lines")
+        .insert({ ...lines[i], report_id: id })
+        .select("id")
+        .single();
+      if (iErr || !ins) bad(iErr?.message ?? "Could not save the row.");
+      ids.push(ins.id);
+    }
+  }
   revalidatePath(`/expenses/${id}`);
-  redirect(`/expenses/${id}`);
+  return { id, lineIds: ids };
+}
+
+export async function updateExpenseReport(id: string, formData: FormData): Promise<ExpenseSaveResult> {
+  try {
+    return await updateImpl(id, formData);
+  } catch (e) {
+    if (e instanceof FormError) return { error: e.message };
+    throw e;
+  }
 }
 
 export async function signExpenseReport(id: string, role: "PM" | "RAC") {

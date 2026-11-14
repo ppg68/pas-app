@@ -2,14 +2,18 @@
 
 import { FUELS, aciPrice, fuelKey, type FuelPriceRow } from "@/lib/domain/fuelPrices";
 import { useState } from "react";
-import SubmitButton from "@/components/SubmitButton";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { EXPENSE_ACCEPT, EXPENSE_BUCKET, EXPENSE_MAX_BYTES, uploadExpenseFile } from "@/lib/expenseUpload";
 import {
   SECTIONS,
   lineAmountEur,
   MIN_EXPENSE_DATE,
   money,
   round2,
+  type ExpenseFileRow,
   type ExpenseLineRow,
+  type ExpenseSaveResult,
   type ExpenseReportRow,
   type ExpenseSection,
   type LineInput,
@@ -33,7 +37,13 @@ const col = (flex = 1, min = 160): React.CSSProperties => ({ flex, minWidth: min
 const cell: React.CSSProperties = { padding: "3px 4px", verticalAlign: "top" };
 const inp: React.CSSProperties = { width: "100%", minWidth: 0 };
 
-const emptyLine = (section: ExpenseSection): LineInput => ({
+/** A row of the form: the typed values plus its receipt (a file chosen now, or the one already saved). */
+type Row = LineInput & { key: string; line_id?: string; file: File | null; existing: ExpenseFileRow | null };
+
+const emptyLine = (section: ExpenseSection): Row => ({
+  key: crypto.randomUUID(),
+  file: null,
+  existing: null,
   section,
   line_date: "",
   budget_line: "",
@@ -46,9 +56,13 @@ const emptyLine = (section: ExpenseSection): LineInput => ({
   exchange_rate: "",
 });
 
-function fromRow(l: ExpenseLineRow): LineInput {
+function fromRow(l: ExpenseLineRow, files: ExpenseFileRow[]): Row {
   const s = (n: number | null) => (n == null ? "" : String(n));
   return {
+    key: l.id,
+    line_id: l.id,
+    file: null,
+    existing: files.find((f) => f.line_id === l.id) ?? null,
     section: l.section,
     line_date: l.line_date ?? "",
     budget_line: l.budget_line ?? "",
@@ -66,6 +80,7 @@ export default function ExpenseForm({
   action,
   defaults,
   defaultLines,
+  defaultFiles,
   trips,
   fuelPrices = [],
   workerName,
@@ -73,9 +88,10 @@ export default function ExpenseForm({
   racs,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<ExpenseSaveResult>;
   defaults?: Partial<ExpenseReportRow>;
   defaultLines?: ExpenseLineRow[];
+  defaultFiles?: ExpenseFileRow[];
   trips?: TripOption[];
   fuelPrices?: FuelPriceRow[];
   workerName?: string;
@@ -90,7 +106,10 @@ export default function ExpenseForm({
   const [donor, setDonor] = useState(d.donor_code ?? "");
   const [internal, setInternal] = useState(d.internal_code ?? "");
   const [tripId, setTripId] = useState(d.trip_id ?? "");
-  const [lines, setLines] = useState<LineInput[]>(() => (defaultLines ?? []).map(fromRow));
+  const [lines, setLines] = useState<Row[]>(() => (defaultLines ?? []).map((l) => fromRow(l, defaultFiles ?? [])));
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [fuel, setFuel] = useState(() => fuelKey(d.fuel) ?? "");
   const fk = fuelKey(fuel);
 
@@ -133,10 +152,69 @@ export default function ExpenseForm({
   const patch = (i: number, p: Partial<LineInput>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
   const remove = (i: number) => setLines((ls) => ls.filter((_, k) => k !== i));
   const total = round2(lines.reduce((s, l) => s + lineAmountEur(l), 0));
+  const patchRow = (i: number, p: Partial<Row>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    setError(null);
+    // every row but the mileage ones needs its receipt
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (l.section !== "km" && !l.file && !l.existing) {
+        setError(`Row ${i + 1}: attach the receipt (mileage rows need none).`);
+        return;
+      }
+      if (l.file && l.file.size > EXPENSE_MAX_BYTES) {
+        setError(`Row ${i + 1}: ${l.file.name} is larger than 20 MB.`);
+        return;
+      }
+    }
+    setBusy(true);
+    try {
+      const res = await action(new FormData(e.currentTarget));
+      if (res.error || !res.id || !res.lineIds) {
+        setError(res.error ?? "Could not save the report.");
+        setBusy(false);
+        return;
+      }
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      // receipts replaced or belonging to removed rows
+      const keepIds = new Set(lines.filter((l) => l.existing).map((l) => l.existing!.id));
+      const drop = (defaultFiles ?? []).filter((f) => f.line_id && !keepIds.has(f.id));
+      const problems: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (!l.file) continue;
+        const msg = await uploadExpenseFile(supabase, res.id, res.lineIds[i], l.budget_line, l.file, user?.id);
+        if (msg) problems.push(`Row ${i + 1}: ${msg}`);
+        else {
+          const old = l.existing;
+          if (old && !drop.some((f) => f.id === old.id)) drop.push(old);
+        }
+      }
+      for (const f of drop) {
+        const { error: dErr } = await supabase.from("expense_files").delete().eq("id", f.id);
+        if (!dErr) await supabase.storage.from(EXPENSE_BUCKET).remove([f.storage_path]);
+      }
+      if (problems.length > 0) {
+        // the report is saved: the missing receipts can be added from the report page
+        window.alert(`The report was saved, but some receipts could not be uploaded:\n${problems.join("\n")}\nAttach them again with Edit report.`);
+      }
+      router.push(defaultLines ? `/expenses/${res.id}` : `/expenses/${res.id}?new=1`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the report.");
+      setBusy(false);
+    }
+  }
 
   return (
-    <form action={action} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <input type="hidden" name="lines_json" value={JSON.stringify(lines)} />
+    <form onSubmit={(e) => void onSubmit(e)} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <input type="hidden" name="lines_json" value={JSON.stringify(lines.map(({ key: _k, file: _f, existing: _e, ...rest }) => rest))} />
       <input type="hidden" name="trip_id" value={tripId} />
 
       <h2 style={{ fontSize: "1rem", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>Report</h2>
@@ -229,7 +307,7 @@ export default function ExpenseForm({
             )}
             {idx.length > 0 && (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: "0.85rem" }}>
                   <thead>
                     <tr style={{ textAlign: "left" }}>
                       <th style={cell}>Date</th>
@@ -250,12 +328,13 @@ export default function ExpenseForm({
                         </>
                       )}
                       <th style={{ ...cell, textAlign: "right" }}>€</th>
+                      <th style={cell}>{isKm ? "" : "Receipt"}</th>
                       <th style={cell}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {idx.map(([l, i], k) => (
-                      <tr key={i}>
+                      <tr key={l.key}>
                         <td style={cell}>
                           <input type="date" min={MIN_EXPENSE_DATE} style={inp} value={l.line_date} onChange={(e) => (isKm ? changeKmDate(i, e.target.value) : patch(i, { line_date: e.target.value }))} />
                         </td>
@@ -312,6 +391,20 @@ export default function ExpenseForm({
                           </>
                         )}
                         <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", paddingTop: 9 }}>{money(lineAmountEur(l))}</td>
+                        <td style={{ ...cell, width: 170 }}>
+                          {!isKm && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {l.existing && !l.file && <span style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>{l.existing.file_name}</span>}
+                              <input
+                                type="file"
+                                accept={EXPENSE_ACCEPT}
+                                aria-label={`Receipt of row ${i + 1}`}
+                                style={{ fontSize: "0.75rem", maxWidth: 170 }}
+                                onChange={(ev) => patchRow(i, { file: ev.target.files?.[0] ?? null })}
+                              />
+                            </div>
+                          )}
+                        </td>
                         <td style={cell}>
                           <button type="button" className="ghost danger" onClick={() => remove(i)} title="Remove the row">
                             ×
@@ -342,7 +435,7 @@ export default function ExpenseForm({
         <textarea name="notes" rows={2} style={{ resize: "vertical" }} defaultValue={d.notes ?? ""} />
       </div>
       <p className="subtitle" style={{ margin: 0 }}>
-        The receipts (divided by budget line) are attached on the next page, after saving.
+        Attach the receipt of every row (mileage rows need none): the approvers can open it from the report.
       </p>
 
       {pms && racs && (
@@ -381,9 +474,10 @@ export default function ExpenseForm({
         </>
       )}
 
-      <SubmitButton className="primary" style={{ width: "fit-content", marginTop: 6 }}>
-        {submitLabel}
-      </SubmitButton>
+      {error && <div className="banner error">{error}</div>}
+      <button type="submit" className="primary" style={{ width: "fit-content", marginTop: 6 }} disabled={busy} aria-busy={busy}>
+        {busy ? "Saving…" : submitLabel}
+      </button>
     </form>
   );
 }

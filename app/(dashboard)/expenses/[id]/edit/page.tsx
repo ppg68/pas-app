@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
 import ExpenseForm, { type TripOption } from "@/components/expenses/ExpenseForm";
-import type { ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses";
+import type { ExpenseFileRow, ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses";
 import { updateExpenseReport } from "../../actions";
 
 export default async function EditExpensePage({
@@ -19,8 +19,9 @@ export default async function EditExpensePage({
   const { data } = await supabase.from("expense_reports").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const r = data as ExpenseReportRow;
-  const [{ data: ls }, { data: trips }] = await Promise.all([
+  const [{ data: ls }, { data: fs }, { data: trips }] = await Promise.all([
     supabase.from("expense_lines").select("*").eq("report_id", id).order("seq"),
+    supabase.from("expense_files").select("*").eq("report_id", id),
     supabase
       .from("trip_requests")
       .select("id, number, traveler_name, destination, start_date, end_date, project_title, internal_code, donor_code")
@@ -43,6 +44,7 @@ export default async function EditExpensePage({
         action={updateExpenseReport.bind(null, id)}
         defaults={r}
         defaultLines={(ls ?? []) as ExpenseLineRow[]}
+        defaultFiles={(fs ?? []) as ExpenseFileRow[]}
         trips={(trips ?? []) as TripOption[]}
         fuelPrices={fuelPrices}
         submitLabel="Save changes"

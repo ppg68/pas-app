@@ -94,9 +94,13 @@ export type ExpenseFileRow = {
   size_bytes: number;
   mime_type: string | null;
   budget_line: string | null;
+  line_id: string | null;
   uploaded_by: string | null;
   uploaded_at: string;
 };
+
+/** Result of saving a report from the form (the form then uploads the receipts of each row). */
+export type ExpenseSaveResult = { error?: string; id?: string; lineIds?: string[] };
 
 /** A line as typed in the form (numbers kept as strings until saved). */
 export type LineInput = {
