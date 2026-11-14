@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
  * Weekly national average fuel prices of the Ministry (MASE / DGSAIE open data, the same figures as the ACI table),
  * copied into pas.fuel_prices. Called by Vercel Cron (see vercel.json) with "Authorization: Bearer $CRON_SECRET".
  * The CSV is in euro per 1,000 litres with Italian number format; the table keeps euro per litre (3 decimals).
- * Only the dates from 2026-01-01 are kept: 2025 expense reports are no longer accepted.
+ * Kept from the week of 2025-12-29 (it covers 1-4 January 2026): 2025 expense reports are no longer accepted.
  */
 const SOURCE = "https://sisen.mase.gov.it/dgsaie/api/v1/weekly-prices/report/export?format=CSV&lang=it";
-const FROM = "2026-01-01";
+const FROM = "2025-12-29";
 
 const perLitre = (s: string | undefined) => {
   const v = parseFloat((s ?? "").replace(/\./g, "").replace(",", "."));
