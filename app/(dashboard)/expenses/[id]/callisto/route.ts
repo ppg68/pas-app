@@ -9,8 +9,8 @@ const MAX_DESC = 50;
 /**
  * Excel to import the report costs in Callisto (same layout as the payroll / expense import):
  * A date, B account, C debit, D credit, E description, F project, G budget line.
- * Per expense row: the cost (account 11.10.0x, project, budget line) and the credit on the account of the
- * person who filed the report. Invoices addressed to Oikos are left out (debt to the supplier, not to the person).
+ * One debit row per expense row (account 11.10.0x, project, budget line) and one credit at the bottom, for the
+ * total, on the account of the person who filed the report. Invoices addressed to Oikos are left out (debt to the supplier, not to the person).
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,8 +47,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const motive = [l.motive, l.location].map((x) => (x ?? "").trim()).filter(Boolean)[0] ?? "";
     const desc = `nota spese ${surname} ${r.number} ${motive}`.trim().slice(0, MAX_DESC).trim();
     rows.push([date, SECTION_BY_KEY[l.section].account, l.amount_eur, null, desc, r.internal_code, l.budget_line]);
-    rows.push([date, account, null, l.amount_eur, desc, null, null]);
   }
+  // one credit for the whole report, at the bottom, on the account of the person who filed it
+  const total = Math.round(lines.reduce((t, l) => t + l.amount_eur, 0) * 100) / 100;
+  const lastDate = lines.map((l) => l.line_date).filter(Boolean).sort().pop();
+  rows.push([
+    lastDate ? new Date(`${lastDate}T00:00:00Z`) : null,
+    account,
+    null,
+    total,
+    `nota spese ${surname} ${r.number}`.slice(0, MAX_DESC),
+    null,
+    null,
+  ]);
   if (rows.length === 0) return new Response("No expense rows to export (invoices addressed to Oikos are excluded)", { status: 409 });
 
   const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true });
