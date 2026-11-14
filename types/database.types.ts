@@ -1,5 +1,6 @@
 import type { ContractApproval, ContractRequestRow } from "@/lib/domain/contractRequests"
 import type { TripApproval, TripRow } from "@/lib/domain/trips"
+import type { ExpenseApproval, ExpenseFileRow, ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses"
 
 export type Json =
   | string
@@ -491,6 +492,30 @@ export type Database = {
         Row: ContractApproval
         Insert: Partial<ContractApproval>
         Update: Partial<ContractApproval>
+        Relationships: []
+      }
+      expense_reports: {
+        Row: ExpenseReportRow
+        Insert: Partial<ExpenseReportRow>
+        Update: Partial<ExpenseReportRow>
+        Relationships: []
+      }
+      expense_lines: {
+        Row: ExpenseLineRow
+        Insert: Partial<ExpenseLineRow>
+        Update: Partial<ExpenseLineRow>
+        Relationships: []
+      }
+      expense_approvals: {
+        Row: ExpenseApproval
+        Insert: Partial<ExpenseApproval>
+        Update: Partial<ExpenseApproval>
+        Relationships: []
+      }
+      expense_files: {
+        Row: ExpenseFileRow
+        Insert: Partial<ExpenseFileRow>
+        Update: Partial<ExpenseFileRow>
         Relationships: []
       }
       trip_requests: {
@@ -998,6 +1023,11 @@ export type Database = {
         Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json
       }
+      sign_expense_report: {
+        Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
+        Returns: Json
+      }
+      register_expense_report: { Args: { rid: string; protocol: string; note: string | null }; Returns: undefined }
       sign_trip_request: {
         Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json
