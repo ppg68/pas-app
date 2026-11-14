@@ -102,6 +102,11 @@ export default async function ExpenseDetail({
           <a href={`/expenses/${id}/pdf`} className="ghost">
             PDF
           </a>
+          {canRecord && (r.status === "approved" || r.status === "registered") && (
+            <a href={`/expenses/${id}/callisto`} className="ghost">
+              Excel for Callisto
+            </a>
+          )}
         </div>
       </div>
 

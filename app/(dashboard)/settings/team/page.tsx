@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
-import { addRole, removeRole, cancelPending, updatePersonName } from "./actions";
+import { addRole, removeRole, cancelPending, updatePersonName, updatePersonAccount } from "./actions";
 import RemovePersonButton from "./RemovePersonButton";
 import ConfirmForm from "@/components/ConfirmForm";
 
@@ -26,7 +26,7 @@ export default async function TeamSettingsPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email")
+    .select("id, full_name, email, callisto_account")
     .order("full_name");
   const { data: allRoles } = await supabase.from("user_roles").select("user_id, role");
 
@@ -73,6 +73,21 @@ export default async function TeamSettingsPage({
                   />
                   <button type="submit" className="pill">
                     Save name
+                  </button>
+                </form>
+                <form
+                  action={updatePersonAccount.bind(null, p.id)}
+                  style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}
+                >
+                  <input
+                    name="callisto_account"
+                    defaultValue={p.callisto_account ?? ""}
+                    placeholder="Callisto account (e.g. D136)"
+                    aria-label={`Callisto account of ${p.email ?? "this person"}`}
+                    style={{ fontSize: 13, width: 220 }}
+                  />
+                  <button type="submit" className="pill">
+                    Save account
                   </button>
                 </form>
                 <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>

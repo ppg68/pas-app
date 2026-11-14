@@ -77,3 +77,11 @@ export async function updatePersonName(userId: string, formData: FormData) {
 
   revalidatePath("/settings/team");
 }
+
+export async function updatePersonAccount(userId: string, formData: FormData) {
+  const account = String(formData.get("callisto_account") || "").trim().toUpperCase();
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ callisto_account: account || null }).eq("id", userId);
+  if (error) fail(error.message);
+  revalidatePath("/settings/team");
+}
