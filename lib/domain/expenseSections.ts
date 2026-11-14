@@ -78,15 +78,8 @@ export function expenseSections(
       a.signed_at ? `Approved by ${a.user_name} on ${dt(a.signed_at)}` : `Waiting for ${a.user_name}`,
     ]);
   }
-  hist.push([
-    "Callisto",
-    r.registered_at
-      ? `Recorded by ${r.registered_by_name ?? ""} on ${dt(r.registered_at)} - protocol ${r.callisto_protocol}${r.registration_note ? ` - ${r.registration_note}` : ""}`
-      : r.status === "cancelled"
-        ? "Not recorded (report cancelled)"
-        : "Waiting to be recorded",
-  ]);
-  hist.push(["Status", STATUS_LABEL[r.status]]);
+  // the accounting step (Callisto) is internal: the PDF only says whether the report is approved
+  hist.push(["Status", r.status === "approved" || r.status === "registered" ? "Approved" : STATUS_LABEL[r.status]]);
 
   return { header, lines: sectionRows, summary, history: { title: "Approvals and history", rows: hist } };
 }
