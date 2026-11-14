@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth/callback");
+  const isPublic = path.startsWith("/login") || path.startsWith("/auth/callback") || path.startsWith("/api/cron/");
 
   if (!user && !isPublic) {
     const loginUrl = new URL("/login", request.url);
