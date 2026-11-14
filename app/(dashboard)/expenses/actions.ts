@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import { lineAmountEur, round2, type LineInput } from "@/lib/domain/expenses";
+import { MIN_EXPENSE_DATE, lineAmountEur, round2, type LineInput } from "@/lib/domain/expenses";
 
 function fail(path: string, message: string): never {
   redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
@@ -80,6 +80,7 @@ function parseReport(f: FormData, path: string) {
   lines.forEach((l, i) => {
     const n = `Row ${i + 1}`;
     if (!l.line_date) fail(path, `${n}: enter the document date.`);
+    if (l.line_date < MIN_EXPENSE_DATE) fail(path, `${n}: expenses dated before 1 January 2026 are no longer accepted.`);
     if (!l.budget_line) fail(path, `${n}: enter the budget line.`);
     if (l.section === "km") {
       if (!l.km || !l.fuel_price) fail(path, `${n}: enter the km and the ACI fuel cost per litre.`);

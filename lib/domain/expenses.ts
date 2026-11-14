@@ -12,6 +12,9 @@ export const STATUS_LABEL: Record<ExpenseStatus, string> = {
 
 /** The sections of the form and the Callisto account of each one. The invoices to Oikos have no account in the
  *  template: fill in `account` here when the administration decides which one to use. */
+/** Expenses dated before this day are no longer accepted (2025 reports are closed). */
+export const MIN_EXPENSE_DATE = "2026-01-01";
+
 export const SECTIONS: { key: ExpenseSection; title: string; hint: string; account: string }[] = [
   { key: "km", title: "Mileage reimbursement", hint: "Own car: km x ACI fuel cost per litre / 5", account: "11.10.01" },
   {

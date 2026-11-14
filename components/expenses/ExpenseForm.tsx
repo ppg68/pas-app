@@ -6,6 +6,7 @@ import SubmitButton from "@/components/SubmitButton";
 import {
   SECTIONS,
   lineAmountEur,
+  MIN_EXPENSE_DATE,
   money,
   round2,
   type ExpenseLineRow,
@@ -256,7 +257,7 @@ export default function ExpenseForm({
                     {idx.map(([l, i], k) => (
                       <tr key={i}>
                         <td style={cell}>
-                          <input type="date" style={inp} value={l.line_date} onChange={(e) => (isKm ? changeKmDate(i, e.target.value) : patch(i, { line_date: e.target.value }))} />
+                          <input type="date" min={MIN_EXPENSE_DATE} style={inp} value={l.line_date} onChange={(e) => (isKm ? changeKmDate(i, e.target.value) : patch(i, { line_date: e.target.value }))} />
                         </td>
                         <td style={{ ...cell, width: 30 }}>
                           {k > 0 && (
