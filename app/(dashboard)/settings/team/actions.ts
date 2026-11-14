@@ -81,7 +81,8 @@ export async function updatePersonName(userId: string, formData: FormData) {
 export async function updatePersonAccount(userId: string, formData: FormData) {
   const account = String(formData.get("callisto_account") || "").trim().toUpperCase();
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ callisto_account: account || null }).eq("id", userId);
+  const { data, error } = await supabase.from("profiles").update({ callisto_account: account || null }).eq("id", userId).select("id");
   if (error) fail(error.message);
+  if (!data || data.length === 0) fail("The account was not saved (no permission or person not found). Only an ADMIN can change it.");
   revalidatePath("/settings/team");
 }
