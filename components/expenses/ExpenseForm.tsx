@@ -180,7 +180,7 @@ export default function ExpenseForm({
                       <th style={cell}>Date</th>
                       <th style={cell}></th>
                       <th style={cell}>Budget line</th>
-                      <th style={cell}>From / to</th>
+                      <th style={cell}>{isKm ? "From / to" : "Location"}</th>
                       <th style={cell}>Motive</th>
                       {isKm ? (
                         <>
@@ -209,7 +209,7 @@ export default function ExpenseForm({
                             <button
                               type="button"
                               className="ghost"
-                              title="Copy budget line, from / to and motive from the row above"
+                              title="copy budget line, location and motive from the row above"
                               onClick={() => {
                                 const prev = idx[k - 1][0];
                                 patch(i, { budget_line: prev.budget_line, location: prev.location, motive: prev.motive });
