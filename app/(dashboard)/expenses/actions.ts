@@ -28,6 +28,11 @@ async function holders(supabase: Supa, role: Role) {
   return (data ?? []) as Holder[];
 }
 
+async function superiors(supabase: Supa) {
+  const { data } = await supabase.rpc("expense_superiors");
+  return (data ?? []) as Holder[];
+}
+
 async function racOrCar(supabase: Supa) {
   const [racs, cars] = await Promise.all([holders(supabase, "RAC"), holders(supabase, "CAR")]);
   const seen = new Set<string>();
@@ -111,17 +116,15 @@ export async function createExpenseReport(formData: FormData) {
 
   const { report, lines } = parseReport(formData, back);
 
-  const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
-  const requesterIsPm = pms.some((h) => h.id === user.id);
+  // the superior is optional (any registered person); the RAC / CAR signature is always required
+  const [people, racs] = await Promise.all([superiors(supabase), racOrCar(supabase)]);
   const pmId = str(formData, "approver_PM");
   const racId = str(formData, "approver_RAC");
-  if (!racId || (!requesterIsPm && !pmId)) {
-    fail(back, requesterIsPm ? "Choose the RAC or CAR who will approve." : "Choose the PM / Programme Manager and the RAC or CAR who will approve.");
-  }
-  if (racId === user.id || (pmId === user.id && !requesterIsPm)) fail(back, "You cannot approve your own report.");
-  const pm = requesterIsPm ? null : pms.find((h) => h.id === pmId);
+  if (!racId) fail(back, "Choose the RAC or CAR who will approve.");
+  if (racId === user.id || pmId === user.id) fail(back, "You cannot approve your own report.");
+  const pm = pmId ? people.find((h) => h.id === pmId) : null;
   const rac = racs.find((h) => h.id === racId);
-  if ((!requesterIsPm && !pm) || !rac) fail(back, "The chosen approver no longer holds the role. Choose again.");
+  if ((pmId && !pm) || !rac) fail(back, "The chosen approver is no longer available. Choose again.");
 
   const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
 
@@ -164,11 +167,12 @@ export async function sendExpenseReport(id: string) {
   if (!rep) fail("/expenses", "Report not found.");
   const { count } = await supabase.from("expense_files").select("id", { count: "exact", head: true }).eq("report_id", id);
   if (!count) fail(`/expenses/${id}`, "Attach at least one receipt first.");
-  const { data: aps } = await supabase.from("expense_approvals").select("user_id, user_name").eq("report_id", id);
-  const ids = (aps ?? []).map((a) => a.user_id);
+  const { data: aps } = await supabase.from("expense_approvals").select("user_id, signer_role").eq("report_id", id);
+  // the superior (if any) approves first; otherwise the RAC / CAR
+  const first = (aps ?? []).find((a) => a.signer_role === "PM") ?? (aps ?? []).find((a) => a.signer_role === "RAC");
   const link = `${await baseUrl()}/expenses/${id}`;
-  const people = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
-  const list = people.flat().filter((h, i, a) => ids.includes(h.id) && a.findIndex((x) => x.id === h.id) === i);
+  const people = await Promise.all([superiors(supabase), racOrCar(supabase)]);
+  const list = people.flat().filter((h, i, a) => h.id === first?.user_id && a.findIndex((x) => x.id === h.id) === i);
   after(async () => {
     for (const h of list) {
       if (!h.email) continue;
@@ -216,7 +220,7 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
       .eq("id", id)
       .maybeSingle();
     const link = `${await baseUrl()}/expenses/${id}`;
-    const label = role === "RAC" ? "RAC / CAR" : role;
+    const label = role === "RAC" ? "RAC / CAR" : "superior";
     if (rep) {
       const allSigned = Boolean((data as { all_signed?: boolean } | null)?.all_signed);
       const amount = rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 });
@@ -235,6 +239,24 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
             to: rep.requester_email,
             subject: `Expense report ${rep.number} approved`,
             html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>Your expense report <b>${escapeHtml(rep.number)}</b> (€ ${amount}) is approved. The administration will record it for reimbursement.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
+          });
+        }
+      } else if (role === "PM") {
+        // the superior has approved: now the RAC / CAR must sign
+        const { data: racRow } = await supabase.from("expense_approvals").select("user_id").eq("report_id", id).eq("signer_role", "RAC").maybeSingle();
+        const rac = (await racOrCar(supabase)).find((h) => h.id === racRow?.user_id);
+        if (rac?.email) {
+          mails.push({
+            to: rac.email,
+            subject: `Expense report ${rep.number}: your approval is needed`,
+            html: `<p>Hello ${escapeHtml(rac.full_name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} (€ ${amount}), submitted by ${escapeHtml(rep.requester_name)}, was approved by the superior. Your approval as RAC / CAR is needed.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
+          });
+        }
+        if (rep.requester_email) {
+          mails.push({
+            to: rep.requester_email,
+            subject: `Expense report ${rep.number}: superior approved`,
+            html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>The superior approved your expense report <b>${escapeHtml(rep.number)}</b>. The RAC / CAR approval is still needed.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
           });
         }
       } else if (rep.requester_email) {

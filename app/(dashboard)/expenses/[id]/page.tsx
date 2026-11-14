@@ -116,16 +116,16 @@ export default async function ExpenseDetail({
         <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvals</h2>
         {!approvals.some((a) => a.signer_role === "PM") && (
           <p className="subtitle" style={{ margin: "0 0 6px" }}>
-            Filed by the PM ({r.requester_name}): no separate PM approval is needed.
+            No superior chosen: the RAC / CAR checks and approves the report.
           </p>
         )}
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "PM"}</b>
+            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Superior"}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
               <span className="stamp brand">approved {dt(a.signed_at)}</span>
-            ) : r.status === "pending" && a.user_id === user?.id && hasFiles ? (
+            ) : r.status === "pending" && a.user_id === user?.id && hasFiles && (a.signer_role === "PM" || approvals.every((x) => x.signer_role === "RAC" || x.signed_at)) ? (
               <form action={signExpenseReport.bind(null, id, a.signer_role)}>
                 <SubmitButton pendingLabel="Approving…">Approve</SubmitButton>
               </form>

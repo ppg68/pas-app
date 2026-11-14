@@ -70,11 +70,11 @@ export function expenseSections(
 
   const hist: [string, string][] = [["Filed by", `${r.requester_name} on ${dt(r.created_at)}`]];
   if (!approvals.some((a) => a.signer_role === "PM")) {
-    hist.push(["PM / Programme Manager", `Filed by the PM (${r.requester_name}): no separate approval needed`]);
+    hist.push(["Superior", "No superior chosen: the RAC / CAR checks the report"]);
   }
   for (const a of approvals) {
     hist.push([
-      a.signer_role === "RAC" ? "RAC / CAR" : "PM / Programme Manager",
+      a.signer_role === "RAC" ? "RAC / CAR" : "Superior",
       a.signed_at ? `Approved by ${a.user_name} on ${dt(a.signed_at)}` : `Waiting for ${a.user_name}`,
     ]);
   }

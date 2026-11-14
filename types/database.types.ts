@@ -1019,6 +1019,10 @@ export type Database = {
         Args: { r: Database["pas"]["Enums"]["app_role"] }
         Returns: { id: string; full_name: string; email: string | null }[]
       }
+      expense_superiors: {
+        Args: Record<PropertyKey, never>
+        Returns: { id: string; full_name: string; email: string | null }[]
+      }
       sign_contract_request: {
         Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json

@@ -68,7 +68,6 @@ export default function ExpenseForm({
   workerName,
   pms,
   racs,
-  requesterIsPm,
   submitLabel,
 }: {
   action: (formData: FormData) => void | Promise<void>;
@@ -79,7 +78,6 @@ export default function ExpenseForm({
   /** approver pickers, only when creating */
   pms?: Holder[];
   racs?: Holder[];
-  requesterIsPm?: boolean;
   submitLabel: string;
 }) {
   const d = defaults ?? {};
@@ -294,27 +292,21 @@ export default function ExpenseForm({
         <>
           <h2 style={{ fontSize: "1rem", marginTop: 8, borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>Approval</h2>
           <p className="subtitle" style={{ margin: 0 }}>
-            {requesterIsPm
-              ? "You are a PM: your report counts as the PM approval. The RAC or CAR must approve."
-              : "The report is sent to the PM / Programme Manager and to the RAC or CAR. Both must approve."}{" "}
-            Then the administration records it in Callisto.
+            If you have a superior, choose them: they approve first. The RAC or CAR always approves last and checks that everything is
+            in order. If you choose no superior, the report goes straight to the RAC or CAR. Then the administration records it in Callisto.
           </p>
           <div style={row}>
-            {!requesterIsPm && (
-              <div className="field" style={col()}>
-                <label>PM / Programme Manager *</label>
-                <select name="approver_PM" required defaultValue="">
-                  <option value="" disabled>
-                    Choose…
+            <div className="field" style={col()}>
+              <label>Superior (optional)</label>
+              <select name="approver_PM" defaultValue="">
+                <option value="">— no superior —</option>
+                {pms.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.full_name}
                   </option>
-                  {pms.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                ))}
+              </select>
+            </div>
             <div className="field" style={col()}>
               <label>RAC / CAR *</label>
               <select name="approver_RAC" required defaultValue="">

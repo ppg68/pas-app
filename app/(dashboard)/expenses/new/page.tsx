@@ -5,8 +5,8 @@ import { createExpenseReport } from "../actions";
 export default async function NewExpensePage({ searchParams }: { searchParams: Promise<{ error?: string; trip?: string }> }) {
   const { error } = await searchParams;
   const supabase = await createClient();
-  const [{ data: pms }, { data: racList }, { data: carList }, { data: trips }] = await Promise.all([
-    supabase.rpc("contract_role_holders", { r: "PM" }),
+  const [{ data: people }, { data: racList }, { data: carList }, { data: trips }] = await Promise.all([
+    supabase.rpc("expense_superiors"),
     supabase.rpc("contract_role_holders", { r: "RAC" }),
     supabase.rpc("contract_role_holders", { r: "CAR" }),
     supabase
@@ -24,7 +24,6 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user?.id ?? "").maybeSingle();
-  const requesterIsPm = ((pms as Holder[] | null) ?? []).some((h) => h.id === user?.id);
   const notMe = (list: Holder[] | null) => (list ?? []).filter((h) => h.id !== user?.id);
 
   return (
@@ -35,9 +34,8 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
         action={createExpenseReport}
         trips={(trips ?? []) as TripOption[]}
         workerName={profile?.full_name ?? ""}
-        pms={notMe(pms as Holder[] | null)}
+        pms={notMe(people as Holder[] | null)}
         racs={notMe(racs)}
-        requesterIsPm={requesterIsPm}
         submitLabel="Save and attach receipts"
       />
     </div>
