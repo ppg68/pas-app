@@ -1,5 +1,6 @@
 "use client";
 
+import { FUELS, aciPrice, fuelKey, type FuelPriceRow } from "@/lib/domain/fuelPrices";
 import { useState } from "react";
 import SubmitButton from "@/components/SubmitButton";
 import {
@@ -65,6 +66,7 @@ export default function ExpenseForm({
   defaults,
   defaultLines,
   trips,
+  fuelPrices = [],
   workerName,
   pms,
   racs,
@@ -74,6 +76,7 @@ export default function ExpenseForm({
   defaults?: Partial<ExpenseReportRow>;
   defaultLines?: ExpenseLineRow[];
   trips?: TripOption[];
+  fuelPrices?: FuelPriceRow[];
   workerName?: string;
   /** approver pickers, only when creating */
   pms?: Holder[];
@@ -87,6 +90,34 @@ export default function ExpenseForm({
   const [internal, setInternal] = useState(d.internal_code ?? "");
   const [tripId, setTripId] = useState(d.trip_id ?? "");
   const [lines, setLines] = useState<LineInput[]>(() => (defaultLines ?? []).map(fromRow));
+  const [fuel, setFuel] = useState(() => fuelKey(d.fuel) ?? "");
+  const fk = fuelKey(fuel);
+
+  // the ACI price follows the travel date and the fuel, unless the person typed a different one
+  function changeFuel(next: string) {
+    const nk = fuelKey(next);
+    setFuel(next);
+    setLines((ls) =>
+      ls.map((l) =>
+        l.section === "km" && (!l.fuel_price || l.fuel_price === aciPrice(fuelPrices, l.line_date, fk))
+          ? { ...l, fuel_price: aciPrice(fuelPrices, l.line_date, nk) }
+          : l
+      )
+    );
+  }
+  function changeKmDate(i: number, date: string) {
+    setLines((ls) =>
+      ls.map((l, k) =>
+        k === i
+          ? {
+              ...l,
+              line_date: date,
+              fuel_price: !l.fuel_price || l.fuel_price === aciPrice(fuelPrices, l.line_date, fk) ? aciPrice(fuelPrices, date, fk) : l.fuel_price,
+            }
+          : l
+      )
+    );
+  }
 
   function pickTrip(id: string) {
     setTripId(id);
@@ -160,16 +191,41 @@ export default function ExpenseForm({
                 </div>
                 <div className="field" style={col()}>
                   <label>Fuel used</label>
-                  <input name="fuel" defaultValue={d.fuel ?? ""} placeholder="e.g. petrol" />
+                  <select name="fuel" value={fuel} onChange={(e) => changeFuel(e.target.value)}>
+                    <option value="">— choose —</option>
+                    {FUELS.map((x) => (
+                      <option key={x.key} value={x.key}>
+                        {x.label}
+                      </option>
+                    ))}
+                    {fuel && !fk && <option value={fuel}>{fuel}</option>}
+                  </select>
                 </div>
               </div>
             )}
             <p className="subtitle" style={{ margin: 0 }}>
               {sec.hint}.{" "}
               {isKm
-                ? "The ACI cost per litre is the fuel price of the travel date (ACI website)."
+                ? "The ACI cost per litre is the national average price of the week of the travel date, for the fuel used: it is filled in automatically once you choose the fuel and the date."
                 : "For another currency enter the InforEuro rate: foreign units per 1 EUR."}
             </p>
+            {isKm && (
+              <details style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+                <summary style={{ cursor: "pointer" }}>If the price is empty or you want to check it on the ACI site</summary>
+                <ol style={{ margin: "6px 0 0 18px", padding: 0 }}>
+                  <li>
+                    Open{" "}
+                    <a href="https://www.aci.it/i-servizi/servizi-online/costi-chilometrici.html" target="_blank" rel="noreferrer">
+                      ACI - Costi chilometrici
+                    </a>{" "}
+                    (go to the service; register and log in if asked).
+                  </li>
+                  <li>Open &quot;Prezzo carburanti&quot; and the PDF of the fuel prices.</li>
+                  <li>Find the date of the week of the trip and read the price of the fuel used (e.g. 06/03/2023 petrol 1,853).</li>
+                  <li>Type it in the &quot;ACI € / litre&quot; field, with the dot or the comma.</li>
+                </ol>
+              </details>
+            )}
             {idx.length > 0 && (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: "0.85rem" }}>
@@ -200,7 +256,7 @@ export default function ExpenseForm({
                     {idx.map(([l, i], k) => (
                       <tr key={i}>
                         <td style={cell}>
-                          <input type="date" style={inp} value={l.line_date} onChange={(e) => patch(i, { line_date: e.target.value })} />
+                          <input type="date" style={inp} value={l.line_date} onChange={(e) => (isKm ? changeKmDate(i, e.target.value) : patch(i, { line_date: e.target.value }))} />
                         </td>
                         <td style={{ ...cell, width: 30 }}>
                           {k > 0 && (

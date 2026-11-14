@@ -431,6 +431,12 @@ export type Database = {
           },
         ]
       }
+      fuel_prices: {
+        Row: { week_start: string; petrol: number | null; diesel: number | null; lpg: number | null }
+        Insert: { week_start: string; petrol?: number | null; diesel?: number | null; lpg?: number | null }
+        Update: { week_start?: string; petrol?: number | null; diesel?: number | null; lpg?: number | null }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

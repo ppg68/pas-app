@@ -69,6 +69,11 @@ export default function Sidebar({
             Team
           </Link>
         )}
+        {canSeeTeam && (
+          <Link href="/settings/fuel-prices" className={isActive("/settings/fuel-prices") ? "active" : ""}>
+            Fuel prices
+          </Link>
+        )}
       </nav>
 
       <form action={onSignOut}>

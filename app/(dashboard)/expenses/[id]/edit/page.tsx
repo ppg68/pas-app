@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
 import ExpenseForm, { type TripOption } from "@/components/expenses/ExpenseForm";
 import type { ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses";
 import { updateExpenseReport } from "../../actions";
@@ -28,6 +29,9 @@ export default async function EditExpensePage({
       .limit(100),
   ]);
 
+  const { data: fp } = await supabase.from("fuel_prices").select("*").order("week_start");
+  const fuelPrices = (fp ?? []) as FuelPriceRow[];
+
   return (
     <div style={{ maxWidth: 980 }}>
       <p style={{ marginBottom: 6 }}>
@@ -40,6 +44,7 @@ export default async function EditExpensePage({
         defaults={r}
         defaultLines={(ls ?? []) as ExpenseLineRow[]}
         trips={(trips ?? []) as TripOption[]}
+        fuelPrices={fuelPrices}
         submitLabel="Save changes"
       />
     </div>

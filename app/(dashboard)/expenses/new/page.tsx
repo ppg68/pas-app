@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
 import ExpenseForm, { type Holder, type TripOption } from "@/components/expenses/ExpenseForm";
 import { createExpenseReport } from "../actions";
 
@@ -16,6 +17,8 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
       .order("start_date", { ascending: false })
       .limit(100),
   ]);
+  const { data: fp } = await supabase.from("fuel_prices").select("*").order("week_start");
+  const fuelPrices = (fp ?? []) as FuelPriceRow[];
   const seen = new Set<string>();
   const racs = [...((racList as Holder[] | null) ?? []), ...((carList as Holder[] | null) ?? [])]
     .filter((h) => !seen.has(h.id) && seen.add(h.id))
@@ -36,6 +39,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
         workerName={profile?.full_name ?? ""}
         pms={notMe(people as Holder[] | null)}
         racs={notMe(racs)}
+        fuelPrices={fuelPrices}
         submitLabel="Save and attach receipts"
       />
     </div>
