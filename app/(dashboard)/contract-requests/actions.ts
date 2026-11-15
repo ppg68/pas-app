@@ -122,6 +122,9 @@ function validate(path: string, kind: RequestKind, p: ReturnType<typeof parseSch
   if (kind === "company" ? !f.contact_person || !f.contact_email : !f.email) {
     fail(path, kind === "company" ? "Enter the supplier contact person and email." : "Enter the supplier email.");
   }
+  if (!f.ir_code && !f.staff_like) {
+    fail(path, "Enter the IR number. If there is no IR, tick \"No IR: consultancy similar to STAFF\" (the only exception).");
+  }
   if (!f.project_title) fail(path, "Enter the project title.");
   if (!f.internal_code) fail(path, "Enter the internal code.");
   if (!f.payment_terms) fail(path, "Enter the payment terms.");

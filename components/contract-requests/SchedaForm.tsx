@@ -156,8 +156,11 @@ export default function SchedaForm({
             </select>
           </div>
           <div className="field" style={col(1, 120)}>
-            <label>IR number (if any)</label>
+            <label>IR number *</label>
             <input name="ir_code" defaultValue={d.ir_code ?? ""} placeholder="e.g. 531/2025" />
+            <label className="checkbox-row" style={{ marginTop: 4 }}>
+              <input type="checkbox" name="staff_like" defaultChecked={d.staff_like ?? false} /> No IR: consultancy similar to STAFF (to be entered in Geco)
+            </label>
           </div>
           <div className="field" style={{ width: 130 }}>
             <label>Procedure type</label>
@@ -212,9 +215,6 @@ export default function SchedaForm({
         <div className="field">
           <label>Role and budget line (e.g. Consulente / Valutazione di progetto)</label>
           <input name="role_title" defaultValue={d.role_title ?? ""} />
-          <label className="checkbox-row" style={{ marginTop: 4 }}>
-            <input type="checkbox" name="staff_like" defaultChecked={d.staff_like ?? false} /> Consultancy similar to STAFF (to be entered in Geco)
-          </label>
         </div>
         <div className="field">
           <label>Activities to be carried out *{company ? "" : " (one per line)"}</label>
