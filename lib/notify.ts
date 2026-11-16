@@ -12,6 +12,7 @@ export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
+  replyTo?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -30,6 +31,7 @@ export async function sendEmail(params: {
       to: params.to,
       subject: params.subject,
       html: params.html,
+      ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     });
     return { ok: true };
   } catch (e) {

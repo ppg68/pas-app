@@ -9,7 +9,7 @@ export type InsuranceMode = "none" | "oikos" | "self";
 
 export const STATUS_LABEL: Record<TripStatus, string> = {
   pending: "Awaiting approval",
-  approved: "Awaiting Logistics",
+  approved: "Approved",
   closed: "Closed",
   cancelled: "Cancelled",
 };

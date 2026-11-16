@@ -103,32 +103,29 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
       a.signed_at ? `Approved by ${a.user_name} on ${dt(a.signed_at)}` : `Waiting for ${a.user_name}`,
     ]);
   }
-  if (r.needs_logistics) {
-    approvalRows.push([
-      "Logistics",
-      r.booked_at
-        ? `Booked by ${r.booked_by_name ?? "Logistics"} on ${dt(r.booked_at)}`
-        : r.status === "cancelled"
-          ? "Not done (request cancelled)"
-          : "Waiting for bookings",
-    ]);
-  }
   approvalRows.push([
     "Status",
     r.status === "closed" && r.closed_at ? `Closed on ${dt(r.closed_at)}` : STATUS_LABEL[r.status],
   ]);
   sections.push({ title: "Approvals and history", rows: approvalRows });
 
-  if (r.booked_at) {
-    sections.push({
-      title: "Bookings (Logistics)",
-      rows: [
-        ["Booked by", `${r.booked_by_name ?? ""} on ${dt(r.booked_at)}`],
-        ["Total cost", r.booking_total != null ? `EUR ${money(r.booking_total)}` : ""],
-      ],
-      notes: r.booking_note ? [r.booking_note] : [],
-    });
-  }
-
   return sections;
+}
+
+/** The sheet as an HTML table list, for the email to Logistics (who books and informs everybody by email). */
+export function tripSectionsHtml(sections: PdfSection[]): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return sections
+    .filter((s) => s.title !== "Approvals and history")
+    .map((s) => {
+      const rows = (s.rows ?? [])
+        .filter(([, v]) => v)
+        .map(
+          ([k, v]) =>
+            `<tr><td style="padding:2px 12px 2px 0;color:#667;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:2px 0">${esc(v).replace(/\n/g, "<br>")}</td></tr>`
+        )
+        .join("");
+      return `<h3 style="margin:14px 0 4px">${esc(s.title)}</h3><table style="border-collapse:collapse;font-size:13px">${rows}</table>`;
+    })
+    .join("");
 }

@@ -28,7 +28,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
       <div className="page-header">
         <div>
           <h1>Trips</h1>
-          <p className="subtitle">Authorization of trips and missions in Italy and abroad (PR09), with bookings by Logistics.</p>
+          <p className="subtitle">Authorization of trips and missions in Italy and abroad (PR09). Logistics is informed by email.</p>
         </div>
         <div className="page-actions">
           <Link href="/trips/new" className="primary">

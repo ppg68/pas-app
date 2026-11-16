@@ -3,10 +3,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmForm from "@/components/ConfirmForm";
 import SubmitButton from "@/components/SubmitButton";
-import MoneyInput from "@/components/MoneyInput";
 import { tripSections } from "@/lib/domain/tripSections";
 import { STATUS_LABEL, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
-import { bookTripRequest, cancelTripRequest, deleteTripRequest, signTripRequest } from "../actions";
+import { cancelTripRequest, deleteTripRequest, signTripRequest } from "../actions";
 
 export default async function TripDetail({
   params,
@@ -33,11 +32,10 @@ export default async function TripDetail({
   const approvals = ((aps ?? []) as TripApproval[]).sort((a, b) => (a.signer_role === "PM" ? -1 : 1) - (b.signer_role === "PM" ? -1 : 1));
   const roles = (myRoles ?? []).map((x) => x.role as string);
   const isAdmin = roles.includes("ADMIN");
-  const isLog = roles.includes("LOG") || isAdmin;
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
   const canEdit = isOwner && r.status === "pending" && !anySigned;
-  const sections = tripSections(r, approvals).filter((s) => s.title !== "Approvals and history" && s.title !== "Bookings (Logistics)");
+  const sections = tripSections(r, approvals).filter((s) => s.title !== "Approvals and history");
 
   return (
     <div style={{ maxWidth: 820 }}>
@@ -87,17 +85,6 @@ export default async function TripDetail({
             )}
           </div>
         ))}
-        {r.needs_logistics && (
-          <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 90 }}>Logistics</b>
-            <span style={{ flex: 1 }}>{r.booked_by_name ?? ""}</span>
-            {r.booked_at ? (
-              <span className="stamp brand">booked {dt(r.booked_at)}</span>
-            ) : (
-              <span className="stamp">{r.status === "approved" ? "to do" : "after approval"}</span>
-            )}
-          </div>
-        )}
         {(canEdit || (isOwner && r.status === "pending") || isAdmin) && (
           <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             {canEdit && (
@@ -125,44 +112,6 @@ export default async function TripDetail({
           </div>
         )}
       </div>
-
-      {r.status === "approved" && isLog && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Logistics: record the bookings</h2>
-          <p className="subtitle" style={{ margin: "0 0 10px" }}>
-            Buy what the sheet asks for (flight, visa, insurance, train / hotel), then write what was done. Saving closes
-            the sheet and informs the requester.
-          </p>
-          <form action={bookTripRequest.bind(null, id)} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div className="field">
-              <label>What was booked (flight, dates, provider, notes) *</label>
-              <textarea name="booking_note" rows={4} style={{ resize: "vertical" }} required />
-            </div>
-            <div className="field" style={{ maxWidth: 220 }}>
-              <label>Total cost (€)</label>
-              <MoneyInput name="booking_total" placeholder="optional" />
-            </div>
-            <SubmitButton style={{ width: "fit-content" }} pendingLabel="Saving…">
-              Save and close
-            </SubmitButton>
-          </form>
-        </div>
-      )}
-
-      {r.status === "approved" && !isLog && (
-        <p className="subtitle">The trip is approved. Logistics will arrange the bookings.</p>
-      )}
-
-      {r.booked_at && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Bookings (Logistics)</h2>
-          <p style={{ margin: "0 0 6px" }} className="subtitle">
-            {r.booked_by_name} on {dt(r.booked_at)}
-            {r.booking_total != null ? ` · € ${r.booking_total.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : ""}
-          </p>
-          <div style={{ whiteSpace: "pre-wrap" }}>{r.booking_note}</div>
-        </div>
-      )}
 
       {sections.map((s) => (
         <div key={s.title} className="card" style={{ marginBottom: 14 }}>

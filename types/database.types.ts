@@ -1049,7 +1049,6 @@ export type Database = {
         Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
         Returns: Json
       }
-      book_trip_request: { Args: { rid: string; note: string; total: number | null }; Returns: undefined }
       ensure_profile: { Args: never; Returns: undefined }
       has_contracts_access: { Args: { uid: string }; Returns: boolean }
       is_admin: { Args: { uid: string }; Returns: boolean }

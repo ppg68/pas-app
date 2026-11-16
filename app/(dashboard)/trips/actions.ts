@@ -6,7 +6,8 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import type { InsuranceMode, LodgingMode, TravelerType, TripScope } from "@/lib/domain/trips";
+import type { InsuranceMode, LodgingMode, TravelerType, TripApproval, TripRow, TripScope } from "@/lib/domain/trips";
+import { tripSections, tripSectionsHtml } from "@/lib/domain/tripSections";
 
 // redirect() throws internally: used to bring a readable message back to the page.
 function fail(path: string, message: string): never {
@@ -233,28 +234,36 @@ export async function signTripRequest(id: string, role: "PM" | "RAC") {
   const { data, error } = await supabase.rpc("sign_trip_request", { rid: id, as_role: role });
   if (error) fail(`/trips/${id}`, error.message);
 
-  type Mail = { to: string; subject: string; html: string };
+  type Mail = { to: string; subject: string; html: string; replyTo?: string };
   const mails: Mail[] = [];
   try {
-    const { data: req } = await supabase
-      .from("trip_requests")
-      .select("number, traveler_name, destination, start_date, end_date, requester_name, requester_email, needs_logistics")
-      .eq("id", id)
-      .maybeSingle();
+    const { data: req } = await supabase.from("trip_requests").select("*").eq("id", id).maybeSingle();
     const link = `${await baseUrl()}/trips/${id}`;
     const label = role === "RAC" ? "RAC / CAR" : role;
     if (req) {
       const allSigned = Boolean((data as { all_signed?: boolean } | null)?.all_signed);
       if (allSigned) {
         if (req.needs_logistics) {
+          // Logistics gets the whole sheet by email: it books and informs the people involved by email
+          const { data: aps } = await supabase.from("trip_approvals").select("*").eq("request_id", id);
+          const detail = tripSectionsHtml(tripSections(req as TripRow, (aps ?? []) as TripApproval[]));
+          const needs = [
+            req.flights_needed ? "plane ticket" : "",
+            req.visa_needed ? "visa" : "",
+            req.insurance === "oikos" ? "insurance" : "",
+            req.hotel_needed ? "train / hotel / other" : "",
+          ].filter(Boolean).join(", ");
           const logistics = await holders(supabase, "LOG");
           for (const h of logistics) {
             if (!h.email) continue;
             mails.push({
               to: h.email,
-              subject: `Trip ${req.number} approved: bookings needed`,
+              replyTo: req.requester_email ?? undefined,
+              subject: `Trip ${req.number} approved: ${needs} for ${req.traveler_name} (${req.destination})`,
               html: `<p>Hello ${escapeHtml(h.full_name)},</p>
-<p>The trip <b>${escapeHtml(req.number)}</b> of <b>${escapeHtml(req.traveler_name)}</b> to ${escapeHtml(req.destination)} (${escapeHtml(req.start_date)} → ${escapeHtml(req.end_date)}) is approved. Please arrange the bookings and record them in PAS.</p>
+<p>The trip <b>${escapeHtml(req.number)}</b> of <b>${escapeHtml(req.traveler_name)}</b> to ${escapeHtml(req.destination)} (${escapeHtml(req.start_date)} to ${escapeHtml(req.end_date)}) is approved. Please arrange: <b>${escapeHtml(needs)}</b>.</p>
+<p>Requested by ${escapeHtml(req.requester_name)}${req.requester_email ? ` (${escapeHtml(req.requester_email)})` : ""}${req.traveler_email ? `, traveler ${escapeHtml(req.traveler_email)}` : ""}. Reply to this email or write to them: nothing has to be recorded in PAS.</p>
+${detail}
 ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
             });
           }
@@ -264,7 +273,7 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
             to: req.requester_email,
             subject: `Trip request ${req.number} approved`,
             html: `<p>Hello ${escapeHtml(req.requester_name)},</p><p>Your trip request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.traveler_name)}, ${escapeHtml(req.destination)}) is approved.${
-              req.needs_logistics ? " Logistics will now arrange the bookings." : " The sheet is closed."
+              req.needs_logistics ? " Logistics has been informed by email and will contact you for the bookings. The sheet is closed." : " The sheet is closed."
             }</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
           });
         }
@@ -289,44 +298,6 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
       }
     }
   });
-  revalidatePath(`/trips/${id}`);
-  redirect(`/trips/${id}`);
-}
-
-/** Logistics: records what was booked and closes the sheet. */
-export async function bookTripRequest(id: string, formData: FormData) {
-  const supabase = await createClient();
-  const note = str(formData, "booking_note");
-  if (!note) fail(`/trips/${id}`, "Write what was booked (flight, hotel, visa, insurance...).");
-  const { error } = await supabase.rpc("book_trip_request", { rid: id, note, total: num(formData, "booking_total") });
-  if (error) fail(`/trips/${id}`, error.message);
-
-  try {
-    const { data: req } = await supabase
-      .from("trip_requests")
-      .select("number, traveler_name, destination, requester_name, requester_email, traveler_email")
-      .eq("id", id)
-      .maybeSingle();
-    const link = `${await baseUrl()}/trips/${id}`;
-    if (req) {
-      const to = [req.requester_email, req.traveler_email].filter((e, i, a): e is string => !!e && a.indexOf(e) === i);
-      after(async () => {
-        for (const addr of to) {
-          try {
-            await sendEmail({
-              to: addr,
-              subject: `Trip ${req.number}: bookings done`,
-              html: `<p>Logistics has completed the bookings for the trip of <b>${escapeHtml(req.traveler_name)}</b> to ${escapeHtml(req.destination)} (${escapeHtml(req.number)}). The sheet is closed.</p><p>${escapeHtml(note).replace(/\n/g, "<br>")}</p>${link ? `<p><a href="${link}">Open the request</a></p>` : ""}`,
-            });
-          } catch (e) {
-            console.error("[trips] booking email failed", e);
-          }
-        }
-      });
-    }
-  } catch {
-    // best effort
-  }
   revalidatePath(`/trips/${id}`);
   redirect(`/trips/${id}`);
 }
