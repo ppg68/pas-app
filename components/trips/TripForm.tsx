@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { TripSaveResult } from "@/app/(dashboard)/trips/actions";
 import MoneyInput from "@/components/MoneyInput";
-import SubmitButton from "@/components/SubmitButton";
 import {
   INSURANCE_LABEL,
   LODGING_LABEL,
@@ -44,7 +44,7 @@ export default function TripForm({
   requesterIsPm,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<TripSaveResult | void>;
   defaults?: Partial<TripRow>;
   /** approver pickers, only when creating */
   pms?: Holder[];
@@ -62,10 +62,49 @@ export default function TripForm({
   const [insurance, setInsurance] = useState<InsuranceMode>(d.insurance ?? (d.scope === "extra_eu" ? "oikos" : "none"));
   const [compensation, setCompensation] = useState(d.compensation_charged ?? false);
   const transport = d.transport ?? [];
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  function clearInvalid(form: HTMLFormElement) {
+    form.querySelectorAll(".field.invalid").forEach((el) => el.classList.remove("invalid"));
+  }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    const form = e.currentTarget;
+    clearInvalid(form);
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await action(new FormData(form));
+      if (res && res.error) {
+        setError(res.error);
+        if (res.field) {
+          const el = form.querySelector<HTMLElement>(`[name="${res.field}"]`);
+          const box = el?.closest(".field");
+          box?.classList.add("invalid");
+          (box ?? el)?.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el && el.getAttribute("type") !== "hidden") el.focus({ preventScroll: true });
+        } else {
+          form.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const perDiemKind = type === "cococo" ? "cococo" : "employee";
 
   return (
-    <form action={action} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      onInput={(e) => (e.target as HTMLElement).closest(".field")?.classList.remove("invalid")}
+      className="card"
+      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+    >
+      {error && <div className="banner error">{error}</div>}
       <Section title="Traveler">
         <div style={row}>
           <div className="field" style={col(2, 220)}>
@@ -352,9 +391,9 @@ export default function TripForm({
         </Section>
       )}
 
-      <SubmitButton className="primary" style={{ width: "fit-content", marginTop: 6 }}>
-        {submitLabel}
-      </SubmitButton>
+      <button type="submit" className="primary" style={{ width: "fit-content", marginTop: 6 }} disabled={busy}>
+        {busy ? "Saving…" : submitLabel}
+      </button>
     </form>
   );
 }

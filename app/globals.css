@@ -160,6 +160,12 @@ main {
   margin-bottom: 16px;
 }
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field.invalid > label, .field.invalid > .field-label { color: var(--brick); }
+.field.invalid input, .field.invalid select, .field.invalid textarea {
+  border-color: var(--brick);
+  background: var(--brick-soft);
+  box-shadow: 0 0 0 2px rgba(166, 57, 44, 0.15);
+}
 label, .field-label {
   font-size: 0.72rem;
   font-weight: 600;

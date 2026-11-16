@@ -13,6 +13,20 @@ function fail(path: string, message: string): never {
   redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
 }
 
+export type TripSaveResult = { error?: string; field?: string };
+
+class FormError extends Error {
+  field?: string;
+  constructor(message: string, field?: string) {
+    super(message);
+    this.field = field;
+  }
+}
+/** validation problem: returned to the form (nothing is lost on screen, the field is highlighted) */
+function bad(message: string, field?: string): never {
+  throw new FormError(message, field);
+}
+
 const str = (f: FormData, k: string) => String(f.get(k) || "").trim();
 const opt = (f: FormData, k: string) => str(f, k) || null;
 const num = (f: FormData, k: string) => {
@@ -92,22 +106,26 @@ function parseTrip(f: FormData) {
   };
 }
 
-function validate(path: string, t: ReturnType<typeof parseTrip>) {
-  if (!t.traveler_name) fail(path, "Enter the name of the traveler.");
-  if (!t.destination) fail(path, "Enter the destination.");
-  if (!t.start_date || !t.end_date) fail(path, "Enter the start and end dates.");
-  if (t.end_date < t.start_date) fail(path, "The end date is before the start date.");
-  if (!t.project_title || !t.internal_code) fail(path, "Enter the project title and the internal project code.");
-  if (!t.activities) fail(path, "Describe the purpose and the activities of the trip.");
-  if (t.lodging_mode === "per_diem" && (!t.per_diem_rate || !t.per_diem_days || !t.per_diem_bl)) {
-    fail(path, "Per diem: enter the daily amount, the number of days and the budget line.");
+function validate(t: ReturnType<typeof parseTrip>) {
+  if (!t.traveler_name) bad("Enter the name of the traveler.", "traveler_name");
+  if (!t.destination) bad("Enter the destination.", "destination");
+  if (!t.start_date) bad("Enter the start date.", "start_date");
+  if (!t.end_date) bad("Enter the end date.", "end_date");
+  if (t.end_date < t.start_date) bad("The end date is before the start date.", "end_date");
+  if (!t.project_title) bad("Enter the project title.", "project_title");
+  if (!t.internal_code) bad("Enter the internal project code.", "internal_code");
+  if (!t.activities) bad("Describe the purpose and the activities of the trip.", "activities");
+  if (t.lodging_mode === "per_diem") {
+    if (!t.per_diem_rate) bad("Per diem: enter the daily amount.", "per_diem_rate");
+    if (!t.per_diem_days) bad("Per diem: enter the number of days.", "per_diem_days");
+    if (!t.per_diem_bl) bad("Per diem: enter the project / budget line.", "per_diem_bl");
   }
-  if (t.flights_needed && !t.flights_bl) fail(path, "Enter the budget line of the flight.");
-  if (t.visa_needed && !t.visa_bl) fail(path, "Enter the budget line of the visa.");
-  if (t.insurance === "oikos" && !t.insurance_bl) fail(path, "Enter the budget line of the insurance.");
+  if (t.flights_needed && !t.flights_bl) bad("Enter the budget line of the flight.", "flights_bl");
+  if (t.visa_needed && !t.visa_bl) bad("Enter the budget line of the visa.", "visa_bl");
+  if (t.insurance === "oikos" && !t.insurance_bl) bad("Enter the budget line of the insurance.", "insurance_bl");
 }
 
-export async function createTripRequest(formData: FormData) {
+async function createImpl(formData: FormData) {
   const back = "/trips/new";
   const supabase = await createClient();
   const {
@@ -116,7 +134,7 @@ export async function createTripRequest(formData: FormData) {
   if (!user) fail(back, "Session expired, please log in again.");
 
   const trip = parseTrip(formData);
-  validate(back, trip);
+  validate(trip);
 
   const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
   // A PM filing the request: the filing is already the PM's sign-off, only RAC / CAR is asked.
@@ -124,12 +142,13 @@ export async function createTripRequest(formData: FormData) {
   const pmId = str(formData, "approver_PM");
   const racId = str(formData, "approver_RAC");
   if (!racId || (!requesterIsPm && !pmId)) {
-    fail(back, requesterIsPm ? "Choose the RAC or CAR who will approve." : "Choose the PM / Programme Manager and the RAC or CAR who will approve.");
+    if (!requesterIsPm && !pmId) bad("Choose the PM / Programme Manager who will approve.", "approver_PM");
+    bad("Choose the RAC or CAR who will approve.", "approver_RAC");
   }
-  if (racId === user.id || (pmId === user.id && !requesterIsPm)) fail(back, "You cannot approve your own request.");
+  if (racId === user.id || (pmId === user.id && !requesterIsPm)) bad("You cannot approve your own request.", racId === user.id ? "approver_RAC" : "approver_PM");
   const pm = requesterIsPm ? null : pms.find((h) => h.id === pmId);
   const rac = racs.find((h) => h.id === racId);
-  if ((!requesterIsPm && !pm) || !rac) fail(back, "The chosen approver no longer holds the role. Choose again.");
+  if ((!requesterIsPm && !pm) || !rac) bad("The chosen approver no longer holds the role. Choose again.", "approver_RAC");
 
   const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
 
@@ -143,7 +162,7 @@ export async function createTripRequest(formData: FormData) {
     })
     .select("id, number")
     .single();
-  if (error || !inserted) fail(back, error?.message ?? "Could not save the request.");
+  if (error || !inserted) bad(error?.message ?? "Could not save the request.");
 
   const approvalRows = [
     ...(pm ? [{ request_id: inserted.id, signer_role: "PM" as const, user_id: pm.id, user_name: pm.full_name }] : []),
@@ -152,7 +171,7 @@ export async function createTripRequest(formData: FormData) {
   const { error: apErr } = await supabase.from("trip_approvals").insert(approvalRows);
   if (apErr) {
     await supabase.from("trip_requests").delete().eq("id", inserted.id);
-    fail(back, apErr.message);
+    bad(apErr.message);
   }
 
   const link = `${await baseUrl()}/trips/${inserted.id}`;
@@ -179,15 +198,33 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
   redirect(`/trips?created=${encodeURIComponent(inserted.number)}`);
 }
 
-export async function updateTripRequest(id: string, formData: FormData) {
+export async function createTripRequest(formData: FormData): Promise<TripSaveResult> {
+  try {
+    return (await createImpl(formData)) ?? {};
+  } catch (e) {
+    if (e instanceof FormError) return { error: e.message, field: e.field };
+    throw e;
+  }
+}
+
+async function updateImpl(id: string, formData: FormData) {
   const path = `/trips/${id}/edit`;
   const supabase = await createClient();
   const trip = parseTrip(formData);
-  validate(path, trip);
+  validate(trip);
   const { error } = await supabase.from("trip_requests").update(trip).eq("id", id);
-  if (error) fail(path, error.message);
+  if (error) bad(error.message);
   revalidatePath(`/trips/${id}`);
   redirect(`/trips/${id}`);
+}
+
+export async function updateTripRequest(id: string, formData: FormData): Promise<TripSaveResult> {
+  try {
+    return (await updateImpl(id, formData)) ?? {};
+  } catch (e) {
+    if (e instanceof FormError) return { error: e.message, field: e.field };
+    throw e;
+  }
 }
 
 export async function signTripRequest(id: string, role: "PM" | "RAC") {
