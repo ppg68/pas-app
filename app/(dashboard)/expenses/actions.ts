@@ -312,7 +312,9 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
       const allSigned = Boolean((data as { all_signed?: boolean } | null)?.all_signed);
       const amount = rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 });
       if (allSigned) {
-        const admin = await racOrCar(supabase);
+        // only the RAC / CAR chosen on this report (not every CAR / RAC): the one who just approved it
+        const { data: chosen } = await supabase.from("expense_approvals").select("user_id").eq("report_id", id).eq("signer_role", "RAC").maybeSingle();
+        const admin = (await racOrCar(supabase)).filter((h) => h.id === chosen?.user_id);
         for (const h of admin) {
           if (!h.email || h.email === rep.requester_email) continue;
           mails.push({
