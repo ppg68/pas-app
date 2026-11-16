@@ -251,12 +251,18 @@ export default function TripForm({
           </div>
         </div>
         <div className="field">
-          <label>Purpose and activities of the trip *</label>
-          <textarea name="activities" rows={4} style={area} defaultValue={d.activities ?? ""} required />
-        </div>
-        <div className="field">
-          <label>Objective and final result</label>
-          <textarea name="objective" rows={3} style={area} defaultValue={d.objective ?? ""} />
+          <label>Termini di Riferimento (Terms of Reference of the mission) *</label>
+          <textarea
+            name="tdr"
+            rows={14}
+            style={area}
+            defaultValue={d.tdr ?? ""}
+            required
+            placeholder={"Paste here the text of the TDR, for example:\n\nAttività nell’ambito del progetto o dell’incarico:\n• ...\n• ...\n\nObiettivi e Risultato Finale nell’ambito del progetto o dell’incarico:\n• ...\n• ..."}
+          />
+          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+            Free text, copy and paste. Whoever prepares the documents of the mission copies it from the sheet.
+          </span>
         </div>
         <label className="checkbox-row">
           <input type="checkbox" name="minors" defaultChecked={d.minors ?? false} /> The activities involve contact with

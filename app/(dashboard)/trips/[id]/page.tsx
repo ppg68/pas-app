@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmForm from "@/components/ConfirmForm";
 import SubmitButton from "@/components/SubmitButton";
+import CopyText from "@/components/trips/CopyText";
 import { tripSections } from "@/lib/domain/tripSections";
-import { STATUS_LABEL, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
+import { STATUS_LABEL, TDR_TITLE, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
 import { cancelTripRequest, deleteTripRequest, signTripRequest } from "../actions";
 
 export default async function TripDetail({
@@ -116,6 +117,7 @@ export default async function TripDetail({
       {sections.map((s) => (
         <div key={s.title} className="card" style={{ marginBottom: 14 }}>
           <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>{s.title}</h2>
+          {s.title === TDR_TITLE && <CopyText text={(s.notes ?? []).join("\n")} />}
           {(s.rows ?? [])
             .filter(([, v]) => v)
             .map(([label, value]) => (

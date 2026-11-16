@@ -4,6 +4,7 @@ import {
   LODGING_LABEL,
   SCOPE_LABEL,
   COST_LABEL,
+  TDR_TITLE,
   COST_TYPES,
   STATUS_LABEL,
   TRANSPORT_LABEL,
@@ -53,11 +54,12 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     rows: [
       ["Project", [r.donor_code, r.project_title].filter(Boolean).join(" - ")],
       ["Internal code", r.internal_code ?? ""],
-      ["Purpose and activities", r.activities ?? ""],
-      ["Objective and final result", r.objective ?? ""],
       ["Contact with minors", yn(r.minors)],
     ],
   });
+
+  // the TDR is plain text to copy and paste into the supporting documents
+  if (r.tdr) sections.push({ title: TDR_TITLE, notes: [r.tdr] });
 
   sections.push({
     title: "Costs",
@@ -140,7 +142,8 @@ export function tripSectionsHtml(sections: PdfSection[]): string {
             `<tr><td style="padding:2px 12px 2px 0;color:#667;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:2px 0">${esc(v).replace(/\n/g, "<br>")}</td></tr>`
         )
         .join("");
-      return `<h3 style="margin:14px 0 4px">${esc(s.title)}</h3><table style="border-collapse:collapse;font-size:13px">${rows}</table>`;
+      const notes = (s.notes ?? []).map((n) => `<div style="white-space:pre-wrap;font-size:13px">${esc(n).replace(/\n/g, "<br>")}</div>`).join("");
+      return `<h3 style="margin:14px 0 4px">${esc(s.title)}</h3>${rows ? `<table style="border-collapse:collapse;font-size:13px">${rows}</table>` : ""}${notes}`;
     })
     .join("");
 }

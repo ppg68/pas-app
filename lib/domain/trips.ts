@@ -60,6 +60,8 @@ export const PER_DIEM_GRID: { label: string; employee: number; cococo: number }[
   { label: "Tunisia", employee: 140.5, cococo: 143.5 },
 ];
 
+export const TDR_TITLE = "Termini di Riferimento";
+
 export type CostType = "compensation" | "per_diem" | "expenses" | "flight" | "visa" | "insurance" | "bookings";
 
 /** The costs of a trip that are charged to projects, in the order shown. */
@@ -109,6 +111,7 @@ export type TripRow = {
   reference_person: string | null;
   activities: string | null;
   objective: string | null;
+  tdr: string | null;
   minors: boolean;
   transport: string[];
   advance_amount: number | null;

@@ -82,8 +82,9 @@ function parseTrip(f: FormData) {
     internal_code: opt(f, "internal_code"),
     donor_code: opt(f, "donor_code"),
     budget_line: null,
-    activities: opt(f, "activities"),
-    objective: opt(f, "objective"),
+    activities: null,
+    objective: null,
+    tdr: opt(f, "tdr"),
     minors: f.get("minors") === "on",
     advance_amount: num(f, "advance_amount"),
     compensation_charged: compensation,
@@ -116,7 +117,7 @@ function validate(t: ReturnType<typeof parseTrip>) {
   if (t.end_date < t.start_date) bad("The end date is before the start date.", "end_date");
   if (!t.project_title) bad("Enter the project title.", "project_title");
   if (!t.internal_code) bad("Enter the internal project code.", "internal_code");
-  if (!t.activities) bad("Describe the purpose and the activities of the trip.", "activities");
+  if (!t.tdr) bad("Enter the Termini di Riferimento of the mission.", "tdr");
 }
 
 /** The costs that exist for the trip: each needs at least one (project code, budget line, share) row. */
