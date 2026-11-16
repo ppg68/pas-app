@@ -76,8 +76,8 @@ export const COST_TYPES: { key: CostType; label: string }[] = [
 ];
 export const COST_LABEL = Object.fromEntries(COST_TYPES.map((c) => [c.key, c.label])) as Record<CostType, string>;
 
-/** One row of the allocation: the share (%) of a cost charged to a project code and budget line. */
-export type Allocation = { cost_type: CostType; project_code: string; budget_line: string; share: number };
+/** One row of the allocation: a project code and budget line a cost is charged to (no percentage). */
+export type Allocation = { cost_type: CostType; project_code: string; budget_line: string };
 
 export type TripApproval = {
   request_id: string;

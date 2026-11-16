@@ -27,7 +27,7 @@ export interface Holder {
   email: string | null;
 }
 
-type AllocRow = { cost_type: CostType; project_code: string; budget_line: string; share: string };
+type AllocRow = { cost_type: CostType; project_code: string; budget_line: string };
 
 const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap" };
 const col = (flex = 1, min = 160): React.CSSProperties => ({ flex, minWidth: min });
@@ -46,7 +46,6 @@ const fromAlloc = (a: Allocation): AllocRow => ({
   cost_type: a.cost_type,
   project_code: a.project_code,
   budget_line: a.budget_line,
-  share: String(a.share),
 });
 
 export default function TripForm({
@@ -94,9 +93,15 @@ export default function TripForm({
   const shown = alloc.filter((a) => applicable.has(a.cost_type));
   const types = COST_TYPES.filter((c) => applicable.has(c.key));
 
-  const newRow = (cost: CostType, share = ""): AllocRow => ({ cost_type: cost, project_code: mainCode, budget_line: "", share });
-  /** a cost that has just been chosen starts with one row at 100% */
-  const seed = (cost: CostType) => setAlloc((a) => (a.some((x) => x.cost_type === cost) ? a : [...a, newRow(cost, "100")]));
+  const newRow = (cost: CostType): AllocRow => ({ cost_type: cost, project_code: mainCode, budget_line: "" });
+  /** a cost that has just been chosen starts with one row */
+  const seed = (cost: CostType) => setAlloc((a) => (a.some((x) => x.cost_type === cost) ? a : [...a, newRow(cost)]));
+
+  // the main project code is copied into the rows that still carry the previous one (or none)
+  function changeMainCode(v: string) {
+    setAlloc((a) => a.map((x) => (x.project_code === "" || x.project_code === mainCode ? { ...x, project_code: v } : x)));
+    setMainCode(v);
+  }
 
   function patch(shownIdx: number, p: Partial<AllocRow>) {
     const target = shown[shownIdx];
@@ -106,8 +111,6 @@ export default function TripForm({
     const target = shown[shownIdx];
     setAlloc((a) => a.filter((x) => x !== target));
   };
-  const shareOf = (cost: CostType) =>
-    shown.filter((a) => a.cost_type === cost).reduce((s, a) => s + (parseFloat(a.share.replace(",", ".")) || 0), 0);
 
   function clearInvalid(form: HTMLFormElement) {
     form.querySelectorAll(".field.invalid").forEach((el) => el.classList.remove("invalid"));
@@ -243,7 +246,7 @@ export default function TripForm({
         <div style={row}>
           <div className="field" style={col()}>
             <label>Main internal project code *</label>
-            <input name="internal_code" value={mainCode} onChange={(e) => setMainCode(e.target.value)} required />
+            <input name="internal_code" value={mainCode} onChange={(e) => changeMainCode(e.target.value)} required />
           </div>
           <div className="field" style={col()}>
             <label>Donor code</label>
@@ -386,19 +389,13 @@ export default function TripForm({
         ) : (
           <>
             <p className="subtitle" style={{ margin: 0 }}>
-              For each cost give the project code and the budget line. To split a cost between projects add a row for
-              each project: the shares of a cost must add up to 100%.
+              For each cost say which project and budget line it will be charged to. If more projects are involved,
+              add a row for each one.
             </p>
             {types.map((c) => {
-              const total = shareOf(c.key);
               return (
                 <div key={c.key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <b style={{ fontSize: "0.9rem" }}>{COST_LABEL[c.key]}</b>
-                    <span style={{ fontSize: 12, color: Math.abs(total - 100) < 0.01 ? "var(--ink-soft)" : "var(--brick)" }}>
-                      {Math.round(total * 100) / 100}% of 100%
-                    </span>
-                  </div>
+                  <b style={{ fontSize: "0.9rem" }}>{COST_LABEL[c.key]}</b>
                   {shown.map((a, i) =>
                     a.cost_type !== c.key ? null : (
                       <div key={i} style={{ ...row, alignItems: "flex-end" }}>
@@ -409,16 +406,6 @@ export default function TripForm({
                         <div className="field" style={col(1, 110)}>
                           <label>Budget line *</label>
                           <input name={`alloc_${i}_bl`} value={a.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
-                        </div>
-                        <div className="field" style={{ width: 90 }}>
-                          <label>Share % *</label>
-                          <input
-                            name={`alloc_${i}_share`}
-                            inputMode="decimal"
-                            value={a.share}
-                            onChange={(e) => patch(i, { share: e.target.value })}
-                            style={{ textAlign: "right" }}
-                          />
                         </div>
                         <button type="button" className="ghost danger" onClick={() => removeRow(i)} title="Remove the row">
                           ×
@@ -431,7 +418,7 @@ export default function TripForm({
                     <button
                       type="button"
                       className="ghost"
-                      onClick={() => setAlloc((a) => [...a, newRow(c.key, total >= 100 ? "" : String(Math.round((100 - total) * 100) / 100))])}
+                      onClick={() => setAlloc((a) => [...a, newRow(c.key)])}
                     >
                       + Add a project
                     </button>

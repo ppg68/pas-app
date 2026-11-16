@@ -120,7 +120,7 @@ function validate(t: ReturnType<typeof parseTrip>) {
   if (!t.tdr) bad("Enter the Termini di Riferimento of the mission.", "tdr");
 }
 
-/** The costs that exist for the trip: each needs at least one (project code, budget line, share) row. */
+/** The costs that exist for the trip: each needs at least one (project code, budget line) row. */
 function applicableCosts(t: ReturnType<typeof parseTrip>): CostType[] {
   const list: CostType[] = [];
   if (t.compensation_charged) list.push("compensation");
@@ -133,9 +133,9 @@ function applicableCosts(t: ReturnType<typeof parseTrip>): CostType[] {
   return list;
 }
 
-/** Reads and checks the allocation rows. Row i of the form is named alloc_<i>_code / _bl / _share. */
+/** Reads and checks the allocation rows. Row i of the form is named alloc_<i>_code / _bl. */
 function parseAllocations(f: FormData, t: ReturnType<typeof parseTrip>): Allocation[] {
-  let raw: { cost_type?: string; project_code?: string; budget_line?: string; share?: string | number }[] = [];
+  let raw: { cost_type?: string; project_code?: string; budget_line?: string }[] = [];
   try {
     raw = JSON.parse(str(f, "allocations_json") || "[]");
   } catch {
@@ -149,21 +149,14 @@ function parseAllocations(f: FormData, t: ReturnType<typeof parseTrip>): Allocat
     const label = COST_LABEL[type];
     const code = String(r.project_code ?? "").trim();
     const bl = String(r.budget_line ?? "").trim();
-    const share = parseFloat(String(r.share ?? "").replace(",", "."));
     if (!code) bad(`${label}: enter the project code.`, `alloc_${i}_code`);
     if (!bl) bad(`${label}: enter the budget line.`, `alloc_${i}_bl`);
-    if (!Number.isFinite(share) || share <= 0 || share > 100) bad(`${label}: enter the share (between 0 and 100%).`, `alloc_${i}_share`);
-    out.push({ cost_type: type, project_code: code, budget_line: bl, share: Math.round(share * 100) / 100 });
+    out.push({ cost_type: type, project_code: code, budget_line: bl });
   });
   for (const c of COST_TYPES) {
     if (!costs.includes(c.key)) continue;
     const rows = out.filter((a) => a.cost_type === c.key);
     if (rows.length === 0) bad(`${c.label}: add the project code and the budget line.`, `alloc_add_${c.key}`);
-    const total = rows.reduce((s, a) => s + a.share, 0);
-    if (Math.abs(total - 100) > 0.01) {
-      const firstIdx = raw.findIndex((r) => r.cost_type === c.key);
-      bad(`${c.label}: the shares add up to ${Math.round(total * 100) / 100}%, they must add up to 100%.`, `alloc_${firstIdx}_share`);
-    }
   }
   return out;
 }

@@ -101,7 +101,7 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     return [
       [
         COST_LABEL[c.key],
-        rows.map((a) => `${a.project_code} - budget line ${a.budget_line} - ${a.share}%`).join("\n"),
+        rows.map((a) => `${a.project_code} - budget line ${a.budget_line}`).join("\n"),
       ] as [string, string],
     ];
   });
