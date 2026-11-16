@@ -4,7 +4,7 @@ import { STATUS_LABEL, money, type ExpenseApproval, type ExpenseReportRow } from
 
 type Item = Pick<
   ExpenseReportRow,
-  "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol"
+  "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol" | "paid_at"
 >;
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string; filter?: string }> }) {
@@ -17,7 +17,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const isAdministration = (myRoles ?? []).some((x) => ["ADMIN", "RAC", "CAR"].includes(x.role as string));
   const { data } = await supabase
     .from("expense_reports")
-    .select("id, number, status, worker_name, subject, internal_code, total_eur, requester_name, created_at, callisto_protocol")
+    .select("id, number, status, worker_name, subject, internal_code, total_eur, requester_name, created_at, callisto_protocol, paid_at")
     .order("created_at", { ascending: false });
   const all = (data ?? []) as Item[];
   const toImport = all.filter((r) => r.status === "approved");
@@ -95,6 +95,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                     {r.status === "pending" && missing(r.id) ? (
                       <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {missing(r.id)}</span>
                     ) : null}
+                    {r.paid_at ? <span className="stamp brand" style={{ marginLeft: 6 }}>paid</span> : null}
                     {r.callisto_protocol ? <span style={{ fontSize: 11, marginLeft: 6 }}>· {r.callisto_protocol}</span> : null}
                   </td>
                 </tr>

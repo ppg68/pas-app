@@ -17,6 +17,7 @@ import {
   cancelExpenseReport,
   deleteExpenseReport,
   registerExpenseReport,
+  setExpensePaid,
   sendExpenseReport,
   signExpenseReport,
 } from "../actions";
@@ -67,6 +68,8 @@ export default async function ExpenseDetail({
   const approvals = ((aps ?? []) as ExpenseApproval[]).sort((a, b) => (a.signer_role === "PM" ? -1 : 1) - (b.signer_role === "PM" ? -1 : 1));
   const roles = (myRoles ?? []).map((x) => x.role as string);
   const isAdmin = roles.includes("ADMIN");
+  const { data: me } = await supabase.from("profiles").select("can_file_for_others").eq("id", user?.id ?? "").maybeSingle();
+  const canMarkPaid = Boolean(me?.can_file_for_others) || isAdmin;
   const canRecord = roles.includes("CAR") || roles.includes("RAC") || isAdmin;
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
@@ -153,6 +156,20 @@ export default async function ExpenseDetail({
             <span className="stamp warn">{r.status === "approved" ? "to import" : "after approval"}</span>
           )}
         </div>
+        {(r.status === "approved" || r.status === "registered") && (
+          <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
+            <b style={{ width: 90 }}>Payment</b>
+            <span style={{ flex: 1 }}>{r.paid_by_name ?? ""}</span>
+            {r.paid_at ? <span className="stamp brand">paid {dt(r.paid_at)}</span> : <span className="stamp warn">to pay</span>}
+            {canMarkPaid && (
+              <form action={setExpensePaid.bind(null, id, !r.paid_at)}>
+                <SubmitButton className="ghost" pendingLabel="Saving…">
+                  {r.paid_at ? "Remove paid flag" : "Flag as paid"}
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+        )}
         {canEdit && (
           <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             <form action={sendExpenseReport.bind(null, id)}>

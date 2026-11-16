@@ -95,7 +95,7 @@ export default async function TeamSettingsPage({
                   style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}
                 >
                   <span style={{ fontSize: 13 }}>
-                    Files expense reports for others: <b>{p.can_file_for_others ? "yes" : "no"}</b>
+                    Expense reports: files for others and flags as paid: <b>{p.can_file_for_others ? "yes" : "no"}</b>
                   </span>
                   <button type="submit" className="pill">
                     {p.can_file_for_others ? "Remove" : "Allow"}

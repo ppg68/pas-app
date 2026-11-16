@@ -66,6 +66,8 @@ export type ExpenseReportRow = {
   registered_by: string | null;
   registered_by_name: string | null;
   registered_at: string | null;
+  paid_at: string | null;
+  paid_by_name: string | null;
   registration_note: string | null;
   created_at: string;
 };

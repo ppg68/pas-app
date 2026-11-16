@@ -383,6 +383,51 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
   redirect(`/expenses/${id}`);
 }
 
+/** Flag users (Logistics / Contracts) and ADMIN: flags the report as paid, or removes the flag. */
+export async function setExpensePaid(id: string, paid: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_expense_paid", { rid: id, paid });
+  if (error) fail(`/expenses/${id}`, error.message);
+
+  if (paid) {
+    try {
+      const { data: rep } = await supabase
+        .from("expense_reports")
+        .select("number, requester_name, requester_email, worker_id, worker_name, total_eur")
+        .eq("id", id)
+        .maybeSingle();
+      const link = `${await baseUrl()}/expenses/${id}`;
+      if (rep) {
+        // only the people involved: whoever filed it and the worker, when different
+        const to: { name: string; email: string }[] = [];
+        if (rep.requester_email) to.push({ name: rep.requester_name, email: rep.requester_email });
+        if (rep.worker_id) {
+          const { data: w } = await supabase.from("profiles").select("full_name, email").eq("id", rep.worker_id).maybeSingle();
+          if (w?.email && !to.some((x) => x.email === w.email)) to.push({ name: w.full_name, email: w.email });
+        }
+        after(async () => {
+          for (const x of to) {
+            try {
+              await sendEmail({
+                to: x.email,
+                subject: `Expense report ${rep.number}: paid`,
+                html: `<p>Hello ${escapeHtml(x.name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} (€ ${rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 })}) has been paid.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
+              });
+            } catch (e) {
+              console.error("[expenses] paid email failed", e);
+            }
+          }
+        });
+      }
+    } catch {
+      // best effort
+    }
+  }
+  revalidatePath(`/expenses/${id}`);
+  revalidatePath("/expenses");
+  redirect(`/expenses/${id}`);
+}
+
 /** Administration: records the report in Callisto (protocol) and closes it. */
 export async function registerExpenseReport(id: string, formData: FormData) {
   const supabase = await createClient();
