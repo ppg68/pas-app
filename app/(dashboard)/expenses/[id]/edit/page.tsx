@@ -19,12 +19,16 @@ export default async function EditExpensePage({
   const { data } = await supabase.from("expense_reports").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const r = data as ExpenseReportRow;
+  const {
+    data: { user: me0 },
+  } = await supabase.auth.getUser();
   const [{ data: ls }, { data: fs }, { data: trips }] = await Promise.all([
     supabase.from("expense_lines").select("*").eq("report_id", id).order("seq"),
     supabase.from("expense_files").select("*").eq("report_id", id),
     supabase
       .from("trip_requests")
       .select("id, number, traveler_name, destination, start_date, end_date, project_title, internal_code, donor_code")
+      .or(`requested_by.eq.${me0?.id ?? ""}${r.trip_id ? `,id.eq.${r.trip_id}` : ""}`)
       .in("status", ["approved", "closed"])
       .order("start_date", { ascending: false })
       .limit(100),

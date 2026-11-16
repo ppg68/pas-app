@@ -6,6 +6,9 @@ import { createExpenseReport } from "../actions";
 export default async function NewExpensePage({ searchParams }: { searchParams: Promise<{ error?: string; trip?: string }> }) {
   const { error } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user: me0 },
+  } = await supabase.auth.getUser();
   const [{ data: people }, { data: racList }, { data: carList }, { data: trips }] = await Promise.all([
     supabase.rpc("expense_superiors"),
     supabase.rpc("contract_role_holders", { r: "RAC" }),
@@ -13,6 +16,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
     supabase
       .from("trip_requests")
       .select("id, number, traveler_name, destination, start_date, end_date, project_title, internal_code, donor_code")
+      .eq("requested_by", me0?.id ?? "")
       .in("status", ["approved", "closed"])
       .order("start_date", { ascending: false })
       .limit(100),
