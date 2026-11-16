@@ -7,7 +7,6 @@ import MoneyInput from "@/components/MoneyInput";
 import {
   INSURANCE_LABEL,
   LODGING_LABEL,
-  PER_DIEM_GRID,
   SCOPE_LABEL,
   TRANSPORT_OPTIONS,
   TRAVELER_LABEL,
@@ -57,7 +56,6 @@ export default function TripForm({
   const [scope, setScope] = useState<TripScope>(d.scope ?? "eu");
   const [type, setType] = useState<TravelerType>(d.traveler_type ?? "employee");
   const [lodging, setLodging] = useState<LodgingMode>(d.lodging_mode ?? "none");
-  const [rate, setRate] = useState<string>(d.per_diem_rate != null ? String(d.per_diem_rate) : "");
   const [flights, setFlights] = useState(d.flights_needed ?? false);
   const [visa, setVisa] = useState(d.visa_needed ?? false);
   const [insurance, setInsurance] = useState<InsuranceMode>(d.insurance ?? (d.scope === "extra_eu" ? "oikos" : "none"));
@@ -104,7 +102,6 @@ export default function TripForm({
     }
   }
 
-  const perDiemKind = type === "cococo" ? "cococo" : "employee";
 
   return (
     <form
@@ -261,31 +258,6 @@ export default function TripForm({
         </div>
         {lodging === "per_diem" && (
           <>
-            <div style={row}>
-              <div className="field" style={col(2, 240)}>
-                <label>Oikos grid (gross per day, {perDiemKind === "cococo" ? "Co.Co.Co." : "employee"})</label>
-                <select value="" onChange={(e) => e.target.value && setRate(e.target.value)}>
-                  <option value="">Pick from the grid…</option>
-                  {PER_DIEM_GRID.map((g) => (
-                    <option key={g.label} value={String(g[perDiemKind])}>
-                      {g.label} — € {g[perDiemKind].toFixed(2)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field" style={col(1, 130)}>
-                <label>Per diem per day (€)</label>
-                <MoneyInput name="per_diem_rate" value={rate} onValueChange={setRate} />
-              </div>
-              <div className="field" style={col(1, 110)}>
-                <label>Per diem days</label>
-                <input name="per_diem_days" inputMode="decimal" defaultValue={d.per_diem_days ?? ""} placeholder="e.g. 10" />
-              </div>
-            </div>
-            <p className="subtitle" style={{ margin: 0 }}>
-              Grid valid for trips up to 3 weeks; for longer ones agree with the Direction. Days can be fractions
-              (1/3, 2/3) for arrival and departure days.
-            </p>
             <div className="field">
               <label>Project / budget line of the per diem *</label>
               <input name="per_diem_bl" defaultValue={d.per_diem_bl ?? ""} />

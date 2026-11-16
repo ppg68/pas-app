@@ -66,10 +66,14 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
       ["Board and lodging", LODGING_LABEL[r.lodging_mode]],
       ...(r.lodging_mode === "per_diem"
         ? ([
-            [
-              "Per diem",
-              `EUR ${money(r.per_diem_rate)} x ${r.per_diem_days ?? "?"} days${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)} gross` : ""}`,
-            ],
+            ...(r.per_diem_rate
+              ? ([
+                  [
+                    "Per diem",
+                    `EUR ${money(r.per_diem_rate)} x ${r.per_diem_days ?? "?"} days${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)} gross` : ""}`,
+                  ],
+                ] as [string, string][])
+              : []),
             ["Per diem project / budget line", r.per_diem_bl ?? ""],
           ] as [string, string][])
         : []),

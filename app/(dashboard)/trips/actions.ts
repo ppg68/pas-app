@@ -89,8 +89,8 @@ function parseTrip(f: FormData) {
     compensation_charged: compensation,
     compensation_bl: compensation ? opt(f, "compensation_bl") : null,
     lodging_mode: lodging,
-    per_diem_rate: lodging === "per_diem" ? num(f, "per_diem_rate") : null,
-    per_diem_days: lodging === "per_diem" ? num(f, "per_diem_days") : null,
+    per_diem_rate: null,
+    per_diem_days: null,
     per_diem_bl: lodging === "per_diem" ? opt(f, "per_diem_bl") : null,
     expenses_bl: lodging === "receipts" || lodging === "free_lodging" ? opt(f, "expenses_bl") : null,
     flights_needed: flights,
@@ -117,8 +117,6 @@ function validate(t: ReturnType<typeof parseTrip>) {
   if (!t.internal_code) bad("Enter the internal project code.", "internal_code");
   if (!t.activities) bad("Describe the purpose and the activities of the trip.", "activities");
   if (t.lodging_mode === "per_diem") {
-    if (!t.per_diem_rate) bad("Per diem: enter the daily amount.", "per_diem_rate");
-    if (!t.per_diem_days) bad("Per diem: enter the number of days.", "per_diem_days");
     if (!t.per_diem_bl) bad("Per diem: enter the project / budget line.", "per_diem_bl");
   }
   if (t.flights_needed && !t.flights_bl) bad("Enter the budget line of the flight.", "flights_bl");
