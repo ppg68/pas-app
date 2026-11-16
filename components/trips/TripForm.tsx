@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { TripSaveResult } from "@/app/(dashboard)/trips/actions";
 import MoneyInput from "@/components/MoneyInput";
 import {
@@ -62,6 +63,7 @@ export default function TripForm({
   const [insurance, setInsurance] = useState<InsuranceMode>(d.insurance ?? (d.scope === "extra_eu" ? "oikos" : "none"));
   const [compensation, setCompensation] = useState(d.compensation_charged ?? false);
   const transport = d.transport ?? [];
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -78,6 +80,11 @@ export default function TripForm({
     setBusy(true);
     try {
       const res = await action(new FormData(form));
+      if (res && res.redirectTo) {
+        // saved: leave the button disabled while the next page opens
+        router.push(res.redirectTo);
+        return;
+      }
       if (res && res.error) {
         setError(res.error);
         if (res.field) {
@@ -90,8 +97,10 @@ export default function TripForm({
           form.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }
-    } finally {
       setBusy(false);
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : "Could not save the request. Try again.");
     }
   }
 

@@ -13,7 +13,7 @@ function fail(path: string, message: string): never {
   redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
 }
 
-export type TripSaveResult = { error?: string; field?: string };
+export type TripSaveResult = { error?: string; field?: string; redirectTo?: string };
 
 class FormError extends Error {
   field?: string;
@@ -195,7 +195,8 @@ ${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
     }
   });
   revalidatePath("/trips");
-  redirect(`/trips?created=${encodeURIComponent(inserted.number)}`);
+  // the form navigates (a redirect from an action called by script is not reliable)
+  return { redirectTo: `/trips?created=${encodeURIComponent(inserted.number)}` };
 }
 
 export async function createTripRequest(formData: FormData): Promise<TripSaveResult> {
@@ -215,7 +216,7 @@ async function updateImpl(id: string, formData: FormData) {
   const { error } = await supabase.from("trip_requests").update(trip).eq("id", id);
   if (error) bad(error.message);
   revalidatePath(`/trips/${id}`);
-  redirect(`/trips/${id}`);
+  return { redirectTo: `/trips/${id}` };
 }
 
 export async function updateTripRequest(id: string, formData: FormData): Promise<TripSaveResult> {
