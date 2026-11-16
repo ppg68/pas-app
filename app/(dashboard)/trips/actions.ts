@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import type { InsuranceMode, LodgingMode, TravelerType, TripApproval, TripRow, TripScope } from "@/lib/domain/trips";
+import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
 import { tripSections, tripSectionsHtml } from "@/lib/domain/tripSections";
 
 // redirect() throws internally: used to bring a readable message back to the page.
@@ -81,29 +81,30 @@ function parseTrip(f: FormData) {
     project_title: opt(f, "project_title"),
     internal_code: opt(f, "internal_code"),
     donor_code: opt(f, "donor_code"),
-    budget_line: opt(f, "budget_line"),
+    budget_line: null,
     activities: opt(f, "activities"),
     objective: opt(f, "objective"),
     minors: f.get("minors") === "on",
     advance_amount: num(f, "advance_amount"),
     compensation_charged: compensation,
-    compensation_bl: compensation ? opt(f, "compensation_bl") : null,
+    compensation_bl: null,
     lodging_mode: lodging,
     per_diem_rate: null,
     per_diem_days: null,
-    per_diem_bl: lodging === "per_diem" ? opt(f, "per_diem_bl") : null,
-    expenses_bl: lodging === "receipts" || lodging === "free_lodging" ? opt(f, "expenses_bl") : null,
+    per_diem_bl: null,
+    expenses_bl: null,
     flights_needed: flights,
     flights_route: flights ? opt(f, "flights_route") : null,
-    flights_bl: flights ? opt(f, "flights_bl") : null,
+    flights_bl: null,
     visa_needed: visa,
-    visa_bl: visa ? opt(f, "visa_bl") : null,
+    visa_bl: null,
     insurance,
-    insurance_bl: insurance === "oikos" ? opt(f, "insurance_bl") : null,
+    insurance_bl: null,
     hotel_needed: hotel,
     tickets_note: opt(f, "tickets_note"),
     notes: opt(f, "notes"),
     needs_logistics: flights || visa || insurance === "oikos" || hotel,
+    allocations: [] as Allocation[],
   };
 }
 
@@ -116,12 +117,54 @@ function validate(t: ReturnType<typeof parseTrip>) {
   if (!t.project_title) bad("Enter the project title.", "project_title");
   if (!t.internal_code) bad("Enter the internal project code.", "internal_code");
   if (!t.activities) bad("Describe the purpose and the activities of the trip.", "activities");
-  if (t.lodging_mode === "per_diem") {
-    if (!t.per_diem_bl) bad("Per diem: enter the project / budget line.", "per_diem_bl");
+}
+
+/** The costs that exist for the trip: each needs at least one (project code, budget line, share) row. */
+function applicableCosts(t: ReturnType<typeof parseTrip>): CostType[] {
+  const list: CostType[] = [];
+  if (t.compensation_charged) list.push("compensation");
+  if (t.lodging_mode === "per_diem") list.push("per_diem");
+  if (t.lodging_mode === "receipts" || t.lodging_mode === "free_lodging") list.push("expenses");
+  if (t.flights_needed) list.push("flight");
+  if (t.visa_needed) list.push("visa");
+  if (t.insurance === "oikos") list.push("insurance");
+  if (t.hotel_needed) list.push("bookings");
+  return list;
+}
+
+/** Reads and checks the allocation rows. Row i of the form is named alloc_<i>_code / _bl / _share. */
+function parseAllocations(f: FormData, t: ReturnType<typeof parseTrip>): Allocation[] {
+  let raw: { cost_type?: string; project_code?: string; budget_line?: string; share?: string | number }[] = [];
+  try {
+    raw = JSON.parse(str(f, "allocations_json") || "[]");
+  } catch {
+    bad("The cost rows could not be read. Reload the page and try again.");
   }
-  if (t.flights_needed && !t.flights_bl) bad("Enter the budget line of the flight.", "flights_bl");
-  if (t.visa_needed && !t.visa_bl) bad("Enter the budget line of the visa.", "visa_bl");
-  if (t.insurance === "oikos" && !t.insurance_bl) bad("Enter the budget line of the insurance.", "insurance_bl");
+  const costs = applicableCosts(t);
+  const out: Allocation[] = [];
+  raw.forEach((r, i) => {
+    const type = r.cost_type as CostType;
+    if (!costs.includes(type)) return;
+    const label = COST_LABEL[type];
+    const code = String(r.project_code ?? "").trim();
+    const bl = String(r.budget_line ?? "").trim();
+    const share = parseFloat(String(r.share ?? "").replace(",", "."));
+    if (!code) bad(`${label}: enter the project code.`, `alloc_${i}_code`);
+    if (!bl) bad(`${label}: enter the budget line.`, `alloc_${i}_bl`);
+    if (!Number.isFinite(share) || share <= 0 || share > 100) bad(`${label}: enter the share (between 0 and 100%).`, `alloc_${i}_share`);
+    out.push({ cost_type: type, project_code: code, budget_line: bl, share: Math.round(share * 100) / 100 });
+  });
+  for (const c of COST_TYPES) {
+    if (!costs.includes(c.key)) continue;
+    const rows = out.filter((a) => a.cost_type === c.key);
+    if (rows.length === 0) bad(`${c.label}: add the project code and the budget line.`, `alloc_add_${c.key}`);
+    const total = rows.reduce((s, a) => s + a.share, 0);
+    if (Math.abs(total - 100) > 0.01) {
+      const firstIdx = raw.findIndex((r) => r.cost_type === c.key);
+      bad(`${c.label}: the shares add up to ${Math.round(total * 100) / 100}%, they must add up to 100%.`, `alloc_${firstIdx}_share`);
+    }
+  }
+  return out;
 }
 
 async function createImpl(formData: FormData) {
@@ -134,6 +177,7 @@ async function createImpl(formData: FormData) {
 
   const trip = parseTrip(formData);
   validate(trip);
+  trip.allocations = parseAllocations(formData, trip);
 
   const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
   // A PM filing the request: the filing is already the PM's sign-off, only RAC / CAR is asked.
@@ -212,6 +256,7 @@ async function updateImpl(id: string, formData: FormData) {
   const supabase = await createClient();
   const trip = parseTrip(formData);
   validate(trip);
+  trip.allocations = parseAllocations(formData, trip);
   const { error } = await supabase.from("trip_requests").update(trip).eq("id", id);
   if (error) bad(error.message);
   revalidatePath(`/trips/${id}`);

@@ -3,6 +3,8 @@ import {
   INSURANCE_LABEL,
   LODGING_LABEL,
   SCOPE_LABEL,
+  COST_LABEL,
+  COST_TYPES,
   STATUS_LABEL,
   TRANSPORT_LABEL,
   TRAVELER_LABEL,
@@ -51,7 +53,6 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     rows: [
       ["Project", [r.donor_code, r.project_title].filter(Boolean).join(" - ")],
       ["Internal code", r.internal_code ?? ""],
-      ["Budget line", r.budget_line ?? ""],
       ["Purpose and activities", r.activities ?? ""],
       ["Objective and final result", r.objective ?? ""],
       ["Contact with minors", yn(r.minors)],
@@ -62,7 +63,7 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     title: "Costs",
     rows: [
       ["Advance", r.advance_amount != null ? `EUR ${money(r.advance_amount)}` : "None"],
-      ["Daily compensation charged", r.compensation_charged ? `Yes - ${r.compensation_bl ?? "no budget line given"}` : "No"],
+      ["Daily compensation charged to projects", r.compensation_charged ? "Yes" : "No"],
       ["Board and lodging", LODGING_LABEL[r.lodging_mode]],
       ...(r.lodging_mode === "per_diem"
         ? ([
@@ -74,10 +75,8 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
                   ],
                 ] as [string, string][])
               : []),
-            ["Per diem project / budget line", r.per_diem_bl ?? ""],
           ] as [string, string][])
         : []),
-      ...(r.expenses_bl ? ([["Expenses project / budget line", r.expenses_bl]] as [string, string][]) : []),
     ],
   });
 
@@ -85,14 +84,26 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     title: "Flights, visa, insurance, bookings",
     rows: [
       ["Plane ticket by Oikos", r.flights_needed ? `Yes - ${r.flights_route ?? ""}` : "No"],
-      ...(r.flights_needed ? ([["Flight project / budget line", r.flights_bl ?? ""]] as [string, string][]) : []),
-      ["Visa", r.visa_needed ? `Yes - ${r.visa_bl ?? ""}` : "No"],
-      ["Insurance", INSURANCE_LABEL[r.insurance] + (r.insurance_bl ? ` - ${r.insurance_bl}` : "")],
+      ["Visa", r.visa_needed ? "Yes" : "No"],
+      ["Insurance", INSURANCE_LABEL[r.insurance]],
       ["Train / hotel / other by Logistics", r.hotel_needed ? "Yes" : "No"],
       ["Logistics to book", r.tickets_note ?? ""],
       ["Notes", r.notes ?? ""],
     ],
   });
+
+  // costs charged to projects: one line per cost, one row per project
+  const allocRows: [string, string][] = COST_TYPES.flatMap((c) => {
+    const rows = (r.allocations ?? []).filter((a) => a.cost_type === c.key);
+    if (rows.length === 0) return [];
+    return [
+      [
+        COST_LABEL[c.key],
+        rows.map((a) => `${a.project_code} - budget line ${a.budget_line} - ${a.share}%`).join("\n"),
+      ] as [string, string],
+    ];
+  });
+  if (allocRows.length > 0) sections.push({ title: "Costs charged to projects", rows: allocRows });
 
   // approvals and history: every step with who and when
   const approvalRows: [string, string][] = [

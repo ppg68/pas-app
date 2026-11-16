@@ -60,6 +60,23 @@ export const PER_DIEM_GRID: { label: string; employee: number; cococo: number }[
   { label: "Tunisia", employee: 140.5, cococo: 143.5 },
 ];
 
+export type CostType = "compensation" | "per_diem" | "expenses" | "flight" | "visa" | "insurance" | "bookings";
+
+/** The costs of a trip that are charged to projects, in the order shown. */
+export const COST_TYPES: { key: CostType; label: string }[] = [
+  { key: "compensation", label: "Daily compensation" },
+  { key: "per_diem", label: "Per diem" },
+  { key: "expenses", label: "Board and lodging expenses" },
+  { key: "flight", label: "Plane ticket" },
+  { key: "visa", label: "Visa" },
+  { key: "insurance", label: "Insurance" },
+  { key: "bookings", label: "Train / hotel / other (Logistics)" },
+];
+export const COST_LABEL = Object.fromEntries(COST_TYPES.map((c) => [c.key, c.label])) as Record<CostType, string>;
+
+/** One row of the allocation: the share (%) of a cost charged to a project code and budget line. */
+export type Allocation = { cost_type: CostType; project_code: string; budget_line: string; share: number };
+
 export type TripApproval = {
   request_id: string;
   signer_role: "PM" | "RAC";
@@ -113,6 +130,7 @@ export type TripRow = {
   tickets_note: string | null;
   notes: string | null;
   needs_logistics: boolean;
+  allocations: Allocation[];
   booked_by: string | null;
   booked_by_name: string | null;
   booked_at: string | null;
