@@ -246,11 +246,13 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
         // only the people involved: the requester (below) and the approvers chosen on this
         // request (PM, RAC/CAR); other role holders are not notified
         // Contracts always gets it (it prepares the contract)
-        const [{ data: aps }, pms, racs, contracts] = await Promise.all([
+        const [{ data: aps }, pms, racs, contracts, racRole, directors] = await Promise.all([
           supabase.from("contract_approvals").select("user_id").eq("request_id", id),
           holders(supabase, "PM"),
           racOrCar(supabase),
           holders(supabase, "CONTRACTS"),
+          holders(supabase, "RAC"),
+          holders(supabase, "DG"),
         ]);
         const chosen = new Set((aps ?? []).map((a) => a.user_id));
         const seen = new Set<string>();
@@ -258,6 +260,17 @@ export async function signContractRequest(id: string, role: "PM" | "RAC") {
           ...contracts,
           ...[...pms, ...racs].filter((h) => chosen.has(h.id)),
         ].filter((h) => h.email && req.requester_email !== h.email && !seen.has(h.email) && seen.add(h.email));
+        // the RAC and the Director are always informed when a contract request is approved
+        const inform = [...racRole, ...directors].filter((h) => h.email && req.requester_email !== h.email && !seen.has(h.email) && seen.add(h.email));
+        for (const h of inform) {
+          mails.push({
+            to: h.email!,
+            subject: `Contract request ${req.number} approved: ${req.party_name}`,
+            html: `<p>Hello ${escapeHtml(h.full_name)},</p>
+<p>For your information: the contract request <b>${escapeHtml(req.number)}</b> (${escapeHtml(req.party_name)}, requested by ${escapeHtml(req.requester_name)}) is fully approved. Contracts will now prepare the contract.</p>
+${link ? `<p><a href="${link}">Open the request in PAS</a></p>` : ""}`,
+          });
+        }
         for (const h of to) {
           mails.push({
             to: h.email!,
