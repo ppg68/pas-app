@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BulkDeleteBar, SelectAllBox } from "@/components/BulkDelete";
+import { bulkDeleteExpenses } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import { STATUS_LABEL, money, type ExpenseApproval, type ExpenseReportRow } from "@/lib/domain/expenses";
 
@@ -7,13 +9,14 @@ type Item = Pick<
   "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol" | "paid_at"
 >;
 
-export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string; filter?: string }> }) {
-  const { created, filter } = await searchParams;
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string; filter?: string; deleted?: string }> }) {
+  const { created, filter, deleted } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  const isAdmin = (myRoles ?? []).some((x) => x.role === "ADMIN");
   const isAdministration = (myRoles ?? []).some((x) => ["ADMIN", "RAC", "CAR"].includes(x.role as string));
   const { data } = await supabase
     .from("expense_reports")
@@ -60,6 +63,8 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       )}
 
       {created && <div className="banner">Expense report {created} sent. The approvers have been notified by email.</div>}
+      {deleted && <div className="banner">{deleted} expense report{deleted === "1" ? "" : "s"} deleted.</div>}
+      {isAdmin && rows.length > 0 && <BulkDeleteBar formId="expenses-bulk" action={bulkDeleteExpenses} what="expense reports" />}
 
       {rows.length === 0 ? (
         <p className="empty">No expense reports yet.</p>
@@ -68,6 +73,11 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
           <table>
             <thead>
               <tr>
+                {isAdmin && (
+                  <th style={{ width: 30 }}>
+                    <SelectAllBox formId="expenses-bulk" />
+                  </th>
+                )}
                 <th>No.</th>
                 <th>Worker</th>
                 <th>Object</th>
@@ -79,6 +89,11 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
+                  {isAdmin && (
+                    <td>
+                      <input type="checkbox" name="ids" value={r.id} form="expenses-bulk" aria-label={`Select ${r.number}`} />
+                    </td>
+                  )}
                   <td>
                     <Link href={`/expenses/${r.id}`}>{r.number}</Link>
                   </td>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BulkDeleteBar, SelectAllBox } from "@/components/BulkDelete";
+import { bulkDeleteTrips } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import { SCOPE_LABEL, STATUS_LABEL, dateOnly, type TripApproval, type TripRow } from "@/lib/domain/trips";
 
@@ -7,9 +9,14 @@ type Item = Pick<
   "id" | "number" | "status" | "traveler_name" | "destination" | "scope" | "start_date" | "end_date" | "requester_name" | "needs_logistics" | "created_at"
 >;
 
-export default async function TripsPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
-  const { created } = await searchParams;
+export default async function TripsPage({ searchParams }: { searchParams: Promise<{ created?: string; deleted?: string }> }) {
+  const { created, deleted } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: myRoles } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  const isAdmin = (myRoles ?? []).some((x) => x.role === "ADMIN");
   const { data } = await supabase
     .from("trip_requests")
     .select("id, number, status, traveler_name, destination, scope, start_date, end_date, requester_name, needs_logistics, created_at")
@@ -38,6 +45,8 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {created && <div className="banner">Trip request {created} sent. The approvers have been notified by email.</div>}
+      {deleted && <div className="banner">{deleted} trip request{deleted === "1" ? "" : "s"} deleted.</div>}
+      {isAdmin && rows.length > 0 && <BulkDeleteBar formId="trips-bulk" action={bulkDeleteTrips} what="trip requests" />}
 
       {rows.length === 0 ? (
         <p className="empty">No trip requests yet.</p>
@@ -46,6 +55,11 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
           <table>
             <thead>
               <tr>
+                {isAdmin && (
+                  <th style={{ width: 30 }}>
+                    <SelectAllBox formId="trips-bulk" />
+                  </th>
+                )}
                 <th>No.</th>
                 <th>Traveler</th>
                 <th>Destination</th>
@@ -57,6 +71,11 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
+                  {isAdmin && (
+                    <td>
+                      <input type="checkbox" name="ids" value={r.id} form="trips-bulk" aria-label={`Select ${r.number}`} />
+                    </td>
+                  )}
                   <td>
                     <Link href={`/trips/${r.id}`}>{r.number}</Link>
                   </td>

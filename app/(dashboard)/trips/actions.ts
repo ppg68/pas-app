@@ -354,6 +354,22 @@ export async function cancelTripRequest(id: string) {
   redirect(`/trips/${id}`);
 }
 
+/** ADMIN: deletes the ticked trip requests (list page). */
+export async function bulkDeleteTrips(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  if (!(roles ?? []).some((r) => r.role === "ADMIN")) fail("/trips", "Only an ADMIN can delete trip requests.");
+  const ids = formData.getAll("ids").map(String).filter(Boolean);
+  if (ids.length === 0) fail("/trips", "Tick the trip requests you want to delete.");
+  const { data, error } = await supabase.from("trip_requests").delete().in("id", ids).select("id");
+  if (error) fail("/trips", error.message);
+  revalidatePath("/trips");
+  redirect(`/trips?deleted=${(data ?? []).length}`);
+}
+
 export async function deleteTripRequest(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("trip_requests").delete().eq("id", id);

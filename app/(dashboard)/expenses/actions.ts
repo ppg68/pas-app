@@ -470,6 +470,24 @@ export async function cancelExpenseReport(id: string) {
   redirect(`/expenses/${id}`);
 }
 
+/** ADMIN: deletes the ticked expense reports with their receipts (list page). */
+export async function bulkDeleteExpenses(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user?.id ?? "");
+  if (!(roles ?? []).some((r) => r.role === "ADMIN")) fail("/expenses", "Only an ADMIN can delete expense reports.");
+  const ids = formData.getAll("ids").map(String).filter(Boolean);
+  if (ids.length === 0) fail("/expenses", "Tick the expense reports you want to delete.");
+  const { data: files } = await supabase.from("expense_files").select("storage_path").in("report_id", ids);
+  const { data, error } = await supabase.from("expense_reports").delete().in("id", ids).select("id");
+  if (error) fail("/expenses", error.message);
+  if (files?.length) await supabase.storage.from("pas-request-files").remove(files.map((f) => f.storage_path));
+  revalidatePath("/expenses");
+  redirect(`/expenses?deleted=${(data ?? []).length}`);
+}
+
 export async function deleteExpenseReport(id: string) {
   const supabase = await createClient();
   const { data: files } = await supabase.from("expense_files").select("storage_path").eq("report_id", id);
