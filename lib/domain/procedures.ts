@@ -98,7 +98,12 @@ export const FOLDER_NAMES: Record<string, string> = {
   "08": "08 Delivery note",
   "09": "09 Payment authorization",
   "10": "10 ADM Proof of payment",
+  // only when the request is a derogation: the email exchange that obtained it (folder created by the archive script)
+  AA: "AA Derogation",
 };
+
+/** Document key of the derogation emails: listed only for a request that is a derogation. */
+export const DEROGATION_DOC = "AA";
 
 export const STAGE_LABELS = [
   "request",

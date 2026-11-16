@@ -161,7 +161,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const checked = new Map((docs ?? []).map((d) => [d.doc_key, d.checked]));
   sections.push({
     title: "Documents",
-    rows: DOCS_BY_PROC[r.proc_code as keyof typeof DOCS_BY_PROC].map((k) => [
+    rows: [...DOCS_BY_PROC[r.proc_code as keyof typeof DOCS_BY_PROC], ...(r.derogation ? ["AA"] : [])].map((k) => [
       FOLDER_NAMES[k] ?? k,
       `${checked.get(k) ? "Present" : "Missing"}${isOptionalDoc(r.proc_code, k) ? " (optional)" : ""}`,
     ]),
