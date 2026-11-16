@@ -51,17 +51,13 @@ const fromAlloc = (a: Allocation): AllocRow => ({
 export default function TripForm({
   action,
   defaults,
-  pms,
-  racs,
-  requesterIsPm,
+  superiors,
   submitLabel,
 }: {
   action: (formData: FormData) => Promise<TripSaveResult | void>;
   defaults?: Partial<TripRow>;
   /** approver pickers, only when creating */
-  pms?: Holder[];
-  racs?: Holder[];
-  requesterIsPm?: boolean;
+  superiors?: Holder[];
   submitLabel: string;
 }) {
   const d = defaults ?? {};
@@ -437,43 +433,23 @@ export default function TripForm({
         </div>
       </Section>
 
-      {pms && racs && (
+      {superiors && (
         <Section title="Approval">
           <p className="subtitle" style={{ margin: 0 }}>
-            {requesterIsPm
-              ? "You are a PM: your request counts as the PM approval. The RAC or CAR must approve."
-              : "The request is sent to the PM / Programme Manager and to the RAC or CAR. Both must approve."}{" "}
-            Then Logistics is notified if anything has to be booked.
+            The request is sent to your superior, who approves it. Then Logistics is informed if anything has to be booked.
           </p>
-          <div style={row}>
-            {!requesterIsPm && (
-              <div className="field" style={col()}>
-                <label>PM / Programme Manager *</label>
-                <select name="approver_PM" required defaultValue="">
-                  <option value="" disabled>
-                    Choose…
-                  </option>
-                  {pms.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="field" style={col()}>
-              <label>RAC / CAR *</label>
-              <select name="approver_RAC" required defaultValue="">
-                <option value="" disabled>
-                  Choose…
+          <div className="field" style={{ maxWidth: 420 }}>
+            <label>Superior who approves *</label>
+            <select name="approver_PM" required defaultValue="">
+              <option value="" disabled>
+                Choose…
+              </option>
+              {superiors.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.full_name}
                 </option>
-                {racs.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </select>
           </div>
         </Section>
       )}

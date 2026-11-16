@@ -68,12 +68,12 @@ export default async function TripDetail({
         <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvals</h2>
         {!approvals.some((a) => a.signer_role === "PM") && (
           <p className="subtitle" style={{ margin: "0 0 6px" }}>
-            Filed by the PM ({r.requester_name}): no separate PM approval is needed.
+            No superior recorded for this request.
           </p>
         )}
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "PM"}</b>
+            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Superior"}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
               <span className="stamp brand">approved {dt(a.signed_at)}</span>

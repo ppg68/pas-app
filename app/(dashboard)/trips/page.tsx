@@ -27,7 +27,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   const missing = (id: string) =>
     approvals
       .filter((a) => a.request_id === id && !a.signed_at)
-      .map((a) => (a.signer_role === "RAC" ? "RAC / CAR" : a.signer_role))
+      .map((a) => (a.signer_role === "RAC" ? "RAC / CAR" : "Superior"))
       .join(", ");
 
   return (

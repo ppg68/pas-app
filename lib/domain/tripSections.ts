@@ -112,11 +112,11 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     ["Filed by", `${r.requester_name} on ${dt(r.created_at)}`],
   ];
   if (!approvals.some((a) => a.signer_role === "PM")) {
-    approvalRows.push(["PM / Programme Manager", `Filed by the PM (${r.requester_name}): no separate approval needed`]);
+    approvalRows.push(["Superior", "No superior recorded"]);
   }
   for (const a of approvals) {
     approvalRows.push([
-      a.signer_role === "RAC" ? "RAC / CAR" : "PM / Programme Manager",
+      a.signer_role === "RAC" ? "RAC / CAR" : "Superior",
       a.signed_at ? `Approved by ${a.user_name} on ${dt(a.signed_at)}` : `Waiting for ${a.user_name}`,
     ]);
   }

@@ -45,10 +45,10 @@ async function holders(supabase: Supa, role: Role) {
 }
 
 /** Second approver: anyone holding the RAC or the CAR role. */
-async function racOrCar(supabase: Supa) {
-  const [racs, cars] = await Promise.all([holders(supabase, "RAC"), holders(supabase, "CAR")]);
-  const seen = new Set<string>();
-  return [...racs, ...cars].filter((h) => !seen.has(h.id) && seen.add(h.id)).sort((a, b) => a.full_name.localeCompare(b.full_name));
+/** Everybody registered in PAS: the superior is chosen freely. */
+async function superiors(supabase: Supa) {
+  const { data } = await supabase.rpc("expense_superiors");
+  return (data ?? []) as Holder[];
 }
 
 async function baseUrl() {
@@ -173,19 +173,12 @@ async function createImpl(formData: FormData) {
   validate(trip);
   trip.allocations = parseAllocations(formData, trip);
 
-  const [pms, racs] = await Promise.all([holders(supabase, "PM"), racOrCar(supabase)]);
-  // A PM filing the request: the filing is already the PM's sign-off, only RAC / CAR is asked.
-  const requesterIsPm = pms.some((h) => h.id === user.id);
-  const pmId = str(formData, "approver_PM");
-  const racId = str(formData, "approver_RAC");
-  if (!racId || (!requesterIsPm && !pmId)) {
-    if (!requesterIsPm && !pmId) bad("Choose the PM / Programme Manager who will approve.", "approver_PM");
-    bad("Choose the RAC or CAR who will approve.", "approver_RAC");
-  }
-  if (racId === user.id || (pmId === user.id && !requesterIsPm)) bad("You cannot approve your own request.", racId === user.id ? "approver_RAC" : "approver_PM");
-  const pm = requesterIsPm ? null : pms.find((h) => h.id === pmId);
-  const rac = racs.find((h) => h.id === racId);
-  if ((!requesterIsPm && !pm) || !rac) bad("The chosen approver no longer holds the role. Choose again.", "approver_RAC");
+  // one approval only: the superior, chosen freely among the people registered in PAS
+  const superiorId = str(formData, "approver_PM");
+  if (!superiorId) bad("Choose your superior, who will approve the trip.", "approver_PM");
+  if (superiorId === user.id) bad("You cannot approve your own request.", "approver_PM");
+  const superior = (await superiors(supabase)).find((h) => h.id === superiorId);
+  if (!superior) bad("The chosen superior was not found. Choose again.", "approver_PM");
 
   const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
 
@@ -201,10 +194,7 @@ async function createImpl(formData: FormData) {
     .single();
   if (error || !inserted) bad(error?.message ?? "Could not save the request.");
 
-  const approvalRows = [
-    ...(pm ? [{ request_id: inserted.id, signer_role: "PM" as const, user_id: pm.id, user_name: pm.full_name }] : []),
-    { request_id: inserted.id, signer_role: "RAC" as const, user_id: rac!.id, user_name: rac!.full_name },
-  ];
+  const approvalRows = [{ request_id: inserted.id, signer_role: "PM" as const, user_id: superior.id, user_name: superior.full_name }];
   const { error: apErr } = await supabase.from("trip_approvals").insert(approvalRows);
   if (apErr) {
     await supabase.from("trip_requests").delete().eq("id", inserted.id);
@@ -213,7 +203,7 @@ async function createImpl(formData: FormData) {
 
   const link = `${await baseUrl()}/trips/${inserted.id}`;
   const requester = profile?.full_name ?? "A colleague";
-  const list = pm ? [pm, rac!] : [rac!];
+  const list = [superior];
   after(async () => {
     for (const h of list) {
       if (!h.email) continue;
@@ -276,7 +266,7 @@ export async function signTripRequest(id: string, role: "PM" | "RAC") {
   try {
     const { data: req } = await supabase.from("trip_requests").select("*").eq("id", id).maybeSingle();
     const link = `${await baseUrl()}/trips/${id}`;
-    const label = role === "RAC" ? "RAC / CAR" : role;
+    const label = role === "RAC" ? "RAC / CAR" : "superior";
     if (req) {
       const allSigned = Boolean((data as { all_signed?: boolean } | null)?.all_signed);
       if (allSigned) {
