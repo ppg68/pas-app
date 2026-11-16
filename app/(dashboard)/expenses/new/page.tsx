@@ -27,6 +27,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user?.id ?? "").maybeSingle();
+  const { data: me } = await supabase.from("profiles").select("can_file_for_others").eq("id", user?.id ?? "").maybeSingle();
   const notMe = (list: Holder[] | null) => (list ?? []).filter((h) => h.id !== user?.id);
 
   return (
@@ -37,6 +38,8 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
         action={createExpenseReport}
         trips={(trips ?? []) as TripOption[]}
         workerName={profile?.full_name ?? ""}
+        people={(people as Holder[] | null) ?? []}
+        canFileForOthers={Boolean(me?.can_file_for_others)}
         pms={notMe(people as Holder[] | null)}
         racs={notMe(racs)}
         fuelPrices={fuelPrices}

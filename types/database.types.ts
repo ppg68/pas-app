@@ -442,6 +442,7 @@ export type Database = {
           created_at: string
           email: string | null
           callisto_account: string | null
+          can_file_for_others: boolean
           full_name: string
           id: string
         }
@@ -449,6 +450,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           callisto_account?: string | null
+          can_file_for_others?: boolean
           full_name: string
           id: string
         }
@@ -456,6 +458,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           callisto_account?: string | null
+          can_file_for_others?: boolean
           full_name?: string
           id?: string
         }

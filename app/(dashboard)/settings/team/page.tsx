@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, ROLES, type Role } from "@/lib/domain/procedures";
-import { addRole, removeRole, cancelPending, updatePersonName, updatePersonAccount } from "./actions";
+import { addRole, removeRole, cancelPending, updatePersonName, updatePersonAccount, updatePersonFlag } from "./actions";
 import RemovePersonButton from "./RemovePersonButton";
 import ConfirmForm from "@/components/ConfirmForm";
 
@@ -26,7 +26,7 @@ export default async function TeamSettingsPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email, callisto_account")
+    .select("id, full_name, email, callisto_account, can_file_for_others")
     .order("full_name");
   const { data: allRoles } = await supabase.from("user_roles").select("user_id, role");
 
@@ -88,6 +88,17 @@ export default async function TeamSettingsPage({
                   />
                   <button type="submit" className="pill">
                     Save account
+                  </button>
+                </form>
+                <form
+                  action={updatePersonFlag.bind(null, p.id, !p.can_file_for_others)}
+                  style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}
+                >
+                  <span style={{ fontSize: 13 }}>
+                    Files expense reports for others: <b>{p.can_file_for_others ? "yes" : "no"}</b>
+                  </span>
+                  <button type="submit" className="pill">
+                    {p.can_file_for_others ? "Remove" : "Allow"}
                   </button>
                 </form>
                 <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>

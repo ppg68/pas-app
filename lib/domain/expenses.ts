@@ -53,6 +53,7 @@ export type ExpenseReportRow = {
   requester_name: string;
   requester_email: string | null;
   worker_name: string;
+  worker_id: string | null;
   subject: string;
   donor_code: string | null;
   internal_code: string | null;

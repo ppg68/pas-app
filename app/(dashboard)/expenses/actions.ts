@@ -100,6 +100,7 @@ function parseReport(f: FormData) {
 
   const report = {
     worker_name: str(f, "worker_name"),
+    worker_id: opt(f, "worker_id"),
     subject: str(f, "subject"),
     donor_code: opt(f, "donor_code"),
     internal_code: opt(f, "internal_code"),
@@ -114,6 +115,19 @@ function parseReport(f: FormData) {
   return { report, lines, lineIds };
 }
 
+/** The report is for another person only if the filer carries the flag; the name comes from the chosen profile. */
+async function resolveWorker(supabase: Supa, userId: string, report: { worker_id: string | null; worker_name: string }) {
+  if (!report.worker_id || report.worker_id === userId) {
+    report.worker_id = null;
+    return;
+  }
+  const { data: me } = await supabase.from("profiles").select("can_file_for_others").eq("id", userId).maybeSingle();
+  if (!me?.can_file_for_others) bad("You are not allowed to file an expense report for another person.");
+  const person = (await superiors(supabase)).find((h) => h.id === report.worker_id);
+  if (!person) bad("The person chosen for this report was not found.");
+  report.worker_name = person.full_name;
+}
+
 async function createImpl(formData: FormData): Promise<ExpenseSaveResult> {
   const back = "/expenses/new";
   const supabase = await createClient();
@@ -123,6 +137,7 @@ async function createImpl(formData: FormData): Promise<ExpenseSaveResult> {
   if (!user) bad("Session expired, please log in again.");
 
   const { report, lines } = parseReport(formData);
+  await resolveWorker(supabase, user.id, report);
 
   // the superior is optional (any registered person); the RAC / CAR signature is always required
   const [people, racs] = await Promise.all([superiors(supabase), racOrCar(supabase)]);
@@ -130,6 +145,7 @@ async function createImpl(formData: FormData): Promise<ExpenseSaveResult> {
   const racId = str(formData, "approver_RAC");
   if (!racId) bad("Choose the RAC or CAR who will approve.");
   if (racId === user.id || pmId === user.id) bad("You cannot approve your own report.");
+  if (report.worker_id && (racId === report.worker_id || pmId === report.worker_id)) bad("The person the report is for cannot approve it.");
   const pm = pmId ? people.find((h) => h.id === pmId) : null;
   const rac = racs.find((h) => h.id === racId);
   if ((pmId && !pm) || !rac) bad("The chosen approver is no longer available. Choose again.");
@@ -226,6 +242,15 @@ ${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
 async function updateImpl(id: string, formData: FormData): Promise<ExpenseSaveResult> {
   const supabase = await createClient();
   const { report, lines, lineIds } = parseReport(formData);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) bad("Session expired, please log in again.");
+  await resolveWorker(supabase, user.id, report);
+  if (report.worker_id) {
+    const { data: aps } = await supabase.from("expense_approvals").select("user_id").eq("report_id", id);
+    if ((aps ?? []).some((x) => x.user_id === report.worker_id)) bad("The person the report is for is one of the approvers: choose another approver or person.");
+  }
   const { error } = await supabase.from("expense_reports").update(report).eq("id", id);
   if (error) bad(error.message);
 
@@ -278,7 +303,7 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
   try {
     const { data: rep } = await supabase
       .from("expense_reports")
-      .select("number, worker_name, requester_name, requester_email, total_eur")
+      .select("number, worker_name, worker_id, requester_name, requester_email, total_eur")
       .eq("id", id)
       .maybeSingle();
     const link = `${await baseUrl()}/expenses/${id}`;
@@ -302,6 +327,17 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
             subject: `Expense report ${rep.number} approved`,
             html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>Your expense report <b>${escapeHtml(rep.number)}</b> (€ ${amount}) is approved. The administration will record it for reimbursement.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
           });
+        }
+        // filed on behalf of somebody: the worker is told too
+        if (rep.worker_id) {
+          const { data: w } = await supabase.from("profiles").select("full_name, email").eq("id", rep.worker_id).maybeSingle();
+          if (w?.email && w.email !== rep.requester_email) {
+            mails.push({
+              to: w.email,
+              subject: `Expense report ${rep.number} approved`,
+              html: `<p>Hello ${escapeHtml(w.full_name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> that ${escapeHtml(rep.requester_name)} filed for you (€ ${amount}) is approved. The administration will record it for reimbursement.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
+            });
+          }
         }
       } else if (role === "PM") {
         // the superior has approved: now the RAC / CAR must sign

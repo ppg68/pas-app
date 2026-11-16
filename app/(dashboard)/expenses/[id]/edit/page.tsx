@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
-import ExpenseForm, { type TripOption } from "@/components/expenses/ExpenseForm";
+import ExpenseForm, { type Holder, type TripOption } from "@/components/expenses/ExpenseForm";
 import type { ExpenseFileRow, ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses";
 import { updateExpenseReport } from "../../actions";
 
@@ -30,6 +30,11 @@ export default async function EditExpensePage({
       .limit(100),
   ]);
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: me } = await supabase.from("profiles").select("can_file_for_others, full_name").eq("id", user?.id ?? "").maybeSingle();
+  const { data: people } = me?.can_file_for_others ? await supabase.rpc("expense_superiors") : { data: [] };
   const { data: fp } = await supabase.from("fuel_prices").select("*").order("week_start");
   const fuelPrices = (fp ?? []) as FuelPriceRow[];
 
@@ -47,6 +52,9 @@ export default async function EditExpensePage({
         defaultFiles={(fs ?? []) as ExpenseFileRow[]}
         trips={(trips ?? []) as TripOption[]}
         fuelPrices={fuelPrices}
+        workerName={me?.full_name ?? ""}
+        people={(people as Holder[] | null) ?? []}
+        canFileForOthers={Boolean(me?.can_file_for_others)}
         submitLabel="Save changes"
       />
     </div>

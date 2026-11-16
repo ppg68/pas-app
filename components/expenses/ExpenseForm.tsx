@@ -84,6 +84,8 @@ export default function ExpenseForm({
   trips,
   fuelPrices = [],
   workerName,
+  people,
+  canFileForOthers = false,
   pms,
   racs,
   submitLabel,
@@ -95,6 +97,10 @@ export default function ExpenseForm({
   trips?: TripOption[];
   fuelPrices?: FuelPriceRow[];
   workerName?: string;
+  /** everybody registered in PAS: the choices for "report for another person" */
+  people?: Holder[];
+  /** the filer carries the flag (Logistics / Contracts) */
+  canFileForOthers?: boolean;
   /** approver pickers, only when creating */
   pms?: Holder[];
   racs?: Holder[];
@@ -102,6 +108,7 @@ export default function ExpenseForm({
 }) {
   const d = defaults ?? {};
   const [worker, setWorker] = useState(d.worker_name ?? workerName ?? "");
+  const [workerId, setWorkerId] = useState(d.worker_id && d.worker_id !== d.requested_by ? d.worker_id : "");
   const [subject, setSubject] = useState(d.subject ?? "");
   const [donor, setDonor] = useState(d.donor_code ?? "");
   const [internal, setInternal] = useState(d.internal_code ?? "");
@@ -234,7 +241,45 @@ export default function ExpenseForm({
       <div style={row}>
         <div className="field" style={col(1, 220)}>
           <label>Surname and name of the worker *</label>
-          <input name="worker_name" value={worker} onChange={(e) => setWorker(e.target.value)} required />
+          {canFileForOthers && (
+            <label className="checkbox-row" style={{ marginBottom: 4 }}>
+              <input
+                type="checkbox"
+                checked={workerId !== ""}
+                onChange={(e) => {
+                  if (!e.target.checked) {
+                    setWorkerId("");
+                    setWorker(workerName ?? "");
+                  } else {
+                    setWorkerId((people ?? [])[0]?.id ?? "");
+                    setWorker((people ?? [])[0]?.full_name ?? "");
+                  }
+                }}
+              />{" "}
+              I am filing this report for another person
+            </label>
+          )}
+          {canFileForOthers && workerId !== "" ? (
+            <>
+              <select
+                value={workerId}
+                onChange={(e) => {
+                  setWorkerId(e.target.value);
+                  setWorker((people ?? []).find((p) => p.id === e.target.value)?.full_name ?? "");
+                }}
+              >
+                {(people ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </select>
+              <input type="hidden" name="worker_name" value={worker} />
+              <input type="hidden" name="worker_id" value={workerId} />
+            </>
+          ) : (
+            <input name="worker_name" value={worker} onChange={(e) => setWorker(e.target.value)} required />
+          )}
         </div>
         <div className="field" style={col(2, 220)}>
           <label>Object of the expenses *</label>

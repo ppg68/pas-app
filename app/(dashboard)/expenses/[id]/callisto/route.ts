@@ -32,15 +32,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const [{ data: ls }, { data: prof }] = await Promise.all([
     supabase.from("expense_lines").select("*").eq("report_id", id).order("seq"),
-    supabase.from("profiles").select("callisto_account").eq("id", r.requested_by).maybeSingle(),
+    supabase.from("profiles").select("callisto_account").eq("id", r.worker_id ?? r.requested_by).maybeSingle(),
   ]);
   const account = (prof?.callisto_account ?? "").trim();
   if (!account) {
-    return new Response(`No Callisto account for ${r.requester_name}: ADMIN can enter it in Settings > Team.`, { status: 409 });
+    return new Response(`No Callisto account for ${r.worker_id ? r.worker_name : r.requester_name}: ADMIN can enter it in Settings > Team.`, { status: 409 });
   }
 
   const lines = ((ls ?? []) as ExpenseLineRow[]).filter((l) => l.section !== "invoices");
-  const surname = r.requester_name.trim().split(/\s+/).slice(-1)[0] ?? "";
+  const surname = (r.worker_id ? r.worker_name : r.requester_name).trim().split(/\s+/).slice(-1)[0] ?? "";
   const rows: (string | number | Date | null)[][] = [];
   for (const l of lines) {
     const date = l.line_date ? new Date(`${l.line_date}T00:00:00Z`) : null;

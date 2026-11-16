@@ -78,6 +78,14 @@ export async function updatePersonName(userId: string, formData: FormData) {
   revalidatePath("/settings/team");
 }
 
+export async function updatePersonFlag(userId: string, value: boolean) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("profiles").update({ can_file_for_others: value }).eq("id", userId).select("id");
+  if (error) fail(error.message);
+  if (!data || data.length === 0) fail("The flag was not saved (only an ADMIN can change it).");
+  revalidatePath("/settings/team");
+}
+
 export async function updatePersonAccount(userId: string, formData: FormData) {
   const account = String(formData.get("callisto_account") || "").trim().toUpperCase();
   const supabase = await createClient();

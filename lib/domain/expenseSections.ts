@@ -25,6 +25,7 @@ export function expenseSections(
     title: "Report",
     rows: [
       ["Worker", r.worker_name],
+      ["Filed on behalf by", r.worker_id && r.worker_id !== r.requested_by ? r.requester_name : ""],
       ["Object of the expenses", r.subject],
       ["Related trip", tripNumber ?? ""],
       ["Donor project code", r.donor_code ?? ""],
