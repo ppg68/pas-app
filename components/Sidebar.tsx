@@ -1,5 +1,6 @@
 "use client";
 
+import NavToggle from "@/components/NavToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ROLE_LABEL, type Role } from "@/lib/domain/procedures";
@@ -25,6 +26,7 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
+      <NavToggle />
       <div className="brand">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/pas-logo-light.svg" width={44} height={44} alt="PAS" />

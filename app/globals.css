@@ -417,3 +417,16 @@ table.fit input, table.fit select { min-width: 0; padding-left: 4px; padding-rig
 /* Row reached from a link (#inv-<id>): short highlight */
 @keyframes row-flash { 0%, 60% { background: #FFF3C4; } 100% { background: transparent; } }
 tbody tr.row-flash { animation: row-flash 4s ease-out; }
+
+/* Menu laterale riducibile (componente NavToggle) */
+.nav-toggle{all:unset;cursor:pointer;align-self:flex-end;font-size:11px;font-weight:600;color:#A9BCA6;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.25);}
+.nav-toggle:hover{background:rgba(255,255,255,0.14);color:#fff;}
+.nav-toggle .nt-closed{display:none;}
+html[data-nav="min"] .nav-toggle .nt-open{display:none;}
+html[data-nav="min"] .nav-toggle .nt-closed{display:inline;}
+html[data-nav="min"] .nav-toggle{align-self:center;}
+html[data-nav="min"] .sidebar > :not(.nav-toggle){display:none !important;}
+@media (min-width:901px){
+  html[data-nav="min"] .app{grid-template-columns:44px 1fr;}
+  html[data-nav="min"] .sidebar{padding:14px 6px;}
+}
