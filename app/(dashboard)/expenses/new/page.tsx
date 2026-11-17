@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
+import { fetchProjectCodes } from "@/lib/domain/projectCups";
 import ExpenseForm, { type Holder, type TripOption } from "@/components/expenses/ExpenseForm";
 import { createExpenseReport } from "../actions";
 
@@ -39,6 +40,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: P
       <h1 style={{ marginBottom: 16 }}>New expense report</h1>
       {error && <div className="banner error">{error}</div>}
       <ExpenseForm
+        projectCodes={await fetchProjectCodes(supabase)}
         action={createExpenseReport}
         trips={(trips ?? []) as TripOption[]}
         workerName={profile?.full_name ?? ""}

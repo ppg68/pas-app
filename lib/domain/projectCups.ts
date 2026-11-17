@@ -22,6 +22,21 @@ export async function fetchProjectCups(
   return out;
 }
 
+export type ProjectCodes = { cup: string | null; donor: string | null };
+
+/** CUP\AID and official donor project code of each project (Progetti approvati), keyed by projectKey(code). */
+export async function fetchProjectCodes(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>
+): Promise<Record<string, ProjectCodes>> {
+  const { data } = await supabase.rpc("project_codes");
+  const out: Record<string, ProjectCodes> = {};
+  ((data ?? []) as { codice: string; cup: string | null; donor_code: string | null }[]).forEach((r) => {
+    out[r.codice] = { cup: r.cup, donor: r.donor_code };
+  });
+  return out;
+}
+
 export function cupForProject(cups: Record<string, string>, code: string | null | undefined): string | null {
   return cups[projectKey(code)] ?? null;
 }

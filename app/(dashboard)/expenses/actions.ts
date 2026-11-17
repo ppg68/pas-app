@@ -103,6 +103,7 @@ function parseReport(f: FormData) {
     worker_id: opt(f, "worker_id"),
     subject: str(f, "subject"),
     donor_code: opt(f, "donor_code"),
+    cup_code: opt(f, "cup_code"),
     internal_code: opt(f, "internal_code"),
     trip_id: opt(f, "trip_id"),
     car_model: opt(f, "car_model"),

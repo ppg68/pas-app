@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { FuelPriceRow } from "@/lib/domain/fuelPrices";
+import { fetchProjectCodes } from "@/lib/domain/projectCups";
 import ExpenseForm, { type Holder, type TripOption } from "@/components/expenses/ExpenseForm";
 import type { ExpenseFileRow, ExpenseLineRow, ExpenseReportRow } from "@/lib/domain/expenses";
 import { updateExpenseReport } from "../../actions";
@@ -50,6 +51,7 @@ export default async function EditExpensePage({
       <h1 style={{ marginBottom: 16 }}>Edit expense report {r.number}</h1>
       {error && <div className="banner error">{error}</div>}
       <ExpenseForm
+        projectCodes={await fetchProjectCodes(supabase)}
         action={updateExpenseReport.bind(null, id)}
         defaults={r}
         defaultLines={(ls ?? []) as ExpenseLineRow[]}

@@ -56,6 +56,7 @@ export type ExpenseReportRow = {
   worker_id: string | null;
   subject: string;
   donor_code: string | null;
+  cup_code: string | null;
   internal_code: string | null;
   trip_id: string | null;
   car_model: string | null;

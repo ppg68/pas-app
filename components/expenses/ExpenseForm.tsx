@@ -1,6 +1,7 @@
 "use client";
 
 import { FUELS, aciPrice, fuelKey, type FuelPriceRow } from "@/lib/domain/fuelPrices";
+import { projectKey, type ProjectCodes } from "@/lib/domain/projectCups";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -83,6 +84,7 @@ export default function ExpenseForm({
   defaultFiles,
   trips,
   fuelPrices = [],
+  projectCodes = {},
   workerName,
   people,
   canFileForOthers = false,
@@ -96,6 +98,8 @@ export default function ExpenseForm({
   defaultFiles?: ExpenseFileRow[];
   trips?: TripOption[];
   fuelPrices?: FuelPriceRow[];
+  /** CUP\AID and donor code per project (Approved projects) */
+  projectCodes?: Record<string, ProjectCodes>;
   workerName?: string;
   /** everybody registered in PAS: the choices for "report for another person" */
   people?: Holder[];
@@ -112,6 +116,17 @@ export default function ExpenseForm({
   const [subject, setSubject] = useState(d.subject ?? "");
   const [donor, setDonor] = useState(d.donor_code ?? "");
   const [internal, setInternal] = useState(d.internal_code ?? "");
+  const [cup, setCup] = useState(d.cup_code ?? "");
+  // the project in Approved projects fills in the CUP\AID and the official donor code
+  function changeInternal(v: string) {
+    setInternal(v);
+    const pc = projectCodes[projectKey(v)];
+    if (pc) {
+      setCup(pc.cup ?? "");
+      setDonor(pc.donor ?? "");
+    }
+  }
+  const known = !!projectCodes[projectKey(internal)];
   const [tripId, setTripId] = useState(d.trip_id ?? "");
   const [lines, setLines] = useState<Row[]>(() => (defaultLines ?? []).map((l) => fromRow(l, defaultFiles ?? [])));
   const router = useRouter();
@@ -152,7 +167,7 @@ export default function ExpenseForm({
     if (!t) return;
     setWorker(t.traveler_name);
     if (!subject) setSubject(`Trip ${t.number}: ${t.destination}`);
-    if (!internal && t.internal_code) setInternal(t.internal_code);
+    if (!internal && t.internal_code) changeInternal(t.internal_code);
     if (!donor && t.donor_code) setDonor(t.donor_code);
   }
 
@@ -288,12 +303,16 @@ export default function ExpenseForm({
       </div>
       <div style={row}>
         <div className="field" style={col()}>
-          <label>Official donor project code</label>
-          <input name="donor_code" value={donor} onChange={(e) => setDonor(e.target.value)} />
+          <label>Internal project code *</label>
+          <input name="internal_code" value={internal} onChange={(e) => changeInternal(e.target.value)} required />
         </div>
         <div className="field" style={col()}>
-          <label>Internal project code *</label>
-          <input name="internal_code" value={internal} onChange={(e) => setInternal(e.target.value)} required />
+          <label>Official donor project code{known ? " (from Approved projects)" : ""}</label>
+          <input name="donor_code" value={donor} onChange={(e) => setDonor(e.target.value)} readOnly={known && !!donor} />
+        </div>
+        <div className="field" style={col()}>
+          <label>CUP\AID{known ? " (from Approved projects)" : ""}</label>
+          <input name="cup_code" value={cup} onChange={(e) => setCup(e.target.value)} readOnly={known && !!cup} />
         </div>
       </div>
 
