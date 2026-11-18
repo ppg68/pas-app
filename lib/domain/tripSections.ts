@@ -42,7 +42,7 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
 
   if (!italy && (r.traveler_type === "employee" || r.traveler_type === "cococo")) {
     const L = r.letter ?? {};
-    sections.push({
+    if (Object.values(L).some(Boolean)) sections.push({
       title: "Dati per la lettera di incarico",
       rows: [
         ["Nato/a a", L.birth_place ?? ""],

@@ -7,17 +7,17 @@ import CopyText from "@/components/trips/CopyText";
 import { tripSections } from "@/lib/domain/tripSections";
 import { letterKind } from "@/lib/domain/tripLetter";
 import { STATUS_LABEL, TDR_TITLE, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
-import { cancelTripRequest, deleteTripRequest, signTripRequest } from "../actions";
+import { cancelTripRequest, deleteTripRequest, prepareTripLetter, saveTripLetterText, signTripRequest } from "../actions";
 
 export default async function TripDetail({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; letter?: string }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, letter } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,6 +37,7 @@ export default async function TripDetail({
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
   const canEdit = isOwner && r.status === "pending" && !anySigned;
+  const canPrepareLetter = Boolean(letterKind(r)) && (roles.includes("CAP") || isAdmin) && (r.status === "approved" || r.status === "closed");
   const sections = tripSections(r, approvals).filter((s) => s.title !== "Approvazioni e storia");
 
   return (
@@ -60,11 +61,6 @@ export default async function TripDetail({
           <a href={`/trips/${id}/pdf`} className="ghost">
             PDF
           </a>
-          {letterKind(r) && (
-            <a href={`/trips/${id}/letter`} className="primary" title="Lettera di incarico (Word), pronta da completare e firmare">
-              Lettera di incarico (Word)
-            </a>
-          )}
         </div>
       </div>
 
@@ -119,6 +115,109 @@ export default async function TripDetail({
           </div>
         )}
       </div>
+
+      {canPrepareLetter && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Lettera di incarico</h2>
+          {letter === "ready" && <div className="banner">Testo della lettera preparato. Controllalo, correggilo se serve e scarica il Word.</div>}
+          {letter === "saved" && <div className="banner">Testo salvato.</div>}
+          <p className="subtitle" style={{ margin: "0 0 10px" }}>
+            Compila i dati qui sotto e prepara il testo della lettera. Poi puoi modificare ogni paragrafo prima di scaricare il Word.
+          </p>
+          <form action={prepareTripLetter.bind(null, id)} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div className="field" style={{ flex: 2, minWidth: 200 }}>
+                <label>Nato/a a</label>
+                <input name="l_birth_place" defaultValue={r.letter?.birth_place ?? ""} />
+              </div>
+              <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                <label>Il</label>
+                <input name="l_birth_date" type="date" defaultValue={r.letter?.birth_date ?? ""} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div className="field" style={{ flex: 2, minWidth: 220 }}>
+                <label>Residente a (città e indirizzo)</label>
+                <input name="l_residence" defaultValue={r.letter?.residence ?? ""} />
+              </div>
+              <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                <label>Codice fiscale</label>
+                <input name="l_tax_code" defaultValue={r.letter?.tax_code ?? ""} />
+              </div>
+            </div>
+            {r.traveler_type === "cococo" && (
+              <>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Profilo professionale (A-F)</label>
+                    <select name="l_profile" defaultValue={r.letter?.profile ?? ""}>
+                      <option value="">—</option>
+                      {["A", "B", "C", "D", "E", "F"].map((x) => (
+                        <option key={x} value={x}>
+                          {x}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Compenso giornaliero lordo (€)</label>
+                    <input name="l_daily_fee" defaultValue={r.letter?.daily_fee ?? ""} inputMode="decimal" />
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                    <label>Compenso aggiuntivo lordo (€)</label>
+                    <input name="l_extra_fee" defaultValue={r.letter?.extra_fee ?? ""} inputMode="decimal" />
+                  </div>
+                </div>
+                <label className="checkbox-row">
+                  <input type="checkbox" name="l_contract_fee" defaultChecked={r.letter?.contract_fee ?? false} /> Si applica anche il compenso
+                  giornaliero già previsto dal contratto in essere
+                </label>
+              </>
+            )}
+            <SubmitButton className="ghost" pendingLabel="Preparazione…" style={{ width: "fit-content" }}>
+              {r.letter_text ? "Rigenera il testo dai dati (perde le modifiche a mano)" : "Prepara il testo della lettera"}
+            </SubmitButton>
+          </form>
+
+          {r.letter_text && (
+            <>
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                <a href={`/trips/${id}/letter`} className="primary">
+                  Scarica Word (.docx)
+                </a>
+              </div>
+              <p className="subtitle" style={{ margin: "0 0 10px" }}>
+                Ogni riga è un paragrafo. Metti <b>due asterischi</b> attorno alle parole da stampare in grassetto. Spunta &ldquo;togli&rdquo; per eliminare un articolo.
+              </p>
+              <form action={saveTripLetterText.bind(null, id)} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {r.letter_text.map((b, i) => (
+                  <div key={b.key + i} className="field" style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }}>
+                    {b.title ? (
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <textarea name={`title_${i}`} defaultValue={b.title} rows={b.title.includes("\n") ? 2 : 1} style={{ flex: 1, fontWeight: 600, resize: "vertical" }} />
+                        <label className="checkbox-row" style={{ whiteSpace: "nowrap" }}>
+                          <input type="checkbox" name={`remove_${i}`} /> togli
+                        </label>
+                      </div>
+                    ) : (
+                      <input type="hidden" name={`title_${i}`} value="" />
+                    )}
+                    <textarea
+                      name={`body_${i}`}
+                      defaultValue={b.body}
+                      rows={Math.min(18, Math.max(3, b.body.split("\n").length + 1))}
+                      style={{ resize: "vertical", fontFamily: "inherit" }}
+                    />
+                  </div>
+                ))}
+                <SubmitButton style={{ width: "fit-content" }} pendingLabel="Salvataggio…">
+                  Salva il testo
+                </SubmitButton>
+              </form>
+            </>
+          )}
+        </div>
+      )}
 
       {sections.map((s) => (
         <div key={s.title} className="card" style={{ marginBottom: 14 }}>

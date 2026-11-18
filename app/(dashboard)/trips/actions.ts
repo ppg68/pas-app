@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
 import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type ReimbKind, type LetterData, ITALY_TRANSPORT_KEYS, tripDays, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
 import { tripSections, tripSectionsHtml } from "@/lib/domain/tripSections";
+import { buildLetterBlocks } from "@/lib/domain/tripLetter";
 
 // redirect() throws internally: used to bring a readable message back to the page.
 function fail(path: string, message: string): never {
@@ -111,7 +112,6 @@ function parseTripBase(f: FormData) {
     notes: opt(f, "notes"),
     needs_logistics: flights || visa || insurance === "oikos" || hotel,
     allocations: [] as Allocation[],
-    letter: parseLetter(f),
   };
 }
 
@@ -448,4 +448,42 @@ export async function deleteTripRequest(id: string) {
   if (error) fail(`/trips/${id}`, error.message);
   revalidatePath("/trips");
   redirect("/trips");
+}
+
+// ------------------------------------------------------------------ mission letter (CAP / ADMIN)
+
+/** CAP: saves the data of the letter and (re)builds the editable text from the sheet and the template. */
+export async function prepareTripLetter(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: req } = await supabase.from("trip_requests").select("*").eq("id", id).maybeSingle();
+  if (!req) fail("/trips", "Richiesta non trovata.");
+  const letter: LetterData = {};
+  for (const k of ["birth_place", "birth_date", "residence", "tax_code", "profile", "daily_fee", "extra_fee"] as const) {
+    const v = str(formData, `l_${k}`);
+    if (v) letter[k] = k === "tax_code" ? v.toUpperCase() : v;
+  }
+  if (formData.get("l_contract_fee") === "on") letter.contract_fee = true;
+  const blocks = buildLetterBlocks({ ...(req as TripRow), letter });
+  const { error } = await supabase.rpc("save_trip_letter", { rid: id, p_letter: letter, p_text: JSON.parse(JSON.stringify(blocks)), p_set_text: true });
+  if (error) fail(`/trips/${id}`, error.message);
+  revalidatePath(`/trips/${id}`);
+  redirect(`/trips/${id}?letter=ready`);
+}
+
+/** CAP: saves the hand-edited text. Fields are title_<i> / body_<i> in block order; "remove_<i>" deletes a block. */
+export async function saveTripLetterText(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: req } = await supabase.from("trip_requests").select("letter_text").eq("id", id).maybeSingle();
+  const current = (req?.letter_text ?? []) as { key: string; title: string; body: string }[];
+  const next = current
+    .map((b, i) => ({
+      key: b.key,
+      title: String(formData.get(`title_${i}`) ?? b.title),
+      body: String(formData.get(`body_${i}`) ?? b.body).replace(/\r\n/g, "\n"),
+    }))
+    .filter((_, i) => formData.get(`remove_${i}`) !== "on");
+  const { error } = await supabase.rpc("save_trip_letter", { rid: id, p_letter: null, p_text: next, p_set_text: true });
+  if (error) fail(`/trips/${id}`, error.message);
+  revalidatePath(`/trips/${id}`);
+  redirect(`/trips/${id}?letter=saved`);
 }

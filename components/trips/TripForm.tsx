@@ -15,7 +15,6 @@ import {
   TRAVELER_LABEL,
   type Allocation,
   type CostType,
-  type LetterData,
   type InsuranceMode,
   type LodgingMode,
   type TripRow,
@@ -73,7 +72,6 @@ export default function TripForm({
   const [hotel, setHotel] = useState(d.hotel_needed ?? false);
   const [mainCode, setMainCode] = useState(d.internal_code ?? "");
   const [alloc, setAlloc] = useState<AllocRow[]>(() => (d.allocations ?? []).map(fromAlloc));
-  const [letter, setLetter] = useState<LetterData>(d.letter ?? {});
   const [rate, setRate] = useState<string>(d.per_diem_rate != null ? String(d.per_diem_rate) : "");
   const transport = d.transport ?? [];
   const router = useRouter();
@@ -195,64 +193,6 @@ export default function TripForm({
           (serve l'autorizzazione)
         </label>
       </Section>
-
-      {(type === "employee" || type === "cococo") && (
-        <Section title="Dati per la lettera di incarico">
-          <p className="subtitle" style={{ margin: 0 }}>
-            Servono per scrivere la lettera di incarico (facoltativi: quello che manca resta da completare nel Word).
-          </p>
-          <input type="hidden" name="letter_json" value={JSON.stringify(letter)} />
-          <div style={row}>
-            <div className="field" style={col(2, 200)}>
-              <label>Nato/a a</label>
-              <input value={letter.birth_place ?? ""} onChange={(e) => setLetter({ ...letter, birth_place: e.target.value })} />
-            </div>
-            <div className="field" style={col()}>
-              <label>Il</label>
-              <input type="date" value={letter.birth_date ?? ""} onChange={(e) => setLetter({ ...letter, birth_date: e.target.value })} />
-            </div>
-          </div>
-          <div style={row}>
-            <div className="field" style={col(2, 220)}>
-              <label>Residente a (città e indirizzo)</label>
-              <input value={letter.residence ?? ""} onChange={(e) => setLetter({ ...letter, residence: e.target.value })} />
-            </div>
-            <div className="field" style={col()}>
-              <label>Codice fiscale</label>
-              <input value={letter.tax_code ?? ""} onChange={(e) => setLetter({ ...letter, tax_code: e.target.value.toUpperCase() })} />
-            </div>
-          </div>
-          {type === "cococo" && (
-            <>
-              <div style={row}>
-                <div className="field" style={col()}>
-                  <label>Profilo professionale (A-F, art. 3 Accordo Collettivo)</label>
-                  <select value={letter.profile ?? ""} onChange={(e) => setLetter({ ...letter, profile: e.target.value })}>
-                    <option value="">—</option>
-                    {["A", "B", "C", "D", "E", "F"].map((x) => (
-                      <option key={x} value={x}>
-                        {x}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field" style={col()}>
-                  <label>Compenso giornaliero lordo (€)</label>
-                  <MoneyInput value={letter.daily_fee ?? ""} onValueChange={(v: string) => setLetter({ ...letter, daily_fee: v })} />
-                </div>
-                <div className="field" style={col()}>
-                  <label>Compenso aggiuntivo lordo (€)</label>
-                  <MoneyInput value={letter.extra_fee ?? ""} onValueChange={(v: string) => setLetter({ ...letter, extra_fee: v })} />
-                </div>
-              </div>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={letter.contract_fee ?? false} onChange={(e) => setLetter({ ...letter, contract_fee: e.target.checked })} /> Si applica
-                anche il compenso giornaliero già previsto dal contratto in essere
-              </label>
-            </>
-          )}
-        </Section>
-      )}
 
       <Section title="Missione">
         <div style={row}>

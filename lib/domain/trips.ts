@@ -161,6 +161,7 @@ export type TripRow = {
   needs_logistics: boolean;
   allocations: Allocation[];
   letter: LetterData;
+  letter_text: { key: string; title: string; body: string }[] | null;
   booked_by: string | null;
   booked_by_name: string | null;
   booked_at: string | null;
