@@ -27,29 +27,29 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   const missing = (id: string) =>
     approvals
       .filter((a) => a.request_id === id && !a.signed_at)
-      .map((a) => (a.signer_role === "RAC" ? "RAC / CAR" : "Superior"))
+      .map((a) => (a.signer_role === "RAC" ? "RAC / CAR" : "Responsabile"))
       .join(", ");
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Trips</h1>
-          <p className="subtitle">Authorization of trips and missions in Italy and abroad (PR09). Logistics is informed by email.</p>
+          <h1>Trasferte</h1>
+          <p className="subtitle">Autorizzazione di trasferte in Italia e missioni all'estero (PR09). La Logistica viene informata per email.</p>
         </div>
         <div className="page-actions">
           <Link href="/trips/new" className="primary">
-            + New trip
+            + Nuova trasferta
           </Link>
         </div>
       </div>
 
-      {created && <div className="banner">Trip request {created} sent. The approvers have been notified by email.</div>}
-      {deleted && <div className="banner">{deleted} trip request{deleted === "1" ? "" : "s"} deleted.</div>}
-      {isAdmin && rows.length > 0 && <BulkDeleteBar formId="trips-bulk" action={bulkDeleteTrips} what="trip requests" />}
+      {created && <div className="banner">Richiesta {created} inviata. Chi deve approvare è stato avvisato per email.</div>}
+      {deleted && <div className="banner">{deleted} richiest{deleted === "1" ? "a eliminata" : "e eliminate"}.</div>}
+      {isAdmin && rows.length > 0 && <BulkDeleteBar formId="trips-bulk" action={bulkDeleteTrips} what="richieste di trasferta" />}
 
       {rows.length === 0 ? (
-        <p className="empty">No trip requests yet.</p>
+        <p className="empty">Nessuna richiesta di trasferta.</p>
       ) : (
         <div className="table-wrap">
           <table>
@@ -60,12 +60,12 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
                     <SelectAllBox formId="trips-bulk" />
                   </th>
                 )}
-                <th>No.</th>
-                <th>Traveler</th>
-                <th>Destination</th>
-                <th>Period</th>
-                <th>Requested by</th>
-                <th>Status</th>
+                <th>N.</th>
+                <th>Viaggiatore</th>
+                <th>Destinazione</th>
+                <th>Periodo</th>
+                <th>Richiesta da</th>
+                <th>Stato</th>
               </tr>
             </thead>
             <tbody>
@@ -73,7 +73,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
                 <tr key={r.id}>
                   {isAdmin && (
                     <td>
-                      <input type="checkbox" name="ids" value={r.id} form="trips-bulk" aria-label={`Select ${r.number}`} />
+                      <input type="checkbox" name="ids" value={r.id} form="trips-bulk" aria-label={`Seleziona ${r.number}`} />
                     </td>
                   )}
                   <td>
@@ -92,7 +92,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
                       {STATUS_LABEL[r.status]}
                     </span>
                     {r.status === "pending" && missing(r.id) ? (
-                      <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {missing(r.id)}</span>
+                      <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>in attesa: {missing(r.id)}</span>
                     ) : null}
                   </td>
                 </tr>

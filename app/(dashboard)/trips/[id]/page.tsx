@@ -5,6 +5,7 @@ import ConfirmForm from "@/components/ConfirmForm";
 import SubmitButton from "@/components/SubmitButton";
 import CopyText from "@/components/trips/CopyText";
 import { tripSections } from "@/lib/domain/tripSections";
+import { letterKind } from "@/lib/domain/tripLetter";
 import { STATUS_LABEL, TDR_TITLE, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
 import { cancelTripRequest, deleteTripRequest, signTripRequest } from "../actions";
 
@@ -36,12 +37,12 @@ export default async function TripDetail({
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
   const canEdit = isOwner && r.status === "pending" && !anySigned;
-  const sections = tripSections(r, approvals).filter((s) => s.title !== "Approvals and history");
+  const sections = tripSections(r, approvals).filter((s) => s.title !== "Approvazioni e storia");
 
   return (
     <div style={{ maxWidth: 820 }}>
       <p style={{ marginBottom: 6 }}>
-        <Link href="/trips">← Trips</Link>
+        <Link href="/trips">← Trasferte</Link>
       </p>
       <div className="page-header">
         <div>
@@ -49,7 +50,7 @@ export default async function TripDetail({
             {r.number} · {r.traveler_name}
           </h1>
           <p className="subtitle">
-            {r.destination} · requested by {r.requester_name} on {dt(r.created_at)}
+            {r.destination} · richiesta da {r.requester_name} il {dt(r.created_at)}
           </p>
         </div>
         <div className="page-actions">
@@ -59,30 +60,35 @@ export default async function TripDetail({
           <a href={`/trips/${id}/pdf`} className="ghost">
             PDF
           </a>
+          {letterKind(r) && (
+            <a href={`/trips/${id}/letter`} className="primary" title="Lettera di incarico (Word), pronta da completare e firmare">
+              Lettera di incarico (Word)
+            </a>
+          )}
         </div>
       </div>
 
       {error && <div className="banner error">{error}</div>}
 
       <div className="card" style={{ marginBottom: 14 }}>
-        <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvals</h2>
+        <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvazioni</h2>
         {!approvals.some((a) => a.signer_role === "PM") && (
           <p className="subtitle" style={{ margin: "0 0 6px" }}>
-            No superior recorded for this request.
+            Nessun responsabile registrato per questa richiesta.
           </p>
         )}
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Superior"}</b>
+            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Responsabile"}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
-              <span className="stamp brand">approved {dt(a.signed_at)}</span>
+              <span className="stamp brand">approvata {dt(a.signed_at)}</span>
             ) : r.status === "pending" && a.user_id === user?.id ? (
               <form action={signTripRequest.bind(null, id, a.signer_role)}>
-                <SubmitButton pendingLabel="Approving…">Approve</SubmitButton>
+                <SubmitButton pendingLabel="Approvazione…">Approva</SubmitButton>
               </form>
             ) : (
-              <span className="stamp">waiting</span>
+              <span className="stamp">in attesa</span>
             )}
           </div>
         ))}
@@ -90,23 +96,23 @@ export default async function TripDetail({
           <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             {canEdit && (
               <Link href={`/trips/${id}/edit`} className="ghost">
-                Edit request
+                Modifica la richiesta
               </Link>
             )}
             {(canEdit || isAdmin) && (
               <ConfirmForm
                 action={deleteTripRequest.bind(null, id)}
-                message={anySigned ? "This request has been signed. Delete it for good?" : "Delete this request?"}
+                message={anySigned ? "Questa richiesta è già stata approvata. Eliminarla definitivamente?" : "Eliminare questa richiesta?"}
               >
                 <button type="submit" className="ghost danger">
-                  Delete
+                  Elimina
                 </button>
               </ConfirmForm>
             )}
             {!canEdit && isOwner && r.status === "pending" && (
-              <ConfirmForm action={cancelTripRequest.bind(null, id)} message="Cancel this request?">
+              <ConfirmForm action={cancelTripRequest.bind(null, id)} message="Annullare questa richiesta?">
                 <button type="submit" className="ghost danger">
-                  Cancel request
+                  Annulla la richiesta
                 </button>
               </ConfirmForm>
             )}

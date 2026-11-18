@@ -8,80 +8,96 @@ export type LodgingMode = "none" | "per_diem" | "receipts" | "free_lodging" | "s
 export type InsuranceMode = "none" | "oikos" | "self";
 
 export const STATUS_LABEL: Record<TripStatus, string> = {
-  pending: "Awaiting approval",
-  approved: "Approved",
-  closed: "Closed",
-  cancelled: "Cancelled",
+  pending: "In attesa di approvazione",
+  approved: "Approvata",
+  closed: "Chiusa",
+  cancelled: "Annullata",
 };
 
 export const SCOPE_LABEL: Record<TripScope, string> = {
-  italy: "Italy",
-  eu: "Europe (EU, Switzerland...)",
-  extra_eu: "Extra EU",
+  italy: "Italia, Svizzera ed Europa in giornata",
+  eu: "Missione in Europa (UE, Svizzera...)",
+  extra_eu: "Missione extra UE",
 };
 
 export const TRAVELER_LABEL: Record<TravelerType, string> = {
-  employee: "Employee",
-  cococo: "Co.Co.Co.",
-  volunteer: "Volunteer",
-  partner: "Project partner staff",
-  other: "Other",
+  employee: "Dipendente",
+  cococo: "Collaboratore (Co.Co.Co.)",
+  volunteer: "Volontario",
+  partner: "Personale di un partner di progetto",
+  other: "Altro",
 };
 
 export const LODGING_LABEL: Record<LodgingMode, string> = {
-  none: "No board and lodging reimbursement",
-  per_diem: "Per diem (flat rate)",
-  receipts: "Reimbursement against receipts (no per diem)",
-  free_lodging: "Free lodging at an Oikos facility (per diem proportioned)",
-  self: "At the traveler's expense",
+  none: "Nessun rimborso di vitto e alloggio",
+  per_diem: "Per diem (importo giornaliero forfettario)",
+  receipts: "Rimborso a piè di lista (senza per diem)",
+  free_lodging: "Alloggio gratuito presso una struttura Oikos (per diem riproporzionato)",
+  self: "A carico del viaggiatore",
 };
 
 export const INSURANCE_LABEL: Record<InsuranceMode, string> = {
-  none: "Not needed (EU health card)",
-  oikos: "To be activated by Oikos",
-  self: "Traveler has their own cover",
+  none: "Non serve (tessera sanitaria europea)",
+  oikos: "Da attivare a cura di Oikos (come da procedure)",
+  self: "Il viaggiatore ha una copertura propria",
 };
 
 export type ReimbKind = "either" | "both" | "expat_exit";
 export const REIMB_LABEL: Record<ReimbKind, string> = {
-  either: "Reimbursement against receipts of meals or lodging, or free meals or lodging",
-  both: "Reimbursement against receipts of meals and lodging, or free meals and lodging",
-  expat_exit: "Reimbursement of the expatriate's exit trip for the visa renewal (max EUR 250)",
+  either: "Rimborso analitico delle spese di vitto o alloggio, oppure vitto o alloggio gratuito",
+  both: "Rimborso analitico delle spese di vitto e alloggio, oppure vitto e alloggio gratuito",
+  expat_exit: "Rimborso analitico delle spese di viaggio dell'espatriato per l'uscita dal paese a seguito di rinnovo visto, fino a un massimo di 250,00 euro",
 };
 /** Transport options of a trip in Italy (AA09): no plane. */
 export const ITALY_TRANSPORT_KEYS = ["company_car", "own_car", "own_electric", "public"];
 
 export const TRANSPORT_OPTIONS: [string, string][] = [
-  ["company_car", "Company car"],
-  ["own_car", "Own car (petrol / diesel / LPG)"],
-  ["own_electric", "Own electric car"],
-  ["public", "Public transport (car sharing, train, bus / tram)"],
-  ["plane", "Plane"],
+  ["company_car", "Auto di servizio"],
+  ["own_car", "Mezzo proprio a benzina/diesel/GPL"],
+  ["own_electric", "Mezzo proprio elettrico"],
+  ["public", "Mezzo pubblico (car sharing, treno, autobus/tram)"],
+  ["plane", "Aereo"],
 ];
 export const TRANSPORT_LABEL: Record<string, string> = Object.fromEntries(TRANSPORT_OPTIONS);
 
 // Per diem grid from the activation sheet (gross daily amount: employee / Co.Co.Co.). Valid for missions up to
 // 3 weeks; longer ones need an agreement with the Direction. Edit this list when the grid changes.
 export const PER_DIEM_GRID: { label: string; employee: number; cococo: number }[] = [
-  { label: "Europe and other extra EU destinations", employee: 133.5, cococo: 136 },
-  { label: "Lebanon, Mozambique", employee: 164, cococo: 168.5 },
-  { label: "Tanzania, Thailand", employee: 141, cococo: 144.5 },
+  { label: "Europa e altre destinazioni extra UE", employee: 133.5, cococo: 136 },
+  { label: "Libano, Mozambico", employee: 164, cococo: 168.5 },
+  { label: "Tanzania, Thailandia", employee: 141, cococo: 144.5 },
   { label: "Tunisia", employee: 140.5, cococo: 143.5 },
 ];
 
 export const TDR_TITLE = "Termini di Riferimento";
 
+/** Dati per la lettera di incarico (PR09 AA04-AA07), tutti facoltativi: gli spazi vuoti restano nel Word. */
+export type LetterData = {
+  birth_place?: string;
+  birth_date?: string;
+  residence?: string;
+  tax_code?: string;
+  /** profilo professionale A-F dell'Accordo Collettivo (solo collaboratori) */
+  profile?: string;
+  /** compenso giornaliero lordo (collaboratori) */
+  daily_fee?: string;
+  /** compenso aggiuntivo lordo (collaboratori) */
+  extra_fee?: string;
+  /** usare il compenso giornaliero già previsto dal contratto */
+  contract_fee?: boolean;
+};
+
 export type CostType = "compensation" | "per_diem" | "expenses" | "flight" | "visa" | "insurance" | "bookings";
 
 /** The costs of a trip that are charged to projects, in the order shown. */
 export const COST_TYPES: { key: CostType; label: string }[] = [
-  { key: "compensation", label: "Daily compensation" },
+  { key: "compensation", label: "Compenso giornaliero" },
   { key: "per_diem", label: "Per diem" },
-  { key: "expenses", label: "Board and lodging expenses" },
-  { key: "flight", label: "Plane ticket" },
-  { key: "visa", label: "Visa" },
-  { key: "insurance", label: "Insurance" },
-  { key: "bookings", label: "Train / hotel / other (Logistics)" },
+  { key: "expenses", label: "Spese di vitto e alloggio" },
+  { key: "flight", label: "Biglietto aereo" },
+  { key: "visa", label: "Visto" },
+  { key: "insurance", label: "Assicurazione" },
+  { key: "bookings", label: "Treno / albergo / altro (Logistica)" },
 ];
 export const COST_LABEL = Object.fromEntries(COST_TYPES.map((c) => [c.key, c.label])) as Record<CostType, string>;
 
@@ -144,6 +160,7 @@ export type TripRow = {
   notes: string | null;
   needs_logistics: boolean;
   allocations: Allocation[];
+  letter: LetterData;
   booked_by: string | null;
   booked_by_name: string | null;
   booked_at: string | null;

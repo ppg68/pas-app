@@ -109,7 +109,7 @@ export default function TripItalyForm({
       setBusy(false);
     } catch (err) {
       setBusy(false);
-      setError(err instanceof Error ? err.message : "Could not save the request. Try again.");
+      setError(err instanceof Error ? err.message : "Non è stato possibile salvare la richiesta. Riprova.");
     }
   }
 
@@ -124,44 +124,44 @@ export default function TripItalyForm({
       <input type="hidden" name="form" value="italy" />
       <input type="hidden" name="allocations_json" value={JSON.stringify(shown)} />
 
-      <Section title="Who travels">
+      <Section title="Chi viaggia">
         <div style={row}>
           <div className="field" style={col(2, 220)}>
-            <label>Name and surname of the traveler *</label>
+            <label>Nome e cognome di chi viaggia *</label>
             <input name="traveler_name" defaultValue={d.traveler_name ?? ""} required />
           </div>
           <div className="field" style={col(1, 200)}>
-            <label>Email</label>
+            <label>Indirizzo email</label>
             <input name="traveler_email" type="email" defaultValue={d.traveler_email ?? ""} />
           </div>
         </div>
         <div className="field">
-          <label>Role of the traveler</label>
+          <label>Ruolo</label>
           <input name="role_title" defaultValue={d.role_title ?? ""} />
         </div>
       </Section>
 
-      <Section title="The trip">
+      <Section title="La trasferta">
         <div className="field">
-          <label>Place (city) *</label>
-          <input name="destination" defaultValue={d.destination ?? ""} required placeholder="e.g. Roma" />
+          <label>Luogo (città, o città e paese per Svizzera/Europa) *</label>
+          <input name="destination" defaultValue={d.destination ?? ""} required placeholder="es. Roma" />
         </div>
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Day, or from *</label>
+            <label>Il giorno, oppure dal *</label>
             <input name="start_date" type="date" value={start} onChange={(e) => setStart(e.target.value)} required />
           </div>
           <div className="field" style={col()}>
-            <label>To (leave empty for one day)</label>
+            <label>Al (vuoto se è un solo giorno)</label>
             <input name="end_date" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
           </div>
         </div>
         <div className="field">
-          <label>Reasons of the trip *</label>
+          <label>Motivi della trasferta *</label>
           <textarea name="tdr" rows={4} style={{ resize: "vertical" }} defaultValue={d.tdr ?? ""} required />
         </div>
         <div className="field">
-          <label>Using</label>
+          <label>Utilizzando</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {TRANSPORT_OPTIONS.filter(([k]) => ITALY_TRANSPORT_KEYS.includes(k)).map(([k, label]) => (
               <label key={k} className="checkbox-row">
@@ -172,10 +172,10 @@ export default function TripItalyForm({
         </div>
       </Section>
 
-      <Section title="Costs">
+      <Section title="Costi">
         <div className="field" style={{ maxWidth: 260 }}>
-          <label>Advance requested (€)</label>
-          <MoneyInput name="advance_amount" defaultValue={d.advance_amount ?? ""} placeholder="none" />
+          <label>Anticipo richiesto (€)</label>
+          <MoneyInput name="advance_amount" defaultValue={d.advance_amount ?? ""} placeholder="nessuno" />
         </div>
         <label className="checkbox-row">
           <input
@@ -187,10 +187,10 @@ export default function TripItalyForm({
               if (e.target.checked) seed("compensation");
             }}
           />{" "}
-          The normal contractual compensation is charged to a project
+          Il normale compenso contrattuale è caricato su un progetto
         </label>
         <div className="field">
-          <label>Board and lodging</label>
+          <label>Vitto e alloggio</label>
           <select
             name="lodging_mode"
             value={mode}
@@ -200,18 +200,18 @@ export default function TripItalyForm({
               if (v === "per_diem") seed("per_diem");
             }}
           >
-            <option value="none">No allowance and no reimbursement</option>
-            <option value="per_diem">Trip allowance (per diem)</option>
-            <option value="receipts">Reimbursement of expenses</option>
+            <option value="none">Nessuna indennità e nessun rimborso</option>
+            <option value="per_diem">Indennità di trasferta (Per Diem)</option>
+            <option value="receipts">Rimborso delle spese</option>
           </select>
         </div>
         {mode === "per_diem" && (
           <div className="field" style={{ maxWidth: 260 }}>
-            <label>Per diem (€ per day) *</label>
+            <label>Per Diem (€ al giorno) *</label>
             <MoneyInput name="per_diem_rate" defaultValue={rate} onValueChange={setRate} />
             {days && Number.isFinite(rateNum) && (
               <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-                {days} {days === 1 ? "day" : "days"} × {rateNum.toLocaleString("it-IT", { minimumFractionDigits: 2 })} ={" "}
+                {days} {days === 1 ? "giorno" : "giorni"} × {rateNum.toLocaleString("it-IT", { minimumFractionDigits: 2 })} ={" "}
                 {(days * rateNum).toLocaleString("it-IT", { minimumFractionDigits: 2 })} €
               </span>
             )}
@@ -219,10 +219,10 @@ export default function TripItalyForm({
         )}
         {mode === "receipts" && (
           <div className="field">
-            <label>Which reimbursement *</label>
+            <label>Quale rimborso *</label>
             <select name="reimb_kind" defaultValue={d.reimb_kind ?? ""} required>
               <option value="" disabled>
-                Choose…
+                Scegli…
               </option>
               {(Object.keys(REIMB_LABEL) as ReimbKind[]).map((k) => (
                 <option key={k} value={k}>
@@ -242,20 +242,20 @@ export default function TripItalyForm({
               if (e.target.checked) seed("bookings");
             }}
           />{" "}
-          Istituto Oikos buys the plane / train ticket or books the hotel
+          Acquisto del biglietto aereo/treno o dell'albergo da parte di Istituto Oikos E.T.S.
         </label>
         {hotel && (
           <div className="field">
-            <label>What Logistics has to book (route, dates, preferences)</label>
+            <label>Cosa deve prenotare la Logistica (tratta, date, preferenze)</label>
             <textarea name="tickets_note" rows={2} style={{ resize: "vertical" }} defaultValue={d.tickets_note ?? ""} />
           </div>
         )}
       </Section>
 
       {types.length > 0 && (
-        <Section title="Costs charged to projects">
+        <Section title="Costi da caricare sui progetti">
           <p className="subtitle" style={{ margin: 0 }}>
-            For each cost say which project and budget line it will be charged to. If more projects are involved, add a row for each.
+            Per ogni costo indica il progetto e la budget line su cui verrà caricato. Se i progetti sono più di uno, aggiungi una riga per ciascuno.
           </p>
           {types.map((c) => (
             <div key={c} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -264,14 +264,14 @@ export default function TripItalyForm({
                 a.cost_type !== c ? null : (
                   <div key={i} style={{ ...row, alignItems: "flex-end" }}>
                     <div className="field" style={col(2, 150)}>
-                      <label>Project code *</label>
+                      <label>Progetto n° *</label>
                       <input name={`alloc_${i}_code`} value={a.project_code} onChange={(e) => patch(i, { project_code: e.target.value })} />
                     </div>
                     <div className="field" style={col(1, 110)}>
-                      <label>Budget line *</label>
+                      <label>Budget line n° *</label>
                       <input name={`alloc_${i}_bl`} value={a.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
                     </div>
-                    <button type="button" className="ghost danger" onClick={() => removeRow(i)} title="Remove the row">
+                    <button type="button" className="ghost danger" onClick={() => removeRow(i)} title="Togli la riga">
                       ×
                     </button>
                   </div>
@@ -280,7 +280,7 @@ export default function TripItalyForm({
               <div className="field" style={{ alignItems: "flex-start" }}>
                 <input type="hidden" name={`alloc_add_${c}`} />
                 <button type="button" className="ghost" onClick={() => setAlloc((a) => [...a, newRow(c)])}>
-                  + Add a project
+                  + Aggiungi un progetto
                 </button>
               </div>
             </div>
@@ -288,27 +288,26 @@ export default function TripItalyForm({
         </Section>
       )}
 
-      <Section title="Reimbursement">
+      <Section title="Rimborso">
         <p className="subtitle" style={{ margin: 0 }}>
-          To be reimbursed, the traveler will file an expense report with the travel tickets, the invoices / receipts for meals and
-          lodging, taxi and parking receipts, motorway tolls and a summary of the trip made with the own car.
+          Ai fini del rimborso, il/la richiedente si impegna a produrre una Nota Spese corredata da titoli di viaggio, fatture/ricevute per vitto e alloggio, ricevute taxi e parcheggio, spese di autostrada, riepilogo del viaggio effettuato con mezzo proprio.
         </p>
         <div className="field">
-          <label>Other notes</label>
+          <label>Altre note</label>
           <textarea name="notes" rows={2} style={{ resize: "vertical" }} defaultValue={d.notes ?? ""} />
         </div>
       </Section>
 
       {superiors && (
-        <Section title="Authorization">
+        <Section title="Autorizzazione">
           <p className="subtitle" style={{ margin: 0 }}>
-            The request is sent to the person who authorizes the trip (the Director or the head of the area).
+            La richiesta va a chi autorizza la trasferta (il Direttore o il Responsabile di Area).
           </p>
           <div className="field" style={{ maxWidth: 420 }}>
-            <label>Who authorizes *</label>
+            <label>Chi autorizza *</label>
             <select name="approver_PM" required defaultValue="">
               <option value="" disabled>
-                Choose…
+                Scegli…
               </option>
               {superiors.map((h) => (
                 <option key={h.id} value={h.id}>
@@ -321,7 +320,7 @@ export default function TripItalyForm({
       )}
 
       <button type="submit" className="primary" style={{ width: "fit-content", marginTop: 6 }} disabled={busy}>
-        {busy ? "Saving…" : submitLabel}
+        {busy ? "Salvataggio…" : submitLabel}
       </button>
     </form>
   );

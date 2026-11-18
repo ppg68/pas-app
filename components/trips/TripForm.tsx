@@ -8,12 +8,14 @@ import {
   COST_LABEL,
   COST_TYPES,
   INSURANCE_LABEL,
+  PER_DIEM_GRID,
   LODGING_LABEL,
   SCOPE_LABEL,
   TRANSPORT_OPTIONS,
   TRAVELER_LABEL,
   type Allocation,
   type CostType,
+  type LetterData,
   type InsuranceMode,
   type LodgingMode,
   type TripRow,
@@ -71,6 +73,8 @@ export default function TripForm({
   const [hotel, setHotel] = useState(d.hotel_needed ?? false);
   const [mainCode, setMainCode] = useState(d.internal_code ?? "");
   const [alloc, setAlloc] = useState<AllocRow[]>(() => (d.allocations ?? []).map(fromAlloc));
+  const [letter, setLetter] = useState<LetterData>(d.letter ?? {});
+  const [rate, setRate] = useState<string>(d.per_diem_rate != null ? String(d.per_diem_rate) : "");
   const transport = d.transport ?? [];
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +145,7 @@ export default function TripForm({
       setBusy(false);
     } catch (err) {
       setBusy(false);
-      setError(err instanceof Error ? err.message : "Could not save the request. Try again.");
+      setError(err instanceof Error ? err.message : "Non è stato possibile salvare la richiesta. Riprova.");
     }
   }
 
@@ -155,20 +159,20 @@ export default function TripForm({
       {error && <div className="banner error">{error}</div>}
       <input type="hidden" name="form" value="abroad" />
       <input type="hidden" name="allocations_json" value={JSON.stringify(shown)} />
-      <Section title="Traveler">
+      <Section title="Viaggiatore">
         <div style={row}>
           <div className="field" style={col(2, 220)}>
-            <label>Name and surname *</label>
+            <label>Nome e cognome *</label>
             <input name="traveler_name" defaultValue={d.traveler_name ?? ""} required />
           </div>
           <div className="field" style={col(1, 200)}>
-            <label>Email</label>
+            <label>Indirizzo email</label>
             <input name="traveler_email" type="email" defaultValue={d.traveler_email ?? ""} />
           </div>
         </div>
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Contract type *</label>
+            <label>Tipologia di missione *</label>
             <select name="traveler_type" value={type} onChange={(e) => setType(e.target.value as TravelerType)}>
               {Object.entries(TRAVELER_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -178,24 +182,82 @@ export default function TripForm({
             </select>
           </div>
           <div className="field" style={col()}>
-            <label>Role / position</label>
-            <input name="role_title" defaultValue={d.role_title ?? ""} placeholder="role related to the project" />
+            <label>Ruolo / incarico relativo al progetto su cui è caricata la missione</label>
+            <input name="role_title" defaultValue={d.role_title ?? ""} placeholder="es. Project Manager" />
           </div>
           <div className="field" style={col()}>
-            <label>Reports to (in Oikos)</label>
-            <input name="reference_person" defaultValue={d.reference_person ?? ""} placeholder="position or name" />
+            <label>Funzioni a cui farà riferimento (figura da organigramma e, se applicabile, nominativo)</label>
+            <input name="reference_person" defaultValue={d.reference_person ?? ""} placeholder="posizione o nome" />
           </div>
         </div>
         <label className="checkbox-row">
-          <input type="checkbox" name="public_employee" defaultChecked={d.public_employee ?? false} /> Public employee
-          (authorization needed)
+          <input type="checkbox" name="public_employee" defaultChecked={d.public_employee ?? false} /> Dipendente pubblico
+          (serve l'autorizzazione)
         </label>
       </Section>
 
-      <Section title="Trip">
+      {(type === "employee" || type === "cococo") && (
+        <Section title="Dati per la lettera di incarico">
+          <p className="subtitle" style={{ margin: 0 }}>
+            Servono per scrivere la lettera di incarico (facoltativi: quello che manca resta da completare nel Word).
+          </p>
+          <input type="hidden" name="letter_json" value={JSON.stringify(letter)} />
+          <div style={row}>
+            <div className="field" style={col(2, 200)}>
+              <label>Nato/a a</label>
+              <input value={letter.birth_place ?? ""} onChange={(e) => setLetter({ ...letter, birth_place: e.target.value })} />
+            </div>
+            <div className="field" style={col()}>
+              <label>Il</label>
+              <input type="date" value={letter.birth_date ?? ""} onChange={(e) => setLetter({ ...letter, birth_date: e.target.value })} />
+            </div>
+          </div>
+          <div style={row}>
+            <div className="field" style={col(2, 220)}>
+              <label>Residente a (città e indirizzo)</label>
+              <input value={letter.residence ?? ""} onChange={(e) => setLetter({ ...letter, residence: e.target.value })} />
+            </div>
+            <div className="field" style={col()}>
+              <label>Codice fiscale</label>
+              <input value={letter.tax_code ?? ""} onChange={(e) => setLetter({ ...letter, tax_code: e.target.value.toUpperCase() })} />
+            </div>
+          </div>
+          {type === "cococo" && (
+            <>
+              <div style={row}>
+                <div className="field" style={col()}>
+                  <label>Profilo professionale (A-F, art. 3 Accordo Collettivo)</label>
+                  <select value={letter.profile ?? ""} onChange={(e) => setLetter({ ...letter, profile: e.target.value })}>
+                    <option value="">—</option>
+                    {["A", "B", "C", "D", "E", "F"].map((x) => (
+                      <option key={x} value={x}>
+                        {x}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field" style={col()}>
+                  <label>Compenso giornaliero lordo (€)</label>
+                  <MoneyInput value={letter.daily_fee ?? ""} onValueChange={(v: string) => setLetter({ ...letter, daily_fee: v })} />
+                </div>
+                <div className="field" style={col()}>
+                  <label>Compenso aggiuntivo lordo (€)</label>
+                  <MoneyInput value={letter.extra_fee ?? ""} onValueChange={(v: string) => setLetter({ ...letter, extra_fee: v })} />
+                </div>
+              </div>
+              <label className="checkbox-row">
+                <input type="checkbox" checked={letter.contract_fee ?? false} onChange={(e) => setLetter({ ...letter, contract_fee: e.target.checked })} /> Si applica
+                anche il compenso giornaliero già previsto dal contratto in essere
+              </label>
+            </>
+          )}
+        </Section>
+      )}
+
+      <Section title="Missione">
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Where *</label>
+            <label>Dove *</label>
             <select name="scope" value={scope} onChange={(e) => setScope(e.target.value as TripScope)}>
               {Object.entries(SCOPE_LABEL).filter(([k]) => k !== "italy").map(([k, v]) => (
                 <option key={k} value={k}>
@@ -205,26 +267,26 @@ export default function TripForm({
             </select>
           </div>
           <div className="field" style={col(2, 220)}>
-            <label>Destination (city, country) *</label>
-            <input name="destination" defaultValue={d.destination ?? ""} required placeholder="e.g. Beirut, Lebanon" />
+            <label>Destinazione (città, paese) *</label>
+            <input name="destination" defaultValue={d.destination ?? ""} required placeholder="es. Beirut, Libano" />
           </div>
         </div>
         <div className="field">
-          <label>Places of work</label>
-          <input name="work_place" defaultValue={d.work_place ?? ""} placeholder="e.g. Beirut, Jabal Moussa Biosphere Reserve" />
+          <label>Sede di lavoro</label>
+          <input name="work_place" defaultValue={d.work_place ?? ""} placeholder="es. Beirut, Riserva della Biosfera di Jabal Moussa" />
         </div>
         <div style={row}>
           <div className="field" style={col()}>
-            <label>From *</label>
+            <label>Dal (inizio missione) *</label>
             <input name="start_date" type="date" defaultValue={d.start_date ?? ""} required />
           </div>
           <div className="field" style={col()}>
-            <label>To *</label>
+            <label>Al (fine missione) *</label>
             <input name="end_date" type="date" defaultValue={d.end_date ?? ""} required />
           </div>
         </div>
         <div className="field">
-          <label>Means of transport</label>
+          <label>Mezzi di trasporto</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {TRANSPORT_OPTIONS.map(([k, label]) => (
               <label key={k} className="checkbox-row">
@@ -235,46 +297,45 @@ export default function TripForm({
         </div>
       </Section>
 
-      <Section title="Project and terms of reference">
+      <Section title="Progetto e termini di riferimento">
         <div className="field">
-          <label>Project title(s) (full name) *</label>
+          <label>Titolo del progetto (nome completo; se i progetti sono più di uno, titoli e codici vanno nei Termini di Riferimento) *</label>
           <input name="project_title" defaultValue={d.project_title ?? ""} required />
         </div>
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Main internal project code *</label>
+            <label>Codice interno del progetto *</label>
             <input name="internal_code" value={mainCode} onChange={(e) => changeMainCode(e.target.value)} required />
           </div>
           <div className="field" style={col()}>
-            <label>Donor code</label>
+            <label>Finanziatore / codice attribuito dal donatore</label>
             <input name="donor_code" defaultValue={d.donor_code ?? ""} />
           </div>
         </div>
         <div className="field">
-          <label>Termini di Riferimento (Terms of Reference of the mission) *</label>
+          <label>Termini di Riferimento della missione (attività, obiettivi e risultato finale) *</label>
           <textarea
             name="tdr"
             rows={14}
             style={area}
             defaultValue={d.tdr ?? ""}
             required
-            placeholder={"Paste here the text of the TDR, for example:\n\nAttività nell’ambito del progetto o dell’incarico:\n• ...\n• ...\n\nObiettivi e Risultato Finale nell’ambito del progetto o dell’incarico:\n• ...\n• ..."}
+            placeholder={"Incolla qui il testo dei Termini di Riferimento, per esempio:\n\nAttività nell’ambito del progetto o dell’incarico:\n• ...\n• ...\n\nObiettivi e Risultato Finale nell’ambito del progetto o dell’incarico:\n• ...\n• ..."}
           />
           <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-            Free text, copy and paste. Whoever prepares the documents of the mission copies it from the sheet.
+            Testo libero. Finisce nell'Addendum della lettera di incarico.
           </span>
         </div>
         <label className="checkbox-row">
-          <input type="checkbox" name="minors" defaultChecked={d.minors ?? false} /> The activities involve contact with
-          minors
+          <input type="checkbox" name="minors" defaultChecked={d.minors ?? false} /> Le attività comportano contatti con minorenni
         </label>
       </Section>
 
-      <Section title="Costs">
+      <Section title="Costi">
         <div style={row}>
           <div className="field" style={col()}>
-            <label>Advance requested (€)</label>
-            <MoneyInput name="advance_amount" defaultValue={d.advance_amount ?? ""} placeholder="none" />
+            <label>Anticipo richiesto (€)</label>
+            <MoneyInput name="advance_amount" defaultValue={d.advance_amount ?? ""} placeholder="nessuno" />
           </div>
         </div>
         <label className="checkbox-row">
@@ -287,10 +348,10 @@ export default function TripForm({
               if (e.target.checked) seed("compensation");
             }}
           />{" "}
-          The normal contractual compensation (daily fee) is charged to projects for these days
+          Il compenso giornaliero previsto dal contratto è caricato sui progetti per questi giorni
         </label>
         <div className="field">
-          <label>Board and lodging</label>
+          <label>Alloggio e vitto</label>
           <select
             name="lodging_mode"
             value={lodging}
@@ -308,9 +369,20 @@ export default function TripForm({
             ))}
           </select>
         </div>
+        {lodging === "per_diem" && (
+          <div className="field" style={{ maxWidth: 420 }}>
+            <label>Per diem giornaliero lordo (€)</label>
+            <MoneyInput name="per_diem_rate" value={rate} onValueChange={setRate} />
+            <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+              Griglia Oikos per missioni fino a 3 settimane (lordo, {type === "cococo" ? "collaboratori" : "dipendenti"}):{" "}
+              {PER_DIEM_GRID.map((g) => `${g.label} ${(type === "cococo" ? g.cococo : g.employee).toLocaleString("it-IT", { minimumFractionDigits: 2 })}`).join(" · ")}. Oltre le 3
+              settimane serve un accordo con la Direzione.
+            </span>
+          </div>
+        )}
       </Section>
 
-      <Section title="Flights, visa, insurance, bookings (Logistics)">
+      <Section title="Voli, visti, assicurazione, prenotazioni (Logistica)">
         <label className="checkbox-row">
           <input
             type="checkbox"
@@ -321,12 +393,12 @@ export default function TripForm({
               if (e.target.checked) seed("flight");
             }}
           />{" "}
-          Plane ticket to be bought by Oikos
+          Biglietto aereo da acquistare a cura di Oikos
         </label>
         {flights && (
           <div className="field">
-            <label>Route and preferred dates</label>
-            <input name="flights_route" defaultValue={d.flights_route ?? ""} placeholder="e.g. Milano – Beirut, 05/07 → 15/07" />
+            <label>Tratta e date preferite</label>
+            <input name="flights_route" defaultValue={d.flights_route ?? ""} placeholder="es. Milano – Beirut, 05/07 → 15/07" />
           </div>
         )}
         <label className="checkbox-row">
@@ -339,10 +411,10 @@ export default function TripForm({
               if (e.target.checked) seed("visa");
             }}
           />{" "}
-          Visa needed
+          Visto necessario
         </label>
         <div className="field" style={{ maxWidth: 420 }}>
-          <label>Insurance {scope === "extra_eu" ? "(extra EU: policies paid by Oikos)" : ""}</label>
+          <label>Assicurazione {scope === "extra_eu" ? "(extra UE: polizze a carico di Oikos)" : ""}</label>
           <select
             name="insurance"
             value={insurance}
@@ -369,25 +441,23 @@ export default function TripForm({
               if (e.target.checked) seed("bookings");
             }}
           />{" "}
-          Logistics must also book train / hotel / other
+          La Logistica deve prenotare anche treno / albergo / altro
         </label>
         <div className="field">
-          <label>What Logistics has to book (train, hotel, preferences)</label>
+          <label>Cosa deve prenotare la Logistica (treno, albergo, preferenze)</label>
           <textarea name="tickets_note" rows={2} style={area} defaultValue={d.tickets_note ?? ""} />
         </div>
       </Section>
 
-      <Section title="Costs charged to projects">
+      <Section title="Costi da caricare sui progetti">
         {types.length === 0 ? (
           <p className="subtitle" style={{ margin: 0 }}>
-            No cost to charge: choose compensation, per diem, flights, visa, insurance or bookings above and the rows appear
-            here.
+            Nessun costo da caricare: scegli compenso, per diem, voli, visto, assicurazione o prenotazioni qui sopra e compaiono le righe.
           </p>
         ) : (
           <>
             <p className="subtitle" style={{ margin: 0 }}>
-              For each cost say which project and budget line it will be charged to. If more projects are involved,
-              add a row for each one.
+              Per ogni costo indica il progetto (codice o nome completo) e la budget line su cui verrà caricato. Se i progetti sono più di uno, aggiungi una riga per ciascuno.
             </p>
             {types.map((c) => {
               return (
@@ -397,14 +467,14 @@ export default function TripForm({
                     a.cost_type !== c.key ? null : (
                       <div key={i} style={{ ...row, alignItems: "flex-end" }}>
                         <div className="field" style={col(2, 150)}>
-                          <label>Project code *</label>
+                          <label>Codice progetto *</label>
                           <input name={`alloc_${i}_code`} value={a.project_code} onChange={(e) => patch(i, { project_code: e.target.value })} />
                         </div>
                         <div className="field" style={col(1, 110)}>
                           <label>Budget line *</label>
                           <input name={`alloc_${i}_bl`} value={a.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
                         </div>
-                        <button type="button" className="ghost danger" onClick={() => removeRow(i)} title="Remove the row">
+                        <button type="button" className="ghost danger" onClick={() => removeRow(i)} title="Togli la riga">
                           ×
                         </button>
                       </div>
@@ -417,7 +487,7 @@ export default function TripForm({
                       className="ghost"
                       onClick={() => setAlloc((a) => [...a, newRow(c.key)])}
                     >
-                      + Add a project
+                      + Aggiungi un progetto
                     </button>
                   </div>
                 </div>
@@ -427,23 +497,23 @@ export default function TripForm({
         )}
       </Section>
 
-      <Section title="Notes">
+      <Section title="Altre note">
         <div className="field">
-          <label>Other notes</label>
+          <label>Note</label>
           <textarea name="notes" rows={2} style={area} defaultValue={d.notes ?? ""} />
         </div>
       </Section>
 
       {superiors && (
-        <Section title="Approval">
+        <Section title="Approvazione">
           <p className="subtitle" style={{ margin: 0 }}>
-            The request is sent to your superior, who approves it. Then Logistics is informed if anything has to be booked.
+            La scheda va al responsabile di Area o Programme Manager, che la approva. Poi la Logistica viene informata se c'è qualcosa da prenotare. Dopo l'approvazione si scarica la lettera di incarico.
           </p>
           <div className="field" style={{ maxWidth: 420 }}>
-            <label>Superior who approves *</label>
+            <label>Responsabile di Area o Programme Manager che approva *</label>
             <select name="approver_PM" required defaultValue="">
               <option value="" disabled>
-                Choose…
+                Scegli…
               </option>
               {superiors.map((h) => (
                 <option key={h.id} value={h.id}>
@@ -456,7 +526,7 @@ export default function TripForm({
       )}
 
       <button type="submit" className="primary" style={{ width: "fit-content", marginTop: 6 }} disabled={busy}>
-        {busy ? "Saving…" : submitLabel}
+        {busy ? "Salvataggio…" : submitLabel}
       </button>
     </form>
   );

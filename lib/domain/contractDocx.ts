@@ -44,13 +44,18 @@ function blockParagraphs(block: ContractBlock, index: number): (Paragraph | Tabl
   const parties = block.key === "parties";
 
   if (block.title) {
-    out.push(
-      new Paragraph({
-        children: runs(block.title, true),
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { before: index > 0 ? 200 : 0 },
-        keepNext: true,
-      }),
+    // the addendum of a mission letter starts on a new page, its headings are centred
+    const addendum = block.key === "addendum";
+    block.title.split(/\r?\n/).forEach((t, i) =>
+      out.push(
+        new Paragraph({
+          children: runs(t, true),
+          alignment: addendum ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+          spacing: { before: index > 0 && i === 0 ? 200 : 0 },
+          keepNext: true,
+          pageBreakBefore: addendum && i === 0,
+        }),
+      ),
     );
   }
 

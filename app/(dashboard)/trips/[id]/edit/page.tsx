@@ -25,12 +25,12 @@ export default async function EditTripPage({
       <p style={{ marginBottom: 6 }}>
         <Link href={`/trips/${id}`}>← {r.number}</Link>
       </p>
-      <h1 style={{ marginBottom: 16 }}>Edit trip request {r.number}</h1>
+      <h1 style={{ marginBottom: 16 }}>Modifica richiesta di trasferta {r.number}</h1>
       {error && <div className="banner error">{error}</div>}
       {r.scope === "italy" ? (
-        <TripItalyForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Save changes" />
+        <TripItalyForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Salva le modifiche" />
       ) : (
-        <TripForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Save changes" />
+        <TripForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Salva le modifiche" />
       )}
     </div>
   );

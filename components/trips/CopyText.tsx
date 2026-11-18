@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-/** The text of a field in a box with a "Copy text" button, to paste it into the supporting documents. */
+/** The text of a field in a box with a "Copia il testo" button, to paste it into the supporting documents. */
 export default function CopyText({ text }: { text: string }) {
   const [done, setDone] = useState(false);
 
@@ -26,7 +26,7 @@ export default function CopyText({ text }: { text: string }) {
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
         <button type="button" className="ghost" onClick={() => void copy()}>
-          {done ? "Copied ✓" : "Copy text"}
+          {done ? "Copiato ✓" : "Copia il testo"}
         </button>
       </div>
       <div

@@ -51,7 +51,7 @@ export default function Sidebar({
           Contract requests
         </Link>
         <Link href="/trips" className={isActive("/trips") ? "active" : ""}>
-          Trips
+          Trasferte
         </Link>
         <Link href="/expenses" className={isActive("/expenses") ? "active" : ""}>
           Expense reports

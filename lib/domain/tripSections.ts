@@ -18,123 +18,149 @@ import {
   type TripRow,
 } from "@/lib/domain/trips";
 
-const yn = (b: boolean) => (b ? "Yes" : "No");
+const yn = (b: boolean) => (b ? "Sì" : "No");
 
-/** The sections of the trip sheet, shown on the page and printed in the PDF (one source for both). */
+/** Le sezioni della scheda, mostrate nella pagina e stampate nel PDF (una sola fonte per entrambi). */
 export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[] {
   const days = tripDays(r.start_date, r.end_date);
   const perDiemTotal = r.per_diem_rate && r.per_diem_days ? r.per_diem_rate * r.per_diem_days : null;
+  const italy = r.scope === "italy";
 
   const sections: PdfSection[] = [];
 
   sections.push({
-    title: "Traveler",
+    title: "Viaggiatore",
     rows: [
-      ["Name", r.traveler_name],
+      ["Nome", r.traveler_name],
       ["Email", r.traveler_email ?? ""],
-      ["Contract type", TRAVELER_LABEL[r.traveler_type]],
-      ["Public employee", r.public_employee ? "Yes (authorization needed)" : "No"],
-      ["Role", r.role_title ?? ""],
-      ["Reports to", r.reference_person ?? ""],
+      ...(italy ? [] : ([["Tipologia", TRAVELER_LABEL[r.traveler_type]]] as [string, string][])),
+      ["Dipendente pubblico", r.public_employee ? "Sì (serve l'autorizzazione)" : italy ? "" : "No"],
+      ["Ruolo", r.role_title ?? ""],
+      ["Funzioni di riferimento", r.reference_person ?? ""],
     ],
   });
 
+  if (!italy && (r.traveler_type === "employee" || r.traveler_type === "cococo")) {
+    const L = r.letter ?? {};
+    sections.push({
+      title: "Dati per la lettera di incarico",
+      rows: [
+        ["Nato/a a", L.birth_place ?? ""],
+        ["Nato/a il", L.birth_date ? dateOnly(L.birth_date) : ""],
+        ["Residente a", L.residence ?? ""],
+        ["Codice fiscale", L.tax_code ?? ""],
+        ["Profilo professionale", L.profile ?? ""],
+        ["Compenso giornaliero lordo", L.daily_fee ? `EUR ${L.daily_fee}` : ""],
+        ["Compenso aggiuntivo lordo", L.extra_fee ? `EUR ${L.extra_fee}` : ""],
+        ["Compenso contrattuale in essere", L.contract_fee ? "Sì" : ""],
+      ],
+    });
+  }
+
   sections.push({
-    title: "Trip",
+    title: italy ? "Trasferta" : "Missione",
     rows: [
-      ["Where", SCOPE_LABEL[r.scope]],
-      ["Destination", r.destination],
-      ["Places of work", r.work_place ?? ""],
-      ["Period", `${dateOnly(r.start_date)} to ${dateOnly(r.end_date)} (${days} ${days === 1 ? "day" : "days"})`],
-      ["Means of transport", r.transport.map((t) => TRANSPORT_LABEL[t] ?? t).join(", ")],
+      ["Dove", SCOPE_LABEL[r.scope]],
+      ["Destinazione", r.destination],
+      ["Sede di lavoro", r.work_place ?? ""],
+      [
+        "Periodo",
+        r.start_date === r.end_date
+          ? `${dateOnly(r.start_date)} (1 giorno)`
+          : `dal ${dateOnly(r.start_date)} al ${dateOnly(r.end_date)} (${days} giorni)`,
+      ],
+      ["Mezzi di trasporto", r.transport.map((t) => TRANSPORT_LABEL[t] ?? t).join(", ")],
+      ...(italy ? ([["Motivi", r.tdr ?? ""]] as [string, string][]) : []),
     ],
   });
 
-  sections.push({
-    title: "Project and terms of reference",
-    rows: [
-      ["Project", [r.donor_code, r.project_title].filter(Boolean).join(" - ")],
-      ["Internal code", r.internal_code ?? ""],
-      ["Contact with minors", yn(r.minors)],
-    ],
-  });
+  if (!italy) {
+    sections.push({
+      title: "Progetto",
+      rows: [
+        ["Progetto", [r.donor_code, r.project_title].filter(Boolean).join(" - ")],
+        ["Codice interno", r.internal_code ?? ""],
+        ["Contatti con minorenni", yn(r.minors)],
+      ],
+    });
 
-  // the TDR is plain text to copy and paste into the supporting documents
-  if (r.tdr) sections.push({ title: TDR_TITLE, notes: [r.tdr] });
+    // il TDR e' testo semplice da copiare nei documenti
+    if (r.tdr) sections.push({ title: TDR_TITLE, notes: [r.tdr] });
+  }
 
   sections.push({
-    title: "Costs",
+    title: "Costi",
     rows: [
-      ["Advance", r.advance_amount != null ? `EUR ${money(r.advance_amount)}` : "None"],
-      ["Daily compensation charged to projects", r.compensation_charged ? "Yes" : "No"],
-      ["Board and lodging", r.lodging_mode === "receipts" && r.reimb_kind ? REIMB_LABEL[r.reimb_kind] : LODGING_LABEL[r.lodging_mode]],
-      ...(r.lodging_mode === "per_diem"
+      ["Anticipo", r.advance_amount != null ? `EUR ${money(r.advance_amount)}` : "Nessuno"],
+      ["Compenso giornaliero caricato sui progetti", r.compensation_charged ? "Sì" : "No"],
+      [
+        "Alloggio e vitto",
+        r.lodging_mode === "receipts" && r.reimb_kind ? REIMB_LABEL[r.reimb_kind] : LODGING_LABEL[r.lodging_mode],
+      ],
+      ...(r.lodging_mode === "per_diem" && r.per_diem_rate
         ? ([
-            ...(r.per_diem_rate
-              ? ([
-                  [
-                    "Per diem",
-                    `EUR ${money(r.per_diem_rate)} x ${r.per_diem_days ?? "?"} days${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)} gross` : ""}`,
-                  ],
-                ] as [string, string][])
-              : []),
+            [
+              "Per diem",
+              `EUR ${money(r.per_diem_rate)} x ${r.per_diem_days ?? "?"} giorni${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)} lordi` : ""}`,
+            ],
           ] as [string, string][])
         : []),
     ],
   });
 
-  sections.push({
-    title: "Flights, visa, insurance, bookings",
-    rows: [
-      ["Plane ticket by Oikos", r.flights_needed ? `Yes - ${r.flights_route ?? ""}` : "No"],
-      ["Visa", r.visa_needed ? "Yes" : "No"],
-      ["Insurance", INSURANCE_LABEL[r.insurance]],
-      ["Train / hotel / other by Logistics", r.hotel_needed ? "Yes" : "No"],
-      ["Logistics to book", r.tickets_note ?? ""],
-      ["Notes", r.notes ?? ""],
-    ],
-  });
+  if (italy) {
+    sections.push({
+      title: "Acquisti a cura di Oikos",
+      rows: [
+        ["Biglietto o albergo da Istituto Oikos", r.hotel_needed ? "Sì" : "No"],
+        ["La Logistica deve prenotare", r.tickets_note ?? ""],
+        ["Note", r.notes ?? ""],
+      ],
+    });
+  } else {
+    sections.push({
+      title: "Voli, visti, assicurazione, prenotazioni",
+      rows: [
+        ["Biglietto aereo a cura di Oikos", r.flights_needed ? `Sì - ${r.flights_route ?? ""}` : "No"],
+        ["Visto", r.visa_needed ? "Sì" : "No"],
+        ["Assicurazione", INSURANCE_LABEL[r.insurance]],
+        ["Treno / albergo / altro a cura della Logistica", r.hotel_needed ? "Sì" : "No"],
+        ["La Logistica deve prenotare", r.tickets_note ?? ""],
+        ["Note", r.notes ?? ""],
+      ],
+    });
+  }
 
-  // costs charged to projects: one line per cost, one row per project
+  // costi caricati sui progetti: una riga per costo, una riga per progetto
   const allocRows: [string, string][] = COST_TYPES.flatMap((c) => {
     const rows = (r.allocations ?? []).filter((a) => a.cost_type === c.key);
     if (rows.length === 0) return [];
-    return [
-      [
-        COST_LABEL[c.key],
-        rows.map((a) => `${a.project_code} - budget line ${a.budget_line}`).join("\n"),
-      ] as [string, string],
-    ];
+    return [[COST_LABEL[c.key], rows.map((a) => `${a.project_code} - budget line ${a.budget_line}`).join("\n")] as [string, string]];
   });
-  if (allocRows.length > 0) sections.push({ title: "Costs charged to projects", rows: allocRows });
+  if (allocRows.length > 0) sections.push({ title: "Costi caricati sui progetti", rows: allocRows });
 
-  // approvals and history: every step with who and when
-  const approvalRows: [string, string][] = [
-    ["Filed by", `${r.requester_name} on ${dt(r.created_at)}`],
-  ];
+  // approvazioni e storia: ogni passaggio con chi e quando
+  const approvalRows: [string, string][] = [["Compilata da", `${r.requester_name} il ${dt(r.created_at)}`]];
   if (!approvals.some((a) => a.signer_role === "PM")) {
-    approvalRows.push(["Superior", "No superior recorded"]);
+    approvalRows.push(["Responsabile", "Nessun responsabile registrato"]);
   }
   for (const a of approvals) {
     approvalRows.push([
-      a.signer_role === "RAC" ? "RAC / CAR" : "Superior",
-      a.signed_at ? `Approved by ${a.user_name} on ${dt(a.signed_at)}` : `Waiting for ${a.user_name}`,
+      a.signer_role === "RAC" ? "RAC / CAR" : "Responsabile",
+      a.signed_at ? `Approvata da ${a.user_name} il ${dt(a.signed_at)}` : `In attesa di ${a.user_name}`,
     ]);
   }
-  approvalRows.push([
-    "Status",
-    r.status === "closed" && r.closed_at ? `Closed on ${dt(r.closed_at)}` : STATUS_LABEL[r.status],
-  ]);
-  sections.push({ title: "Approvals and history", rows: approvalRows });
+  approvalRows.push(["Stato", r.status === "closed" && r.closed_at ? `Chiusa il ${dt(r.closed_at)}` : STATUS_LABEL[r.status]]);
+  sections.push({ title: "Approvazioni e storia", rows: approvalRows });
 
   return sections;
 }
 
-/** The sheet as an HTML table list, for the email to Logistics (who books and informs everybody by email). */
+/** La scheda come elenco di tabelle HTML, per l'email alla Logistica (che prenota e informa tutti per email). */
 export function tripSectionsHtml(sections: PdfSection[]): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return sections
-    .filter((s) => s.title !== "Approvals and history")
+    .filter((s) => s.title !== "Approvazioni e storia")
     .map((s) => {
       const rows = (s.rows ?? [])
         .filter(([, v]) => v)
