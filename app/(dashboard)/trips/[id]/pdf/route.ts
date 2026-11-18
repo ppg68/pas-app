@@ -38,7 +38,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       subtitle: `dal ${dateOnly(r.start_date)} al ${dateOnly(r.end_date)} - ${r.project_title ?? ""}`,
       generated: `Generato dal PAS il ${dt(new Date().toISOString())}`,
     },
-    tripSections(r, approvals)
+    [
+      ...tripSections(r, approvals),
+      // closing statement of the activation sheet, with the name of the person who approves
+      {
+        title: "Authorization",
+        notes: [
+          `The undersigned ${approvals.find((a) => a.signer_role === "PM")?.user_name ?? "____________"}, in the capacity of Director / Area Manager / Unit Coordinator (leave only the position held), authorizes the following business trip / mission.`,
+        ],
+      },
+    ]
   );
   return new Response(new Uint8Array(bytes), {
     headers: {
