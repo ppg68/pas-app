@@ -5,6 +5,7 @@ import { projectKey, type ProjectCodes } from "@/lib/domain/projectCups";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { guessFromPdf, type ReceiptGuess } from "@/lib/pdfAmount";
 import { EXPENSE_ACCEPT, EXPENSE_BUCKET, EXPENSE_MAX_BYTES, isPdf, uploadExpenseFile } from "@/lib/expenseUpload";
 import {
   SECTIONS,
@@ -223,6 +224,40 @@ export default function ExpenseForm({
     } catch {
       setFxNote((n) => ({ ...n, [key]: "Could not get the InforEuro rate. Type it." }));
     }
+  }
+
+
+  // amount / currency / date read from the text of the receipt PDF: shown as a suggestion, applied only on confirmation
+  const [guess, setGuess] = useState<Record<string, ReceiptGuess | "reading">>({});
+  async function onReceiptFile(i: number, key: string, file: File | null) {
+    patchRow(i, { file });
+    if (!file) {
+      setGuess((g) => {
+        const { [key]: _drop, ...rest } = g;
+        return rest;
+      });
+      return;
+    }
+    setGuess((g) => ({ ...g, [key]: "reading" }));
+    const r = await guessFromPdf(file);
+    setGuess((g) => ({ ...g, [key]: r }));
+  }
+  function applyGuess(i: number, key: string) {
+    const g = guess[key];
+    const l = lines[i];
+    if (!g || g === "reading" || !l) return;
+    const cur = g.currency ?? ((l.currency || "EUR").toUpperCase());
+    const date = g.date ?? l.line_date;
+    patch(i, {
+      ...(g.amount != null ? { amount_orig: String(g.amount) } : {}),
+      ...(g.currency ? { currency: g.currency } : {}),
+      ...(g.date ? { line_date: g.date } : {}),
+    });
+    if (cur !== "EUR") void fillRate(l.key, cur, date, true);
+    setGuess((x) => {
+      const { [key]: _drop, ...rest } = x;
+      return rest;
+    });
   }
 
   // km from the road distance between the two places (OpenStreetMap + OSRM, through /api/distance)
@@ -624,8 +659,34 @@ export default function ExpenseForm({
                                 accept={EXPENSE_ACCEPT}
                                 aria-label={`Receipt of row ${i + 1}`}
                                 style={{ fontSize: "0.75rem", maxWidth: 170 }}
-                                onChange={(ev) => patchRow(i, { file: ev.target.files?.[0] ?? null })}
+                                onChange={(ev) => void onReceiptFile(i, l.key, ev.target.files?.[0] ?? null)}
                               />
+                              {(() => {
+                                const g = guess[l.key];
+                                if (!g) return null;
+                                if (g === "reading") return <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>Reading the PDF…</span>;
+                                if (g.noText || (g.amount == null && !g.date))
+                                  return <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>No amount found in this PDF (a scan?): type it.</span>;
+                                return (
+                                  <div style={{ fontSize: 11, border: "1px dashed var(--line)", borderRadius: 6, padding: "4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                    <span>
+                                      Found:{" "}
+                                      <b>
+                                        {g.amount != null ? `${money(g.amount)} ${g.currency ?? ""}` : "no amount"}
+                                      </b>
+                                      {g.date ? ` · ${g.date.split("-").reverse().join("/")}` : ""}
+                                    </span>
+                                    <span style={{ display: "flex", gap: 6 }}>
+                                      <button type="button" className="primary" style={{ padding: "1px 8px", fontSize: "0.75rem" }} onClick={() => applyGuess(i, l.key)}>
+                                        Use
+                                      </button>
+                                      <button type="button" className="ghost" style={{ padding: "1px 8px", fontSize: "0.75rem" }} onClick={() => setGuess((x) => { const { [l.key]: _d, ...rest } = x; return rest; })}>
+                                        Ignore
+                                      </button>
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </td>
