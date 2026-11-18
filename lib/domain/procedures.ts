@@ -3,7 +3,7 @@
 // if the procedure changes; UI components should never hardcode these values.
 
 export type ProcCode = "DIR" | "SQ" | "3Q" | "SP" | "TEN";
-export type Role = "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS" | "ADMIN";
+export type Role = "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS" | "CAP" | "ADMIN";
 
 export const ROLE_LABEL: Record<Role, string> = {
   BH: "Budget Holder",
@@ -17,6 +17,8 @@ export const ROLE_LABEL: Record<Role, string> = {
   // this list — kept here too only so an existing RAC/CAR can bootstrap the
   // very first Contracts admin without needing the Supabase SQL Editor.
   CONTRACTS: "Contracts access",
+  // Personnel administration (Coordinatore Unita' Amministrazione del Personale): informed by email of every approved trip.
+  CAP: "Personnel administration (CAP)",
   // Only role that can open Team and assign roles (see migration 0022).
   ADMIN: "Administrator",
 };

@@ -36,7 +36,7 @@ const num = (f: FormData, k: string) => {
 };
 
 type Holder = { id: string; full_name: string; email: string | null };
-type Role = "PM" | "RAC" | "CAR" | "LOG";
+type Role = "PM" | "RAC" | "CAR" | "LOG" | "CAP";
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
 async function holders(supabase: Supa, role: Role) {
@@ -361,6 +361,24 @@ export async function signTripRequest(id: string, role: "PM" | "RAC") {
               html: `<p>Ciao ${escapeHtml(h.full_name)},</p>
 <p>La trasferta <b>${escapeHtml(req.number)}</b> di <b>${escapeHtml(req.traveler_name)}</b> a ${escapeHtml(req.destination)} (dal ${escapeHtml(req.start_date)} al ${escapeHtml(req.end_date)}) è approvata. Per favore occupati di: <b>${escapeHtml(needs)}</b>.</p>
 <p>Richiesta da ${escapeHtml(req.requester_name)}${req.requester_email ? ` (${escapeHtml(req.requester_email)})` : ""}${req.traveler_email ? `, viaggiatore ${escapeHtml(req.traveler_email)}` : ""}. Rispondi a questa email o scrivi loro: nel PAS non va registrato nulla.</p>
+${detail}
+${link ? `<p><a href="${link}">Apri la richiesta nel PAS</a></p>` : ""}`,
+            });
+          }
+        }
+        // CAP (amministrazione del personale): semplice email informativa, nessuna azione nel PAS
+        {
+          const { data: aps } = await supabase.from("trip_approvals").select("*").eq("request_id", id);
+          const detail = tripSectionsHtml(tripSections(req as TripRow, (aps ?? []) as TripApproval[]));
+          const already = new Set(mails.map((m) => m.to));
+          for (const h of await holders(supabase, "CAP")) {
+            if (!h.email || already.has(h.email)) continue;
+            mails.push({
+              to: h.email,
+              replyTo: req.requester_email ?? undefined,
+              subject: `Trasferta ${req.number} approvata: ${req.traveler_name} (${req.destination}, dal ${req.start_date} al ${req.end_date})`,
+              html: `<p>Ciao ${escapeHtml(h.full_name)},</p>
+<p>per tua informazione: la trasferta <b>${escapeHtml(req.number)}</b> di <b>${escapeHtml(req.traveler_name)}</b> a ${escapeHtml(req.destination)} (dal ${escapeHtml(req.start_date)} al ${escapeHtml(req.end_date)}) è stata approvata. Non serve nessuna azione nel PAS.</p>
 ${detail}
 ${link ? `<p><a href="${link}">Apri la richiesta nel PAS</a></p>` : ""}`,
             });

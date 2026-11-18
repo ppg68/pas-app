@@ -1059,7 +1059,7 @@ export type Database = {
       remove_person: { Args: { target: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS" | "ADMIN"
+      app_role: "BH" | "PM" | "LOG" | "CAR" | "RAC" | "DG" | "CONTRACTS" | "CAP" | "ADMIN"
       contract_status: "in_corso" | "concluso" | "annullato"
       proc_code: "DIR" | "SQ" | "3Q" | "SP" | "TEN"
       request_stage:
@@ -1198,7 +1198,7 @@ export type CompositeTypes<
 export const Constants = {
   pas: {
     Enums: {
-      app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG", "CONTRACTS", "ADMIN"],
+      app_role: ["BH", "PM", "LOG", "CAR", "RAC", "DG", "CONTRACTS", "CAP", "ADMIN"],
       contract_status: ["in_corso", "concluso", "annullato"],
       proc_code: ["DIR", "SQ", "3Q", "SP", "TEN"],
       request_stage: [
