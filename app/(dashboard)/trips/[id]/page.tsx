@@ -187,7 +187,7 @@ export default async function TripDetail({
                 </label>
               </>
             )}
-            <SubmitButton className="ghost" pendingLabel="Preparazione…" style={{ width: "fit-content" }}>
+            <SubmitButton className={r.letter_text ? "ghost" : "primary"} pendingLabel="Preparazione…" style={{ width: "fit-content" }}>
               {r.letter_text ? "Rigenera il testo dai dati (perde le modifiche a mano)" : "Prepara il testo della lettera"}
             </SubmitButton>
           </form>
