@@ -5,7 +5,7 @@ import { projectKey, type ProjectCodes } from "@/lib/domain/projectCups";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { EXPENSE_ACCEPT, EXPENSE_BUCKET, EXPENSE_MAX_BYTES, uploadExpenseFile } from "@/lib/expenseUpload";
+import { EXPENSE_ACCEPT, EXPENSE_BUCKET, EXPENSE_MAX_BYTES, isPdf, uploadExpenseFile } from "@/lib/expenseUpload";
 import {
   SECTIONS,
   lineAmountEur,
@@ -265,6 +265,10 @@ export default function ExpenseForm({
         return;
       }
       for (const f of [l.file, l.proof]) {
+        if (f && !isPdf(f)) {
+          setError(`Row ${i + 1}: ${f.name} is not a PDF. Only PDF files are accepted.`);
+          return;
+        }
         if (f && f.size > EXPENSE_MAX_BYTES) {
           setError(`Row ${i + 1}: ${f.name} is larger than 20 MB.`);
           return;
@@ -669,7 +673,7 @@ export default function ExpenseForm({
         <textarea name="notes" rows={2} style={{ resize: "vertical" }} defaultValue={d.notes ?? ""} />
       </div>
       <p className="subtitle" style={{ margin: 0 }}>
-        Attach the receipt of every row (mileage rows need none) and, if you have it, the payment proof (quietanza): the approvers can open them from the report.
+        Attach the receipt of every row (mileage rows need none) and, if you have it, the payment proof (quietanza), as PDF files: the approvers can open them from the report.
       </p>
 
       {pms && racs && (
