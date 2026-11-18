@@ -57,6 +57,17 @@ const emptyLine = (section: ExpenseSection): Row => ({
   exchange_rate: "",
 });
 
+
+// The "From / to" of a mileage row is stored in the one location text as "Milano – Roma" (or "Milano – Roma (A/R)").
+const SEP = " – ";
+function parsePlaces(loc: string): { from: string; to: string; ar: boolean } {
+  const ar = /\(A\/R\)\s*$/i.test(loc);
+  const base = loc.replace(/\s*\(A\/R\)\s*$/i, "");
+  const m = /^(.*?)\s*–\s*(.*)$/.exec(base);
+  return m ? { from: m[1], to: m[2], ar } : { from: base, to: "", ar };
+}
+const joinPlaces = (from: string, to: string, ar: boolean) => `${from}${to || ar ? SEP + to : ""}${ar ? " (A/R)" : ""}`;
+
 function fromRow(l: ExpenseLineRow, files: ExpenseFileRow[]): Row {
   const s = (n: number | null) => (n == null ? "" : String(n));
   return {
@@ -175,6 +186,34 @@ export default function ExpenseForm({
   const remove = (i: number) => setLines((ls) => ls.filter((_, k) => k !== i));
   const total = round2(lines.reduce((s, l) => s + lineAmountEur(l), 0));
   const patchRow = (i: number, p: Partial<Row>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
+
+  // km from the road distance between the two places (OpenStreetMap + OSRM, through /api/distance)
+  const [autoKm, setAutoKm] = useState<Record<string, string>>({});
+  const [kmNote, setKmNote] = useState<Record<string, string>>({});
+  async function calcKm(i: number, force = false) {
+    const l = lines[i];
+    if (!l || l.section !== "km") return;
+    const { from, to, ar } = parsePlaces(l.location);
+    if (!from.trim() || !to.trim()) return;
+    // an automatic calculation never overwrites a number the person typed
+    if (!force && l.km && l.km !== autoKm[l.key]) return;
+    setKmNote((n) => ({ ...n, [l.key]: "Calculating the distance…" }));
+    try {
+      const res = await fetch(`/api/distance?from=${encodeURIComponent(from.trim())}&to=${encodeURIComponent(to.trim())}`);
+      const j = (await res.json()) as { km?: number; from?: string; to?: string; error?: string };
+      if (!res.ok || j.km == null) {
+        setKmNote((n) => ({ ...n, [l.key]: j.error ?? "Could not calculate the distance. Type the km." }));
+        return;
+      }
+      const km = String(ar ? j.km * 2 : j.km);
+      setAutoKm((a) => ({ ...a, [l.key]: km }));
+      patchRow(i, { km });
+      const short = (x?: string) => (x ?? "").split(",").slice(0, 2).join(",").trim();
+      setKmNote((n) => ({ ...n, [l.key]: `${short(j.from)} → ${short(j.to)}: ${j.km} km${ar ? " × 2 (round trip)" : ""}` }));
+    } catch {
+      setKmNote((n) => ({ ...n, [l.key]: "Could not calculate the distance. Type the km." }));
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -349,7 +388,7 @@ export default function ExpenseForm({
             <p className="subtitle" style={{ margin: 0 }}>
               {sec.hint}.{" "}
               {isKm
-                ? "The ACI cost per litre is the national average price of the week of the travel date, for the fuel used: it is filled in automatically once you choose the fuel and the date."
+                ? "The km are calculated from the road distance between the two cities you enter (you can correct them). The ACI cost per litre is the national average price of the week of the travel date, for the fuel used: it is filled in automatically once you choose the fuel and the date."
                 : "For another currency enter the InforEuro rate: foreign units per 1 EUR."}
             </p>
             {isKm && (
@@ -421,7 +460,52 @@ export default function ExpenseForm({
                           <input style={inp} value={l.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} placeholder="03.01" />
                         </td>
                         <td style={cell}>
-                          <input style={inp} value={l.location} onChange={(e) => patch(i, { location: e.target.value })} />
+                          {isKm ? (
+                            (() => {
+                              const pl = parsePlaces(l.location);
+                              return (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                  <input
+                                    style={inp}
+                                    placeholder="From (city)"
+                                    value={pl.from}
+                                    onChange={(e) => patch(i, { location: joinPlaces(e.target.value, pl.to, pl.ar) })}
+                                    onBlur={() => void calcKm(i)}
+                                  />
+                                  <input
+                                    style={inp}
+                                    placeholder="To (city)"
+                                    value={pl.to}
+                                    onChange={(e) => patch(i, { location: joinPlaces(pl.from, e.target.value, pl.ar) })}
+                                    onBlur={() => void calcKm(i)}
+                                  />
+                                  <label className="checkbox-row" style={{ fontSize: "0.8rem" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={pl.ar}
+                                      onChange={(e) => {
+                                        patch(i, { location: joinPlaces(pl.from, pl.to, e.target.checked) });
+                                        // the km follow: round trip doubles the one-way distance
+                                        const one = autoKm[l.key] && l.km === autoKm[l.key] ? Number(l.km) / (pl.ar ? 2 : 1) : null;
+                                        if (one) {
+                                          const km = String(e.target.checked ? one * 2 : one);
+                                          setAutoKm((a) => ({ ...a, [l.key]: km }));
+                                          patch(i, { km });
+                                        }
+                                      }}
+                                    />{" "}
+                                    Round trip (A/R)
+                                  </label>
+                                  <button type="button" className="ghost" style={{ padding: "2px 8px", fontSize: "0.8rem" }} onClick={() => void calcKm(i, true)} title="Calculate the km from the two places">
+                                    Calculate km
+                                  </button>
+                                  {kmNote[l.key] && <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>{kmNote[l.key]}</span>}
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <input style={inp} value={l.location} onChange={(e) => patch(i, { location: e.target.value })} />
+                          )}
                         </td>
                         <td style={cell}>
                           <input style={inp} value={l.motive} onChange={(e) => patch(i, { motive: e.target.value })} />
