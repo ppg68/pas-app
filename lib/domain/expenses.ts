@@ -16,7 +16,7 @@ export const STATUS_LABEL: Record<ExpenseStatus, string> = {
 export const MIN_EXPENSE_DATE = "2026-01-01";
 
 export const SECTIONS: { key: ExpenseSection; title: string; hint: string; account: string }[] = [
-  { key: "km", title: "Mileage reimbursement", hint: "Own car: km x ACI fuel cost per litre / 5", account: "11.10.01" },
+  { key: "km", title: "Mileage reimbursement", hint: "Own car: km x ACI fuel cost (per litre, per kg for methane, per kWh for electricity) / 5", account: "11.10.01" },
   {
     key: "transport",
     title: "Motorway tolls, train, metro, taxi, plane tickets",

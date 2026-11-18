@@ -90,7 +90,7 @@ function parseReport(f: FormData) {
     if (l.line_date < MIN_EXPENSE_DATE) bad(`${n}: expenses dated before 1 January 2026 are no longer accepted.`);
     if (!l.budget_line) bad(`${n}: enter the budget line.`);
     if (l.section === "km") {
-      if (!l.km || !l.fuel_price) bad(`${n}: enter the km and the ACI fuel cost per litre.`);
+      if (!l.km || !l.fuel_price) bad(`${n}: enter the km and the ACI fuel cost (per litre, kg or kWh).`);
     } else {
       if (!l.amount_orig) bad(`${n}: enter the amount.`);
       if (l.currency !== "EUR" && !l.exchange_rate) bad(`${n}: enter the exchange rate for ${l.currency}.`);

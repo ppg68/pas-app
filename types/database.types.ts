@@ -432,9 +432,9 @@ export type Database = {
         ]
       }
       fuel_prices: {
-        Row: { week_start: string; petrol: number | null; diesel: number | null; lpg: number | null }
-        Insert: { week_start: string; petrol?: number | null; diesel?: number | null; lpg?: number | null }
-        Update: { week_start?: string; petrol?: number | null; diesel?: number | null; lpg?: number | null }
+        Row: { week_start: string; petrol: number | null; diesel: number | null; lpg: number | null; methane: number | null; electricity: number | null }
+        Insert: { week_start: string; petrol?: number | null; diesel?: number | null; lpg?: number | null; methane?: number | null; electricity?: number | null }
+        Update: { week_start?: string; petrol?: number | null; diesel?: number | null; lpg?: number | null; methane?: number | null; electricity?: number | null }
         Relationships: []
       }
       profiles: {

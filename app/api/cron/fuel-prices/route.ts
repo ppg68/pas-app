@@ -47,13 +47,14 @@ export async function GET(req: Request) {
   const iB = head.indexOf("BENZINA");
   const iG = head.indexOf("GASOLIO_AUTO");
   const iL = head.indexOf("GPL");
+  const iM = head.indexOf("METANO");
   if (iB < 0 || iG < 0 || iL < 0) return new Response("Unexpected CSV columns", { status: 502 });
 
   const rows = lines
     .slice(1)
     .map((l) => cells(l))
     .filter((c) => /^\d{4}-\d{2}-\d{2}$/.test(c[0]) && c[0] >= FROM)
-    .map((c) => ({ week_start: c[0], petrol: perLitre(c[iB]), diesel: perLitre(c[iG]), lpg: perLitre(c[iL]) }))
+    .map((c) => ({ week_start: c[0], petrol: perLitre(c[iB]), diesel: perLitre(c[iG]), lpg: perLitre(c[iL]), ...(iM >= 0 && perLitre(c[iM]) != null ? { methane: perLitre(c[iM]) } : {}) }))
     .filter((r) => r.petrol != null && r.diesel != null);
   if (rows.length === 0) return new Response("No rows in the source", { status: 502 });
 

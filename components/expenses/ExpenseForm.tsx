@@ -1,6 +1,6 @@
 "use client";
 
-import { FUELS, aciPrice, fuelKey, type FuelPriceRow } from "@/lib/domain/fuelPrices";
+import { FUELS, aciPrice, fuelKey, fuelUnit, type FuelPriceRow } from "@/lib/domain/fuelPrices";
 import { projectKey, type ProjectCodes } from "@/lib/domain/projectCups";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -414,7 +414,7 @@ export default function ExpenseForm({
             <p className="subtitle" style={{ margin: 0 }}>
               {sec.hint}.{" "}
               {isKm
-                ? "The km are calculated from the road distance between the two cities you enter (you can correct them). The ACI cost per litre is the national average price of the week of the travel date, for the fuel used: it is filled in automatically once you choose the fuel and the date."
+                ? "The km are calculated from the road distance between the two cities you enter (you can correct them). The ACI cost is the national average price of the week of the travel date, for the fuel used (per litre; per kg for methane; per kWh for electricity): it is filled in automatically once you choose the fuel and the date."
                 : "For another currency enter the 3-letter code (USD, MZN, ...): the InforEuro monthly rate of the month of the receipt is filled in and converted to euro (foreign units per 1 EUR); you can overwrite it."}
             </p>
             {isKm && (
@@ -430,7 +430,7 @@ export default function ExpenseForm({
                   </li>
                   <li>Open &quot;Prezzo carburanti&quot; and the PDF of the fuel prices.</li>
                   <li>Find the date of the week of the trip and read the price of the fuel used (e.g. 06/03/2023 petrol 1,853).</li>
-                  <li>Type it in the &quot;ACI € / litre&quot; field, with the dot or the comma.</li>
+                  <li>Type it in the &quot;ACI € / litre&quot; field (€ / kg for methane, € / kWh for electricity), with the dot or the comma.</li>
                 </ol>
               </details>
             )}
@@ -447,7 +447,7 @@ export default function ExpenseForm({
                       {isKm ? (
                         <>
                           <th style={cell}>km</th>
-                          <th style={cell}>ACI € / litre</th>
+                          <th style={cell}>ACI € / {fuelUnit(fk)}</th>
                         </>
                       ) : (
                         <>

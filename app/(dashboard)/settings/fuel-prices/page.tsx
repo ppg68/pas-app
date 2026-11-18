@@ -20,12 +20,12 @@ export default async function FuelPricesPage({ searchParams }: { searchParams: P
       <h1 style={{ marginBottom: 4 }}>ACI fuel prices</h1>
       <p className="subtitle" style={{ marginBottom: 16 }}>
         Weekly national average prices (euro per litre) used to fill in the ACI cost of the mileage rows. Paste the new rows of the ACI PDF
-        (date, petrol, diesel, LPG): rows already present are updated.
+        (date, petrol, diesel, LPG and, if you have them, methane per kg and electricity per kWh): rows already present are updated. Methane arrives by itself every week; electricity is pasted from the ACI table.
       </p>
       {error && <div className="banner error">{error}</div>}
       {ok && <div className="banner">{ok} week(s) saved.</div>}
       <form action={importFuelPrices} className="card" style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        <textarea name="rows" rows={6} placeholder={"09/11/2026 2,050 2,200 0,770 ..."} style={{ fontFamily: "monospace" }} />
+        <textarea name="rows" rows={6} placeholder={"09/11/2026 2,050 2,200 0,770 1,880 0,250"} style={{ fontFamily: "monospace" }} />
         <SubmitButton style={{ width: "fit-content" }} pendingLabel="Saving…">
           Save prices
         </SubmitButton>
@@ -38,6 +38,8 @@ export default async function FuelPricesPage({ searchParams }: { searchParams: P
             <th style={{ padding: "3px 14px" }}>Petrol</th>
             <th style={{ padding: "3px 14px" }}>Diesel</th>
             <th style={{ padding: "3px 14px" }}>LPG</th>
+            <th style={{ padding: "3px 14px" }}>Methane €/kg</th>
+            <th style={{ padding: "3px 14px" }}>Electricity €/kWh</th>
           </tr>
         </thead>
         <tbody>
@@ -47,6 +49,8 @@ export default async function FuelPricesPage({ searchParams }: { searchParams: P
               <td style={{ padding: "3px 14px" }}>{fmt(p.petrol)}</td>
               <td style={{ padding: "3px 14px" }}>{fmt(p.diesel)}</td>
               <td style={{ padding: "3px 14px" }}>{fmt(p.lpg)}</td>
+              <td style={{ padding: "3px 14px" }}>{fmt(p.methane)}</td>
+              <td style={{ padding: "3px 14px" }}>{fmt(p.electricity)}</td>
             </tr>
           ))}
         </tbody>
