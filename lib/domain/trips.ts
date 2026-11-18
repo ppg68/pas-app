@@ -42,6 +42,15 @@ export const INSURANCE_LABEL: Record<InsuranceMode, string> = {
   self: "Traveler has their own cover",
 };
 
+export type ReimbKind = "either" | "both" | "expat_exit";
+export const REIMB_LABEL: Record<ReimbKind, string> = {
+  either: "Reimbursement against receipts of meals or lodging, or free meals or lodging",
+  both: "Reimbursement against receipts of meals and lodging, or free meals and lodging",
+  expat_exit: "Reimbursement of the expatriate's exit trip for the visa renewal (max EUR 250)",
+};
+/** Transport options of a trip in Italy (AA09): no plane. */
+export const ITALY_TRANSPORT_KEYS = ["company_car", "own_car", "own_electric", "public"];
+
 export const TRANSPORT_OPTIONS: [string, string][] = [
   ["company_car", "Company car"],
   ["own_car", "Own car (petrol / diesel / LPG)"],
@@ -118,6 +127,7 @@ export type TripRow = {
   compensation_charged: boolean;
   compensation_bl: string | null;
   lodging_mode: LodgingMode;
+  reimb_kind: ReimbKind | null;
   per_diem_rate: number | null;
   per_diem_days: number | null;
   per_diem_bl: string | null;

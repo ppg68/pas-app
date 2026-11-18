@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
+import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type ReimbKind, ITALY_TRANSPORT_KEYS, tripDays, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
 import { tripSections, tripSectionsHtml } from "@/lib/domain/tripSections";
 
 // redirect() throws internally: used to bring a readable message back to the page.
@@ -58,7 +58,11 @@ async function baseUrl() {
   return host ? `${proto}://${host}` : "";
 }
 
-function parseTrip(f: FormData) {
+function parseTrip(f: FormData): ReturnType<typeof parseTripBase> {
+  return str(f, "form") === "italy" ? parseItalyTrip(f) : parseTripBase(f);
+}
+
+function parseTripBase(f: FormData) {
   const flights = f.get("flights_needed") === "on";
   const visa = f.get("visa_needed") === "on";
   const insurance = (str(f, "insurance") || "none") as InsuranceMode;
@@ -90,8 +94,9 @@ function parseTrip(f: FormData) {
     compensation_charged: compensation,
     compensation_bl: null,
     lodging_mode: lodging,
-    per_diem_rate: null,
-    per_diem_days: null,
+    reimb_kind: null as ReimbKind | null,
+    per_diem_rate: null as number | null,
+    per_diem_days: null as number | null,
     per_diem_bl: null,
     expenses_bl: null,
     flights_needed: flights,
@@ -109,7 +114,55 @@ function parseTrip(f: FormData) {
   };
 }
 
+/** Trip in Italy (AA09): one day or a period, reasons, transport, and the costs the form lists. */
+function parseItalyTrip(f: FormData): ReturnType<typeof parseTripBase> {
+  const base = parseTripBase(f);
+  const start = str(f, "start_date");
+  const end = str(f, "end_date") || start;
+  const mode = str(f, "lodging_mode") || "none";
+  const lodging = (["none", "per_diem", "receipts", "free_lodging"].includes(mode) ? mode : "none") as LodgingMode;
+  const kind = str(f, "reimb_kind") as ReimbKind;
+  const hotel = f.get("hotel_needed") === "on";
+  const rate = lodging === "per_diem" ? num(f, "per_diem_rate") : null;
+  return {
+    ...base,
+    traveler_type: "employee",
+    scope: "italy",
+    destination: str(f, "destination"),
+    start_date: start,
+    end_date: end,
+    transport: f.getAll("transport").map(String).filter((k) => ITALY_TRANSPORT_KEYS.includes(k)),
+    project_title: null,
+    internal_code: null,
+    donor_code: null,
+    tdr: opt(f, "tdr"),
+    advance_amount: num(f, "advance_amount"),
+    compensation_charged: f.get("compensation_charged") === "on",
+    lodging_mode: lodging,
+    reimb_kind: lodging === "receipts" && ["either", "both", "expat_exit"].includes(kind) ? kind : null,
+    per_diem_rate: rate,
+    per_diem_days: rate && start && end && end >= start ? tripDays(start, end) : null,
+    flights_needed: false,
+    flights_route: null,
+    visa_needed: false,
+    insurance: "none",
+    hotel_needed: hotel,
+    tickets_note: hotel ? opt(f, "tickets_note") : null,
+    needs_logistics: hotel,
+  };
+}
+
 function validate(t: ReturnType<typeof parseTrip>) {
+  if (t.scope === "italy") {
+    if (!t.traveler_name) bad("Enter the name of the traveler.", "traveler_name");
+    if (!t.destination) bad("Enter the place of the trip.", "destination");
+    if (!t.start_date) bad("Enter the date of the trip.", "start_date");
+    if (t.end_date < t.start_date) bad("The end date is before the start date.", "end_date");
+    if (!t.tdr) bad("Enter the reasons of the trip.", "tdr");
+    if (t.lodging_mode === "per_diem" && !t.per_diem_rate) bad("Enter the per diem amount per day.", "per_diem_rate");
+    if (t.lodging_mode === "receipts" && !t.reimb_kind) bad("Choose which reimbursement is authorized.", "reimb_kind");
+    return;
+  }
   if (!t.traveler_name) bad("Enter the name of the traveler.", "traveler_name");
   if (!t.destination) bad("Enter the destination.", "destination");
   if (!t.start_date) bad("Enter the start date.", "start_date");
@@ -125,7 +178,8 @@ function applicableCosts(t: ReturnType<typeof parseTrip>): CostType[] {
   const list: CostType[] = [];
   if (t.compensation_charged) list.push("compensation");
   if (t.lodging_mode === "per_diem") list.push("per_diem");
-  if (t.lodging_mode === "receipts" || t.lodging_mode === "free_lodging") list.push("expenses");
+  // trips in Italy: receipts are not charged here (the expense report carries the codes)
+  if (t.scope !== "italy" && (t.lodging_mode === "receipts" || t.lodging_mode === "free_lodging")) list.push("expenses");
   if (t.flights_needed) list.push("flight");
   if (t.visa_needed) list.push("visa");
   if (t.insurance === "oikos") list.push("insurance");

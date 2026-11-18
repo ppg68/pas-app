@@ -61,7 +61,7 @@ export default function TripForm({
   submitLabel: string;
 }) {
   const d = defaults ?? {};
-  const [scope, setScope] = useState<TripScope>(d.scope ?? "eu");
+  const [scope, setScope] = useState<TripScope>(d.scope && d.scope !== "italy" ? d.scope : "eu");
   const [type, setType] = useState<TravelerType>(d.traveler_type ?? "employee");
   const [lodging, setLodging] = useState<LodgingMode>(d.lodging_mode ?? "none");
   const [flights, setFlights] = useState(d.flights_needed ?? false);
@@ -153,6 +153,7 @@ export default function TripForm({
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
     >
       {error && <div className="banner error">{error}</div>}
+      <input type="hidden" name="form" value="abroad" />
       <input type="hidden" name="allocations_json" value={JSON.stringify(shown)} />
       <Section title="Traveler">
         <div style={row}>
@@ -196,7 +197,7 @@ export default function TripForm({
           <div className="field" style={col()}>
             <label>Where *</label>
             <select name="scope" value={scope} onChange={(e) => setScope(e.target.value as TripScope)}>
-              {Object.entries(SCOPE_LABEL).map(([k, v]) => (
+              {Object.entries(SCOPE_LABEL).filter(([k]) => k !== "italy").map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>

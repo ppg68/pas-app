@@ -2,6 +2,7 @@ import type { PdfSection } from "@/lib/domain/requestPdf";
 import {
   INSURANCE_LABEL,
   LODGING_LABEL,
+  REIMB_LABEL,
   SCOPE_LABEL,
   COST_LABEL,
   TDR_TITLE,
@@ -66,7 +67,7 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     rows: [
       ["Advance", r.advance_amount != null ? `EUR ${money(r.advance_amount)}` : "None"],
       ["Daily compensation charged to projects", r.compensation_charged ? "Yes" : "No"],
-      ["Board and lodging", LODGING_LABEL[r.lodging_mode]],
+      ["Board and lodging", r.lodging_mode === "receipts" && r.reimb_kind ? REIMB_LABEL[r.reimb_kind] : LODGING_LABEL[r.lodging_mode]],
       ...(r.lodging_mode === "per_diem"
         ? ([
             ...(r.per_diem_rate

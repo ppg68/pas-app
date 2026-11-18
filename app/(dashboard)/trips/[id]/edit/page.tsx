@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TripForm from "@/components/trips/TripForm";
+import TripItalyForm from "@/components/trips/TripItalyForm";
 import type { TripRow } from "@/lib/domain/trips";
 import { updateTripRequest } from "../../actions";
 
@@ -26,7 +27,11 @@ export default async function EditTripPage({
       </p>
       <h1 style={{ marginBottom: 16 }}>Edit trip request {r.number}</h1>
       {error && <div className="banner error">{error}</div>}
-      <TripForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Save changes" />
+      {r.scope === "italy" ? (
+        <TripItalyForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Save changes" />
+      ) : (
+        <TripForm action={updateTripRequest.bind(null, id)} defaults={r} submitLabel="Save changes" />
+      )}
     </div>
   );
 }
