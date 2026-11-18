@@ -79,13 +79,13 @@ export default async function TripDetail({
         )}
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Responsabile"}</b>
+            <b style={{ width: 120, flexShrink: 0 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Responsabile"}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
               <span className="stamp brand">approvata {dt(a.signed_at)}</span>
             ) : r.status === "pending" && a.user_id === user?.id ? (
               <form action={signTripRequest.bind(null, id, a.signer_role)}>
-                <SubmitButton pendingLabel="Approvazione…">Approva</SubmitButton>
+                <SubmitButton pendingLabel={r.scope === "italy" ? "Autorizzazione…" : "Approvazione…"}>{r.scope === "italy" ? "Autorizza" : "Approva"}</SubmitButton>
               </form>
             ) : (
               <span className="stamp">in attesa</span>
