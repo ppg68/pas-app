@@ -14,7 +14,8 @@ export async function uploadExpenseFile(
   lineId: string | null,
   budgetLine: string,
   file: File,
-  userId: string | undefined
+  userId: string | undefined,
+  kind: "receipt" | "payment_proof" = "receipt"
 ): Promise<string | null> {
   if (file.size > EXPENSE_MAX_BYTES) return `${file.name}: larger than 20 MB.`;
   const path = `expenses/${reportId}/${crypto.randomUUID()}-${safeName(file.name)}`;
@@ -31,6 +32,7 @@ export async function uploadExpenseFile(
     size_bytes: file.size,
     mime_type: file.type || null,
     budget_line: budgetLine.trim() || null,
+    kind,
     uploaded_by: userId,
   });
   if (dbErr) {

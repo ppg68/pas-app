@@ -39,12 +39,22 @@ const cell: React.CSSProperties = { padding: "3px 4px", verticalAlign: "top" };
 const inp: React.CSSProperties = { width: "100%", minWidth: 0 };
 
 /** A row of the form: the typed values plus its receipt (a file chosen now, or the one already saved). */
-type Row = LineInput & { key: string; line_id?: string; file: File | null; existing: ExpenseFileRow | null };
+type Row = LineInput & {
+  key: string;
+  line_id?: string;
+  file: File | null;
+  existing: ExpenseFileRow | null;
+  /** the quietanza (proof of payment) of the row */
+  proof: File | null;
+  existingProof: ExpenseFileRow | null;
+};
 
 const emptyLine = (section: ExpenseSection): Row => ({
   key: crypto.randomUUID(),
   file: null,
   existing: null,
+  proof: null,
+  existingProof: null,
   section,
   line_date: "",
   budget_line: "",
@@ -74,7 +84,9 @@ function fromRow(l: ExpenseLineRow, files: ExpenseFileRow[]): Row {
     key: l.id,
     line_id: l.id,
     file: null,
-    existing: files.find((f) => f.line_id === l.id) ?? null,
+    existing: files.find((f) => f.line_id === l.id && f.kind !== "payment_proof") ?? null,
+    proof: null,
+    existingProof: files.find((f) => f.line_id === l.id && f.kind === "payment_proof") ?? null,
     section: l.section,
     line_date: l.line_date ?? "",
     budget_line: l.budget_line ?? "",
@@ -252,9 +264,11 @@ export default function ExpenseForm({
         setError(`Row ${i + 1}: attach the receipt (mileage rows need none).`);
         return;
       }
-      if (l.file && l.file.size > EXPENSE_MAX_BYTES) {
-        setError(`Row ${i + 1}: ${l.file.name} is larger than 20 MB.`);
-        return;
+      for (const f of [l.file, l.proof]) {
+        if (f && f.size > EXPENSE_MAX_BYTES) {
+          setError(`Row ${i + 1}: ${f.name} is larger than 20 MB.`);
+          return;
+        }
       }
     }
     setBusy(true);
@@ -270,7 +284,7 @@ export default function ExpenseForm({
         data: { user },
       } = await supabase.auth.getUser();
       // receipts replaced or belonging to removed rows
-      const keepIds = new Set(lines.filter((l) => l.existing).map((l) => l.existing!.id));
+      const keepIds = new Set([...lines.filter((l) => l.existing).map((l) => l.existing!.id), ...lines.filter((l) => l.existingProof).map((l) => l.existingProof!.id)]);
       const drop = (defaultFiles ?? []).filter((f) => f.line_id && !keepIds.has(f.id));
       const problems: string[] = [];
       for (let i = 0; i < lines.length; i++) {
@@ -280,6 +294,17 @@ export default function ExpenseForm({
         if (msg) problems.push(`Row ${i + 1}: ${msg}`);
         else {
           const old = l.existing;
+          if (old && !drop.some((f) => f.id === old.id)) drop.push(old);
+        }
+      }
+      // the quietanza of each row, uploaded the same way; a new one replaces the old one
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (!l.proof) continue;
+        const msg = await uploadExpenseFile(supabase, res.id, res.lineIds[i], l.budget_line, l.proof, user?.id, "payment_proof");
+        if (msg) problems.push(`Row ${i + 1} (payment proof): ${msg}`);
+        else {
+          const old = l.existingProof;
           if (old && !drop.some((f) => f.id === old.id)) drop.push(old);
         }
       }
@@ -301,7 +326,7 @@ export default function ExpenseForm({
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <input type="hidden" name="lines_json" value={JSON.stringify(lines.map(({ key: _k, file: _f, existing: _e, ...rest }) => rest))} />
+      <input type="hidden" name="lines_json" value={JSON.stringify(lines.map(({ key: _k, file: _f, existing: _e, proof: _p, existingProof: _ep, ...rest }) => rest))} />
       <input type="hidden" name="trip_id" value={tripId} />
 
       <h2 style={{ fontSize: "1rem", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>Report</h2>
@@ -458,6 +483,7 @@ export default function ExpenseForm({
                       )}
                       <th style={{ ...cell, textAlign: "right" }}>€</th>
                       <th style={cell}>{isKm ? "" : "Receipt"}</th>
+                      <th style={cell}>{isKm ? "" : "Payment proof (quietanza)"}</th>
                       <th style={cell}></th>
                     </tr>
                   </thead>
@@ -599,6 +625,20 @@ export default function ExpenseForm({
                             </div>
                           )}
                         </td>
+                        <td style={{ ...cell, width: 170 }}>
+                          {!isKm && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {l.existingProof && !l.proof && <span style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>{l.existingProof.file_name}</span>}
+                              <input
+                                type="file"
+                                accept={EXPENSE_ACCEPT}
+                                aria-label={`Payment proof of row ${i + 1}`}
+                                style={{ fontSize: "0.75rem", maxWidth: 170 }}
+                                onChange={(ev) => patchRow(i, { proof: ev.target.files?.[0] ?? null })}
+                              />
+                            </div>
+                          )}
+                        </td>
                         <td style={cell}>
                           <button type="button" className="ghost danger" onClick={() => remove(i)} title="Remove the row">
                             ×
@@ -629,7 +669,7 @@ export default function ExpenseForm({
         <textarea name="notes" rows={2} style={{ resize: "vertical" }} defaultValue={d.notes ?? ""} />
       </div>
       <p className="subtitle" style={{ margin: 0 }}>
-        Attach the receipt of every row (mileage rows need none): the approvers can open it from the report.
+        Attach the receipt of every row (mileage rows need none) and, if you have it, the payment proof (quietanza): the approvers can open them from the report.
       </p>
 
       {pms && racs && (

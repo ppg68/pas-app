@@ -206,11 +206,12 @@ export async function sendExpenseReport(id: string) {
     .maybeSingle();
   if (!rep) fail("/expenses", "Report not found.");
   const [{ data: fl }, { data: ln }] = await Promise.all([
-    supabase.from("expense_files").select("line_id").eq("report_id", id),
+    supabase.from("expense_files").select("line_id, kind").eq("report_id", id),
     supabase.from("expense_lines").select("id, section, seq").eq("report_id", id).order("seq"),
   ]);
   const legacy = (fl ?? []).some((f) => !f.line_id); // receipts attached by budget line (older reports)
-  const withFile = new Set((fl ?? []).map((f) => f.line_id));
+  // the quietanza does not replace the receipt
+  const withFile = new Set((fl ?? []).filter((f) => f.kind !== "payment_proof").map((f) => f.line_id));
   const missing = (ln ?? []).filter((l) => l.section !== "km" && !withFile.has(l.id));
   if (missing.length > 0 && !legacy) {
     fail(`/expenses/${id}`, `Attach the receipt of every expense row (missing: row ${missing.map((m) => m.seq).join(", ")}). Mileage rows need none.`);

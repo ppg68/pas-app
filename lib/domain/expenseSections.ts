@@ -66,7 +66,10 @@ export function expenseSections(
       `${s.account || "no account"} - ${s.project} - BL ${s.budget_line || "?"}`,
       `EUR ${money(s.total)}`,
     ]),
-    notes: [`${files.length} receipt${files.length === 1 ? "" : "s"} attached, divided by budget line.`],
+    notes: [
+      `${files.filter((f) => f.kind !== "payment_proof").length} receipt${files.filter((f) => f.kind !== "payment_proof").length === 1 ? "" : "s"} attached, divided by budget line.` +
+        (files.some((f) => f.kind === "payment_proof") ? ` ${files.filter((f) => f.kind === "payment_proof").length} payment proof(s) (quietanza) attached.` : ""),
+    ],
   };
 
   const hist: [string, string][] = [["Filed by", `${r.requester_name} on ${dt(r.created_at)}`]];

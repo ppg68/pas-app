@@ -99,6 +99,8 @@ export type ExpenseFileRow = {
   mime_type: string | null;
   budget_line: string | null;
   line_id: string | null;
+  /** "receipt" (the expense document) or "payment_proof" (the quietanza: proof the expense was paid) */
+  kind: "receipt" | "payment_proof";
   uploaded_by: string | null;
   uploaded_at: string;
 };

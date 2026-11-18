@@ -83,7 +83,7 @@ export default async function ExpenseDetail({
   const s = expenseSections(r, lines, approvals, files, tripNumber);
   const budgetLines = [...new Set(lines.map((l) => (l.budget_line ?? "").trim()).filter(Boolean))].sort();
   // every row but the mileage ones needs its receipt (older reports used receipts by budget line)
-  const filesByLine = new Set(files.map((f) => f.line_id));
+  const filesByLine = new Set(files.filter((f) => f.kind !== "payment_proof").map((f) => f.line_id));
   const missingRows = lines.filter((l) => l.section !== "km" && !filesByLine.has(l.id));
   const hasFiles = missingRows.length === 0 || files.some((f) => !f.line_id);
 

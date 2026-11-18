@@ -76,6 +76,7 @@ export default function ExpenseFiles({
   const fileButtons = (list: ExpenseFileRow[]) =>
     list.map((f) => (
       <span key={f.id} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+        {f.kind === "payment_proof" && <span className="stamp">quietanza</span>}
         <button type="button" className="ghost" onClick={() => void open(f)}>
           {f.file_name}
         </button>
@@ -106,7 +107,8 @@ export default function ExpenseFiles({
               <b>{l.seq}.</b> {dmy(l.line_date)} · {SECTION_BY_KEY[l.section].account} · BL {l.budget_line ?? "—"} · {l.motive || l.location || ""} ·{" "}
               <b>€ {money(l.amount_eur)}</b>
             </span>
-            {mine.length > 0 ? fileButtons(mine) : <span className="stamp">receipt missing</span>}
+            {mine.some((f) => f.kind !== "payment_proof") ? null : <span className="stamp">receipt missing</span>}
+            {fileButtons(mine)}
           </div>
         );
       })}
