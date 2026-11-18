@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, escapeHtml } from "@/lib/notify";
-import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type ReimbKind, type LetterData, ITALY_TRANSPORT_KEYS, tripDays, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
+import { COST_LABEL, COST_TYPES, type Allocation, type CostType, type InsuranceMode, type LodgingMode, type ReimbKind, type LetterData, type CompensationKind, ITALY_TRANSPORT_KEYS, tripDays, type TravelerType, type TripApproval, type TripRow, type TripScope } from "@/lib/domain/trips";
 import { tripSections, tripSectionsHtml } from "@/lib/domain/tripSections";
 import { buildLetterBlocks } from "@/lib/domain/tripLetter";
 
@@ -69,7 +69,8 @@ function parseTripBase(f: FormData) {
   const insurance = (str(f, "insurance") || "none") as InsuranceMode;
   const hotel = f.get("hotel_needed") === "on";
   const lodging = (str(f, "lodging_mode") || "none") as LodgingMode;
-  const compensation = f.get("compensation_charged") === "on";
+  const compKind = (["gross", "contract"].includes(str(f, "compensation_kind")) ? str(f, "compensation_kind") : null) as CompensationKind | null;
+  const compensation = compKind !== null;
   return {
     traveler_name: str(f, "traveler_name"),
     traveler_email: opt(f, "traveler_email"),
@@ -77,7 +78,7 @@ function parseTripBase(f: FormData) {
     public_employee: f.get("public_employee") === "on",
     role_title: opt(f, "role_title"),
     reference_person: opt(f, "reference_person"),
-    scope: (str(f, "scope") || "eu") as TripScope,
+    scope: (str(f, "scope") === "extra_eu" ? "extra_eu" : "eu") as TripScope,
     destination: str(f, "destination"),
     work_place: opt(f, "work_place"),
     start_date: str(f, "start_date"),
@@ -93,11 +94,12 @@ function parseTripBase(f: FormData) {
     minors: f.get("minors") === "on",
     advance_amount: num(f, "advance_amount"),
     compensation_charged: compensation,
+    compensation_kind: compKind,
     compensation_bl: null,
     lodging_mode: lodging,
     reimb_kind: null as ReimbKind | null,
-    per_diem_rate: lodging === "per_diem" ? num(f, "per_diem_rate") : (null as number | null),
-    per_diem_days: lodging === "per_diem" ? tripDays(str(f, "start_date") || "2000-01-01", str(f, "end_date") || str(f, "start_date") || "2000-01-01") : (null as number | null),
+    per_diem_rate: lodging === "per_diem" || lodging === "free_lodging" ? num(f, "per_diem_rate") : (null as number | null),
+    per_diem_days: lodging === "per_diem" || lodging === "free_lodging" ? tripDays(str(f, "start_date") || "2000-01-01", str(f, "end_date") || str(f, "start_date") || "2000-01-01") : (null as number | null),
     per_diem_bl: null,
     expenses_bl: null,
     flights_needed: flights,
@@ -155,6 +157,7 @@ function parseItalyTrip(f: FormData): ReturnType<typeof parseTripBase> {
     tdr: opt(f, "tdr"),
     advance_amount: num(f, "advance_amount"),
     compensation_charged: f.get("compensation_charged") === "on",
+    compensation_kind: null as CompensationKind | null,
     lodging_mode: lodging,
     reimb_kind: lodging === "receipts" && ["either", "both", "expat_exit"].includes(kind) ? kind : null,
     per_diem_rate: rate,
@@ -185,8 +188,6 @@ function validate(t: ReturnType<typeof parseTrip>) {
   if (!t.start_date) bad("Inserisci la data di inizio.", "start_date");
   if (!t.end_date) bad("Inserisci la data di fine.", "end_date");
   if (t.end_date < t.start_date) bad("La data di fine è prima di quella di inizio.", "end_date");
-  if (!t.project_title) bad("Inserisci il titolo del progetto.", "project_title");
-  if (!t.internal_code) bad("Inserisci il codice interno del progetto.", "internal_code");
   if (!t.tdr) bad("Inserisci i Termini di Riferimento della missione.", "tdr");
 }
 
@@ -194,9 +195,8 @@ function validate(t: ReturnType<typeof parseTrip>) {
 function applicableCosts(t: ReturnType<typeof parseTrip>): CostType[] {
   const list: CostType[] = [];
   if (t.compensation_charged) list.push("compensation");
-  if (t.lodging_mode === "per_diem") list.push("per_diem");
-  // trips in Italy: receipts are not charged here (the expense report carries the codes)
-  if (t.scope !== "italy" && (t.lodging_mode === "receipts" || t.lodging_mode === "free_lodging")) list.push("expenses");
+  // activation sheet: a per diem (also proportioned when lodging is free); receipts carry no project here
+  if (t.lodging_mode === "per_diem" || (t.scope !== "italy" && t.lodging_mode === "free_lodging")) list.push("per_diem");
   if (t.flights_needed) list.push("flight");
   if (t.visa_needed) list.push("visa");
   if (t.insurance === "oikos") list.push("insurance");

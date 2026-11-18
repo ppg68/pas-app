@@ -92,16 +92,16 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
     title: "Costi",
     rows: [
       ["Anticipo", r.advance_amount != null ? `EUR ${money(r.advance_amount)}` : "Nessuno"],
-      ["Compenso giornaliero caricato sui progetti", r.compensation_charged ? "Sì" : "No"],
+      ["Compenso caricato sul progetto", r.compensation_charged ? (r.compensation_kind === "gross" ? "Compenso lordo o aziendale" : r.compensation_kind === "contract" ? "Compenso giornaliero come da contratto in essere" : "Sì") : "No"],
       [
         "Alloggio e vitto",
         r.lodging_mode === "receipts" && r.reimb_kind ? REIMB_LABEL[r.reimb_kind] : LODGING_LABEL[r.lodging_mode],
       ],
-      ...(r.lodging_mode === "per_diem" && r.per_diem_rate
+      ...((r.lodging_mode === "per_diem" || r.lodging_mode === "free_lodging") && r.per_diem_rate
         ? ([
             [
               "Per diem",
-              `EUR ${money(r.per_diem_rate)} x ${r.per_diem_days ?? "?"} giorni${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)} lordi` : ""}`,
+              `EUR ${money(r.per_diem_rate)} ${italy ? "" : "di costo aziendale "}x ${r.per_diem_days ?? "?"} giorni${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)}${italy ? " lordi" : ""}` : ""}`,
             ],
           ] as [string, string][])
         : []),

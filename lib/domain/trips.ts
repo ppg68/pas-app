@@ -60,14 +60,27 @@ export const TRANSPORT_OPTIONS: [string, string][] = [
 ];
 export const TRANSPORT_LABEL: Record<string, string> = Object.fromEntries(TRANSPORT_OPTIONS);
 
-// Per diem grid from the activation sheet (gross daily amount: employee / Co.Co.Co.). Valid for missions up to
-// 3 weeks; longer ones need an agreement with the Direction. Edit this list when the grid changes.
-export const PER_DIEM_GRID: { label: string; employee: number; cococo: number }[] = [
-  { label: "Europa e altre destinazioni extra UE", employee: 133.5, cococo: 136 },
-  { label: "Libano, Mozambico", employee: 164, cococo: 168.5 },
-  { label: "Tanzania, Thailandia", employee: 141, cococo: 144.5 },
-  { label: "Tunisia", employee: 140.5, cococo: 143.5 },
+// Per diem grid of the activation sheet (PR09_1.5 AA14): COMPANY cost per day, with the gross daily amount
+// (employee / Co.Co.Co.) that goes into the letter. Valid for missions up to 3 weeks; longer ones need an agreement
+// with the Direction. Edit this list when the grid changes.
+export const PER_DIEM_GRID: { label: string; company: number; employee: number; cococo: number }[] = [
+  { label: "Missione con foresteria, tutti i paesi / Europa", company: 150, employee: 133.5, cococo: 136 },
+  { label: "Missioni in Libano, Mozambico", company: 190, employee: 164, cococo: 168.5 },
+  { label: "Missioni in Tanzania, Thailandia", company: 160, employee: 141, cococo: 144.5 },
+  { label: "Missioni in Tunisia", company: 159, employee: 140.5, cococo: 143.5 },
+  { label: "Altre destinazioni extra UE dove Istituto Oikos presta consulenze o svolge missioni istituzionali (*)", company: 150, employee: 133.5, cococo: 136 },
 ];
+
+/** "Tipologia Missione" of the activation sheet: one choice that sets the traveler type and where. */
+export const MISSION_KINDS: { key: string; label: string; traveler_type: TravelerType; scope: TripScope | null }[] = [
+  { key: "cococo_eu", label: "Lettere di Incarico per missioni EU (Co.Co.Co.)", traveler_type: "cococo", scope: "eu" },
+  { key: "cococo_extra_eu", label: "Lettere di Incarico per missioni EXTRA EU (Co.Co.Co.)", traveler_type: "cococo", scope: "extra_eu" },
+  { key: "employee_eu", label: "Lettere di Incarico per missioni EU (Dipendenti)", traveler_type: "employee", scope: "eu" },
+  { key: "employee_extra_eu", label: "Lettere di Incarico per missioni EXTRA EU (Dipendenti)", traveler_type: "employee", scope: "extra_eu" },
+  { key: "partner", label: "Lettera di missione partner di progetto", traveler_type: "partner", scope: null },
+];
+
+export type CompensationKind = "gross" | "contract";
 
 export const TDR_TITLE = "Termini di Riferimento";
 
@@ -141,6 +154,7 @@ export type TripRow = {
   transport: string[];
   advance_amount: number | null;
   compensation_charged: boolean;
+  compensation_kind: CompensationKind | null;
   compensation_bl: string | null;
   lodging_mode: LodgingMode;
   reimb_kind: ReimbKind | null;

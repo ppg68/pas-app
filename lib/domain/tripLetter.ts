@@ -3,7 +3,7 @@
 // Il testo e' quello dei modelli in uso; dove la scheda non ha il dato resta uno spazio da completare nel Word.
 
 import { dateLong, moneyIt, type ContractBlock } from "@/lib/domain/contractRequests";
-import type { TripRow } from "@/lib/domain/trips";
+import { PER_DIEM_GRID, type TripRow } from "@/lib/domain/trips";
 
 const BLANK = "____________";
 const orBlank = (s: string | null | undefined) => (s && s.trim() ? s.trim() : BLANK);
@@ -45,9 +45,12 @@ export function buildLetterBlocks(r: TripRow, today = new Date().toISOString().s
   const place = orBlank(r.work_place || r.destination);
   const boss = orBlank(r.reference_person);
   const role = orBlank(r.role_title);
-  const perDiem = r.lodging_mode === "per_diem";
-  const perDiemTxt = r.per_diem_rate ? moneyIt(r.per_diem_rate) : BLANK;
-  const receipts = r.lodging_mode === "receipts" || r.lodging_mode === "free_lodging";
+  const perDiem = r.lodging_mode === "per_diem" || r.lodging_mode === "free_lodging";
+  // the sheet carries the COMPANY cost of the per diem (Oikos grid); the letter states the gross daily amount
+  const gridRow = r.per_diem_rate ? PER_DIEM_GRID.find((g) => g.company === Number(r.per_diem_rate)) : undefined;
+  const grossPerDiem = gridRow ? (emp ? gridRow.employee : gridRow.cococo) : r.per_diem_rate ? Number(r.per_diem_rate) : null;
+  const perDiemTxt = grossPerDiem ? moneyIt(grossPerDiem) : BLANK;
+  const receipts = r.lodging_mode === "receipts";
   const signer = emp ? "Giuseppe Guida" : "Dott. Giuseppe Guida";
 
   const blocks: ContractBlock[] = [];
@@ -143,7 +146,7 @@ export function buildLetterBlocks(r: TripRow, today = new Date().toISOString().s
   } else {
     art3.push("A titolo di corrispettivo per le sue prestazioni il Collaboratore riceverà dal Committente:", "");
     if (L.daily_fee) art3.push(`- Compenso giornaliero pari a ${amount(L.daily_fee)} al lordo degli oneri a carico del collaboratore;`);
-    if (L.contract_fee || (!L.daily_fee && !L.extra_fee)) art3.push("- Il suo compenso giornaliero contrattualmente stabilito;");
+    if (L.contract_fee || r.compensation_kind === "contract" || (!L.daily_fee && !L.extra_fee)) art3.push("- Il suo compenso giornaliero contrattualmente stabilito;");
     if (L.extra_fee) art3.push(`- Compenso aggiuntivo pari a ${amount(L.extra_fee)} al lordo degli oneri a carico del collaboratore;`);
     if (extra && perDiem) art3.push(`- Per Diem (a copertura di spese Vitto e Alloggio) giornaliero pari a ${perDiemTxt} al lordo degli oneri a carico del collaboratore.`);
   }
