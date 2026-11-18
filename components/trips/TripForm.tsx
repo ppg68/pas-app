@@ -278,7 +278,7 @@ export default function TripForm({
 
       <Section title="Titolo e codice progetto (solo quando è un unico progetto)">
         <div className="field">
-          <label>Progetto</label>
+          <label>Titolo progetto</label>
           <input name="project_title" defaultValue={d.project_title ?? ""} />
         </div>
         <div style={row}>
