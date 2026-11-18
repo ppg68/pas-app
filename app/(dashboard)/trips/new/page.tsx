@@ -17,13 +17,13 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
         <p className="subtitle">Where is the trip?</p>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
           <Link href="/trips/new?where=italy" className="card" style={{ flex: 1, minWidth: 240, textDecoration: "none", color: "inherit" }}>
-            <h2 style={{ fontSize: "1.1rem", marginBottom: 6 }}>Italy</h2>
+            <h2 style={{ fontSize: "1.1rem", marginBottom: 6 }}>Trip in Italy, in Switzerland and Europe (same day), exit trips for visa renewal</h2>
             <p className="subtitle" style={{ margin: 0 }}>
               Single trip authorization (PR09 AA09): place, dates, reasons, transport, allowance or reimbursement.
             </p>
           </Link>
           <Link href="/trips/new?where=abroad" className="card" style={{ flex: 1, minWidth: 240, textDecoration: "none", color: "inherit" }}>
-            <h2 style={{ fontSize: "1.1rem", marginBottom: 6 }}>Abroad</h2>
+            <h2 style={{ fontSize: "1.1rem", marginBottom: 6 }}>Mission abroad</h2>
             <p className="subtitle" style={{ margin: 0 }}>
               Mission in Europe or outside the EU: terms of reference, flights, visa, insurance, bookings.
             </p>
@@ -43,9 +43,9 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
   return (
     <div style={{ maxWidth: 760 }}>
       <p style={{ marginBottom: 6 }}>
-        <Link href="/trips/new">← Italy or abroad</Link>
+        <Link href="/trips/new">← Back to the choice</Link>
       </p>
-      <h1 style={{ marginBottom: 16 }}>{where === "italy" ? "New trip in Italy" : "New trip abroad"}</h1>
+      <h1 style={{ marginBottom: 16 }}>{where === "italy" ? "New trip in Italy, in Switzerland and Europe (same day), exit trip for visa renewal" : "New trip abroad"}</h1>
       {error && <div className="banner error">{error}</div>}
       {where === "italy" ? (
         <TripItalyForm action={createTripRequest} superiors={superiors} submitLabel="Send for authorization" />
