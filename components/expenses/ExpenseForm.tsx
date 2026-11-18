@@ -554,7 +554,7 @@ export default function ExpenseForm({
                           )}
                         </td>
                         <td style={{ ...cell, width: 80 }}>
-                          <input style={inp} value={l.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} placeholder="03.01" />
+                          <input style={inp} value={l.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
                         </td>
                         <td style={cell}>
                           {isKm ? (
@@ -618,7 +618,7 @@ export default function ExpenseForm({
                           </>
                         ) : (
                           <>
-                            <td style={{ ...cell, width: 60 }}>
+                            <td style={{ ...cell, width: 84 }}>
                               <input
                                 style={inp}
                                 value={l.currency}
