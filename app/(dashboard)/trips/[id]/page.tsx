@@ -6,7 +6,7 @@ import SubmitButton from "@/components/SubmitButton";
 import CopyText from "@/components/trips/CopyText";
 import { tripSections } from "@/lib/domain/tripSections";
 import { letterKind } from "@/lib/domain/tripLetter";
-import { STATUS_LABEL, TDR_TITLE, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
+import { TRAVELER_LABEL, STATUS_LABEL, TDR_TITLE, dt, type TripApproval, type TripRow } from "@/lib/domain/trips";
 import { cancelTripRequest, deleteTripRequest, prepareTripLetter, saveTripLetterText, signTripRequest } from "../actions";
 
 export default async function TripDetail({
@@ -115,6 +115,19 @@ export default async function TripDetail({
           </div>
         )}
       </div>
+
+      {!canPrepareLetter && (roles.includes("CAP") || isAdmin) && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Lettera di incarico</h2>
+          <p className="subtitle" style={{ margin: 0 }}>
+            {r.scope === "italy"
+              ? "Le trasferte in Italia (modulo AA09) non hanno lettera di incarico."
+              : !letterKind(r)
+                ? `Per questo tipo di viaggiatore (${TRAVELER_LABEL[r.traveler_type]}) non c'è un modello di lettera: le lettere esistono per dipendenti e collaboratori.`
+                : "La lettera si prepara dopo l'approvazione della richiesta."}
+          </p>
+        </div>
+      )}
 
       {canPrepareLetter && (
         <div className="card" style={{ marginBottom: 14 }}>
