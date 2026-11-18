@@ -349,7 +349,7 @@ export async function signTripRequest(id: string, role: "PM" | "RAC") {
             req.flights_needed ? "biglietto aereo" : "",
             req.visa_needed ? "visto" : "",
             req.insurance === "oikos" ? "assicurazione" : "",
-            req.hotel_needed ? "treno / albergo / altro" : "",
+            req.hotel_needed ? (req.scope === "italy" ? "acquisto biglietto aereo/treno o albergo" : "treno / albergo / altro") : "",
           ].filter(Boolean).join(", ");
           const logistics = await holders(supabase, "LOG");
           for (const h of logistics) {
