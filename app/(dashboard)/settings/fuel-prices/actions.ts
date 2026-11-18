@@ -30,3 +30,16 @@ export async function importFuelPrices(formData: FormData) {
   revalidatePath("/settings/fuel-prices");
   redirect(`/settings/fuel-prices?ok=${rows.length}`);
 }
+
+/** Electricity (EUR per kWh) has no automatic source: one value from a given week onward (the weeks already in the table). */
+export async function setElectricityPrice(formData: FormData) {
+  const price = parseFloat(String(formData.get("price") || "").replace(",", "."));
+  const from = String(formData.get("from") || "");
+  if (!Number.isFinite(price) || price <= 0) redirect("/settings/fuel-prices?error=" + encodeURIComponent("Enter the electricity price in euro per kWh, e.g. 0,25."));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) redirect("/settings/fuel-prices?error=" + encodeURIComponent("Enter the date from which the price applies."));
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("fuel_prices").update({ electricity: price }).gte("week_start", from).select("week_start");
+  if (error) redirect("/settings/fuel-prices?error=" + encodeURIComponent(error.message));
+  revalidatePath("/settings/fuel-prices");
+  redirect(`/settings/fuel-prices?ok=${(data ?? []).length}`);
+}

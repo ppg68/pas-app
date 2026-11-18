@@ -40,6 +40,13 @@ export function aciPrice(prices: FuelPriceRow[], date: string, fuel: FuelKey | n
   for (const p of prices) if (p.week_start <= date && (!best || p.week_start > best.week_start)) best = p;
   if (!best) return "";
   const days = (Date.parse(date) - Date.parse(best.week_start)) / 86400000;
-  const v = best[fuel];
-  return v != null && days <= 13 ? String(v) : "";
+  if (days > 13) return "";
+  let v = best[fuel];
+  // electricity changes rarely and has no weekly source: the latest value entered before that week applies
+  if (v == null && fuel === "electricity") {
+    let prev: FuelPriceRow | null = null;
+    for (const p of prices) if (p.week_start <= best.week_start && p.electricity != null && (!prev || p.week_start > prev.week_start)) prev = p;
+    v = prev?.electricity ?? null;
+  }
+  return v != null ? String(v) : "";
 }

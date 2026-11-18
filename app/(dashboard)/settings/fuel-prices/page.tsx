@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/SubmitButton";
-import { importFuelPrices } from "./actions";
+import { importFuelPrices, setElectricityPrice } from "./actions";
 
 export default async function FuelPricesPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
@@ -29,6 +29,20 @@ export default async function FuelPricesPage({ searchParams }: { searchParams: P
         <SubmitButton style={{ width: "fit-content" }} pendingLabel="Saving…">
           Save prices
         </SubmitButton>
+      </form>
+      <form action={setElectricityPrice} className="card" style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 20 }}>
+        <div className="field">
+          <label>Electricity, € per kWh (ACI table)</label>
+          <input name="price" inputMode="decimal" placeholder="0,250" style={{ width: 120 }} />
+        </div>
+        <div className="field">
+          <label>Valid from</label>
+          <input name="from" type="date" />
+        </div>
+        <SubmitButton pendingLabel="Saving…">Set electricity price</SubmitButton>
+        <p className="subtitle" style={{ margin: 0, flexBasis: "100%" }}>
+          Applies to all the weeks from that date on, and to the new weeks until you enter another value.
+        </p>
       </form>
       <h2 style={{ fontSize: "1rem", marginBottom: 6 }}>Latest weeks</h2>
       <table style={{ borderCollapse: "collapse", fontSize: "0.9rem" }}>
