@@ -39,7 +39,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return new Response(`No Callisto account for ${r.worker_id ? r.worker_name : r.requester_name}: ADMIN can enter it in Settings > Team.`, { status: 409 });
   }
 
-  const lines = ((ls ?? []) as ExpenseLineRow[]).filter((l) => l.section !== "invoices");
+  // invoices addressed to Oikos and rows paid with the Oikos credit card are not part of the reimbursement
+  const lines = ((ls ?? []) as ExpenseLineRow[]).filter((l) => l.section !== "invoices" && !l.paid_with_card);
   const surname = (r.worker_id ? r.worker_name : r.requester_name).trim().split(/\s+/).slice(-1)[0] ?? "";
   const rows: (string | number | Date | null)[][] = [];
   for (const l of lines) {

@@ -32,6 +32,8 @@ export function expenseSections(
       ["Internal project code", r.internal_code ?? ""],
       ["Car / fuel", [r.car_model, r.fuel].filter(Boolean).join(" - ")],
       ["Notes", r.notes ?? ""],
+      ["Total", `EUR ${money(Number(r.total_eur) + Number(r.total_card_eur ?? 0))}`],
+      ["Total paid with Oikos credit card", `EUR ${money(Number(r.total_card_eur ?? 0))}`],
       ["Total to be reimbursed", `EUR ${money(r.total_eur)}`],
     ],
   };
@@ -53,7 +55,7 @@ export function expenseSections(
               : l.currency !== "EUR"
                 ? `${money(l.amount_orig)} ${l.currency} at ${l.exchange_rate}`
                 : "";
-          return [label, `${where}${detail ? ` (${detail})` : ""}: EUR ${money(Number(l.amount_eur))}`] as [string, string];
+          return [label, `${where}${detail ? ` (${detail})` : ""}${l.paid_with_card ? " [Oikos card]" : ""}: EUR ${money(Number(l.amount_eur))}`] as [string, string];
         }),
         ["Subtotal", `EUR ${money(sub)}`],
       ],

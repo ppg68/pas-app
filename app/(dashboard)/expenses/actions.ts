@@ -80,6 +80,8 @@ function parseReport(f: FormData) {
         amount_orig: isKm ? null : numOrNull(l.amount_orig),
         exchange_rate: !isKm && (l.currency || "EUR").trim().toUpperCase() !== "EUR" ? numOrNull(l.exchange_rate) : null,
         amount_eur,
+        // the Oikos credit card is not used for mileage
+        paid_with_card: !isKm && l.paid_with_card === true,
       };
     });
 
@@ -109,7 +111,9 @@ function parseReport(f: FormData) {
     car_model: opt(f, "car_model"),
     fuel: opt(f, "fuel"),
     notes: opt(f, "notes"),
-    total_eur: round2(lines.reduce((s, l) => s + l.amount_eur, 0)),
+    // reimbursed total: the rows paid with the Oikos credit card are kept apart
+    total_eur: round2(lines.filter((l) => !l.paid_with_card).reduce((s, l) => s + l.amount_eur, 0)),
+    total_card_eur: round2(lines.filter((l) => l.paid_with_card).reduce((s, l) => s + l.amount_eur, 0)),
   };
   if (!report.worker_name || !report.subject) bad("Enter the name of the worker and the object of the expenses.");
   if (!report.internal_code) bad("Enter the internal project code.");

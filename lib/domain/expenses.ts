@@ -62,7 +62,10 @@ export type ExpenseReportRow = {
   car_model: string | null;
   fuel: string | null;
   notes: string | null;
+  /** total to be reimbursed (rows not paid with the Oikos credit card) */
   total_eur: number;
+  /** total of the rows paid with the Oikos credit card (not reimbursed) */
+  total_card_eur: number;
   callisto_protocol: string | null;
   registered_by: string | null;
   registered_by_name: string | null;
@@ -88,6 +91,8 @@ export type ExpenseLineRow = {
   amount_orig: number | null;
   exchange_rate: number | null;
   amount_eur: number;
+  /** paid with the Oikos credit card: counted in the total but not reimbursed */
+  paid_with_card: boolean;
 };
 
 export type ExpenseFileRow = {
@@ -120,6 +125,7 @@ export type LineInput = {
   currency: string;
   amount_orig: string;
   exchange_rate: string;
+  paid_with_card: boolean;
 };
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -142,10 +148,12 @@ export function lineAmountEur(l: Pick<LineInput, "section" | "km" | "fuel_price"
 export const money = (n: number | null | undefined) =>
   n == null ? "" : n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Totals by Callisto account, project and budget line: what the administration records. */
+/** Totals by Callisto account, project and budget line: what the administration records. Rows paid with the Oikos
+ *  credit card are not part of the reimbursement. */
 export function callistoSummary(lines: ExpenseLineRow[], internalCode: string | null) {
   const map = new Map<string, { section: ExpenseSection; account: string; project: string; budget_line: string; total: number }>();
   for (const l of lines) {
+    if (l.paid_with_card) continue;
     const bl = (l.budget_line ?? "").trim();
     const key = `${l.section}|${bl}`;
     const cur = map.get(key) ?? {

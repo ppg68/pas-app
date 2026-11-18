@@ -66,6 +66,7 @@ const emptyLine = (section: ExpenseSection): Row => ({
   currency: "EUR",
   amount_orig: "",
   exchange_rate: "",
+  paid_with_card: false,
 });
 
 
@@ -98,6 +99,7 @@ function fromRow(l: ExpenseLineRow, files: ExpenseFileRow[]): Row {
     currency: l.currency || "EUR",
     amount_orig: s(l.amount_orig),
     exchange_rate: s(l.exchange_rate),
+    paid_with_card: l.paid_with_card ?? false,
   };
 }
 
@@ -197,7 +199,9 @@ export default function ExpenseForm({
 
   const patch = (i: number, p: Partial<LineInput>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
   const remove = (i: number) => setLines((ls) => ls.filter((_, k) => k !== i));
-  const total = round2(lines.reduce((s, l) => s + lineAmountEur(l), 0));
+  const totalAll = round2(lines.reduce((s, l) => s + lineAmountEur(l), 0));
+  const totalCard = round2(lines.reduce((s, l) => s + (l.paid_with_card && l.section !== "km" ? lineAmountEur(l) : 0), 0));
+  const total = round2(totalAll - totalCard);
   const patchRow = (i: number, p: Partial<Row>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
 
 
@@ -523,6 +527,7 @@ export default function ExpenseForm({
                       <th style={{ ...cell, textAlign: "right" }}>€</th>
                       <th style={cell}>{isKm ? "" : "Receipt"}</th>
                       <th style={cell}>{isKm ? "" : "Payment proof (quietanza)"}</th>
+                      <th style={cell}>{isKm ? "" : "Oikos card"}</th>
                       <th style={cell}></th>
                     </tr>
                   </thead>
@@ -704,6 +709,17 @@ export default function ExpenseForm({
                             </div>
                           )}
                         </td>
+                        <td style={{ ...cell, width: 60, textAlign: "center", paddingTop: 9 }}>
+                          {!isKm && (
+                            <input
+                              type="checkbox"
+                              checked={l.paid_with_card}
+                              title="Paid with the Oikos credit card: not reimbursed"
+                              aria-label={`Row ${i + 1} paid with the Oikos credit card`}
+                              onChange={(e) => patch(i, { paid_with_card: e.target.checked })}
+                            />
+                          )}
+                        </td>
                         <td style={cell}>
                           <button type="button" className="ghost danger" onClick={() => remove(i)} title="Remove the row">
                             ×
@@ -725,7 +741,9 @@ export default function ExpenseForm({
         );
       })}
 
-      <div style={{ borderTop: "2px solid var(--ink)", paddingTop: 8, textAlign: "right", fontSize: "1.05rem" }}>
+      <div style={{ borderTop: "2px solid var(--ink)", paddingTop: 8, textAlign: "right", fontSize: "1.05rem", display: "flex", flexDirection: "column", gap: 4 }}>
+        <span>TOTAL: € {money(totalAll)}</span>
+        <span>TOTAL PAID WITH OIKOS CREDIT CARD: € {money(totalCard)}</span>
         <b>TOTAL to be reimbursed: € {money(total)}</b>
       </div>
 
@@ -734,7 +752,7 @@ export default function ExpenseForm({
         <textarea name="notes" rows={2} style={{ resize: "vertical" }} defaultValue={d.notes ?? ""} />
       </div>
       <p className="subtitle" style={{ margin: 0 }}>
-        Attach the receipt of every row (mileage rows need none) and, if you have it, the payment proof (quietanza), as PDF files: the approvers can open them from the report.
+        Attach the receipt of every row (mileage rows need none) and, if you have it, the payment proof (quietanza), as PDF files. Tick &quot;Oikos card&quot; on the rows paid with the company credit card: they stay in the report but are not reimbursed: the approvers can open them from the report.
       </p>
 
       {pms && racs && (

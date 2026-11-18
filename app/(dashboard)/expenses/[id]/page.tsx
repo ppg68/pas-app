@@ -265,7 +265,9 @@ export default async function ExpenseDetail({
         <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>{s.summary.title}</h2>
         <Rows rows={s.summary.rows ?? []} />
         <div style={{ borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 6 }}>
-          <b>TOTAL: € {money(r.total_eur)}</b>
+          <div>TOTAL: € {money(Number(r.total_eur) + Number(r.total_card_eur ?? 0))}</div>
+          <div>TOTAL PAID WITH OIKOS CREDIT CARD: € {money(Number(r.total_card_eur ?? 0))}</div>
+          <b>TOTAL to be reimbursed: € {money(r.total_eur)}</b>
         </div>
       </div>
     </div>
