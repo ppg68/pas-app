@@ -9,7 +9,6 @@ import {
   ITALY_TRANSPORT_KEYS,
   REIMB_LABEL,
   TRANSPORT_OPTIONS,
-  tripDays,
   type Allocation,
   type CostType,
   type ReimbKind,
@@ -67,8 +66,6 @@ export default function TripItalyForm({
   ]);
   const shown = alloc.filter((a) => applicable.has(a.cost_type));
   const types = (["compensation", "per_diem", "bookings"] as CostType[]).filter((c) => applicable.has(c));
-  const days = start && (end || start) >= start ? tripDays(start, end || start) : null;
-  const rateNum = parseFloat(rate);
 
   const newRow = (cost: CostType): AllocRow => ({ cost_type: cost, project_code: "", budget_line: "" });
   const seed = (cost: CostType) => setAlloc((a) => (a.some((x) => x.cost_type === cost) ? a : [...a, newRow(cost)]));
@@ -209,12 +206,6 @@ export default function TripItalyForm({
           <div className="field" style={{ maxWidth: 260 }}>
             <label>Per Diem (€ al giorno) *</label>
             <MoneyInput name="per_diem_rate" defaultValue={rate} onValueChange={setRate} />
-            {days && Number.isFinite(rateNum) && (
-              <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-                {days} {days === 1 ? "giorno" : "giorni"} × {rateNum.toLocaleString("it-IT", { minimumFractionDigits: 2 })} ={" "}
-                {(days * rateNum).toLocaleString("it-IT", { minimumFractionDigits: 2 })} €
-              </span>
-            )}
           </div>
         )}
         {mode === "receipts" && (
@@ -242,7 +233,7 @@ export default function TripItalyForm({
               if (e.target.checked) seed("bookings");
             }}
           />{" "}
-          Acquisto del biglietto aereo/treno o dell'albergo da parte di Istituto Oikos E.T.S.
+          Acquisto del biglietto aereo/treno o dell&apos;albergo da parte di Istituto Oikos E.T.S.
         </label>
         {hotel && (
           <div className="field">

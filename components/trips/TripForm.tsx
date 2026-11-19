@@ -8,7 +8,6 @@ import {
   COST_LABEL,
   MISSION_KINDS,
   PER_DIEM_GRID,
-  tripDays,
   type Allocation,
   type CompensationKind,
   type CostType,
@@ -87,7 +86,6 @@ export default function TripForm({
   const [busy, setBusy] = useState(false);
 
   const perDiem = lodging === "per_diem" || lodging === "free_lodging";
-  const days = start && end && end >= start ? tripDays(start, end) : null;
   const rateNum = parseFloat(rate);
 
   // the costs that exist for this mission, from the choices made above
@@ -363,12 +361,6 @@ export default function TripForm({
             <div className="field" style={{ maxWidth: 300 }}>
               <label>Per diem giornaliero, costo aziendale (€)</label>
               <MoneyInput name="per_diem_rate" value={rate} onValueChange={setRate} />
-              {days && Number.isFinite(rateNum) && (
-                <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-                  {days} {days === 1 ? "giorno" : "giorni"} × {rateNum.toLocaleString("it-IT", { minimumFractionDigits: 2 })} ={" "}
-                  {(days * rateNum).toLocaleString("it-IT", { minimumFractionDigits: 2 })} €
-                </span>
-              )}
             </div>
             {allocBlock("per_diem", "Per diem")}
           </>

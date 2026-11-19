@@ -99,7 +99,8 @@ function parseTripBase(f: FormData) {
     lodging_mode: lodging,
     reimb_kind: null as ReimbKind | null,
     per_diem_rate: lodging === "per_diem" || lodging === "free_lodging" ? num(f, "per_diem_rate") : (null as number | null),
-    per_diem_days: lodging === "per_diem" || lodging === "free_lodging" ? tripDays(str(f, "start_date") || "2000-01-01", str(f, "end_date") || str(f, "start_date") || "2000-01-01") : (null as number | null),
+    // the per diem days depend on the departure time of the flight / train: not calculated here
+    per_diem_days: null as number | null,
     per_diem_bl: null,
     expenses_bl: null,
     flights_needed: flights,
@@ -161,7 +162,7 @@ function parseItalyTrip(f: FormData): ReturnType<typeof parseTripBase> {
     lodging_mode: lodging,
     reimb_kind: lodging === "receipts" && ["either", "both", "expat_exit"].includes(kind) ? kind : null,
     per_diem_rate: rate,
-    per_diem_days: rate && start && end && end >= start ? tripDays(start, end) : null,
+    per_diem_days: null,
     flights_needed: false,
     flights_route: null,
     visa_needed: false,

@@ -23,7 +23,6 @@ const yn = (b: boolean) => (b ? "Sì" : "No");
 /** Le sezioni della scheda, mostrate nella pagina e stampate nel PDF (una sola fonte per entrambi). */
 export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[] {
   const days = tripDays(r.start_date, r.end_date);
-  const perDiemTotal = r.per_diem_rate && r.per_diem_days ? r.per_diem_rate * r.per_diem_days : null;
   const italy = r.scope === "italy";
 
   const sections: PdfSection[] = [];
@@ -101,7 +100,7 @@ export function tripSections(r: TripRow, approvals: TripApproval[]): PdfSection[
         ? ([
             [
               "Per diem",
-              `EUR ${money(r.per_diem_rate)} ${italy ? "" : "di costo aziendale "}x ${r.per_diem_days ?? "?"} giorni${perDiemTotal != null ? ` = EUR ${money(perDiemTotal)}${italy ? " lordi" : ""}` : ""}`,
+              `EUR ${money(r.per_diem_rate)} al giorno${italy ? "" : " (costo aziendale)"}`,
             ],
           ] as [string, string][])
         : []),
