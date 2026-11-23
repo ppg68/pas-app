@@ -205,6 +205,8 @@ export default async function RequestDetailPage({
   });
   const requiredDocs = DOCS_BY_PROC[request.proc_code];
   const docsOk = documentsComplete(request.proc_code, docsMap);
+  // only the invoice is missing: the payment can go on as an advance
+  const advanceOk = !docsOk && documentsComplete(request.proc_code, { ...docsMap, "07": true });
 
   // Files uploaded to the PAS for this procedure (moved to the server folders when it is closed)
   const { data: fileRows } = await supabase
@@ -580,6 +582,7 @@ export default async function RequestDetailPage({
           archiveDoneAt={request.archive_done_at ?? null}
           stage={request.stage}
           docsOk={docsOk}
+          advanceOk={advanceOk}
           folderPath={request.folder_path ?? null}
           afterDocKey="03"
           afterDoc={offersInFiles ? (<>{offersBlock}{showWinnerBlock && <div style={{ borderTop: "0.5px solid #EEF0F3", marginTop: 10, paddingTop: 10 }}>{winnerBlock}</div>}</>) : undefined}

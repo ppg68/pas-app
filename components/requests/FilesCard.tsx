@@ -4,7 +4,7 @@ import OfficePreview from "@/components/requests/OfficePreview";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { advanceToPayment } from "@/lib/domain/workflow";
+import { advanceToPayment, advanceToPaymentAsAdvance } from "@/lib/domain/workflow";
 import { registerFile, getFileUrl, deleteFile, updateFileProtocol, requestArchive } from "@/lib/domain/files";
 
 export type RequestFile = {
@@ -54,6 +54,7 @@ export default function FilesCard({
   archiveDoneAt,
   stage,
   docsOk,
+  advanceOk,
   folderPath,
   afterDocKey,
   afterDoc,
@@ -68,6 +69,8 @@ export default function FilesCard({
   stage: string;
   /** all required documents are complete: the request can go to payment */
   docsOk: boolean;
+  /** only the invoice is missing: the payment can go on as an advance */
+  advanceOk: boolean;
   folderPath: string | null;
   /** content shown right after the folder with this key (e.g. the offers, after 03 Quotations received) */
   afterDocKey?: string;
@@ -243,6 +246,7 @@ export default function FilesCard({
   // payment authorization comes before the proof of payment: the button sits right above folder 10
   const goToPayment =
     stage === "documents" ? (
+      <>
         <form
           action={advanceToPayment.bind(null, requestId)}
           style={{ borderTop: "0.5px solid #EEF0F3", paddingTop: 10, marginTop: 0, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}
@@ -252,6 +256,18 @@ export default function FilesCard({
             Go to payment
           </button>
         </form>
+        {!docsOk && advanceOk && (
+          <form
+            action={advanceToPaymentAsAdvance.bind(null, requestId)}
+            style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 6 }}
+          >
+            <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+              Invoice not available yet? Pay in advance (needs the proforma / quotation in 03 or 06; invoice due within 30 days).
+            </span>
+            <button type="submit">Go to payment as advance</button>
+          </form>
+        )}
+      </>
     ) : null;
 
   return (

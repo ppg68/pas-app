@@ -660,6 +660,41 @@ export async function advanceToPayment(requestId: string) {
 }
 
 /**
+ * Advance payment: goes to the payment stage WITHOUT the invoice (07). Every other required document must be there, and
+ * a proforma / quotation / order confirmation (folder 03 or 06) must be uploaded. The payment authorization is then
+ * prepared as an advance (see createPaymentAuthorization): the invoice has to be linked within 30 days.
+ */
+export async function advanceToPaymentAsAdvance(requestId: string) {
+  const path = `/requests/${requestId}`;
+  const supabase = await createClient();
+  const { data: req } = await supabase.from("requests").select("proc_code, stage").eq("id", requestId).single();
+  if (!req || req.stage !== "documents") fail(path, "The request is not in the documents stage.");
+
+  const { data: docs } = await supabase.from("request_documents").select("doc_key, checked").eq("request_id", requestId);
+  const docsMap: Record<string, boolean> = {};
+  (docs ?? []).forEach((d) => {
+    docsMap[d.doc_key] = d.checked;
+  });
+  // only the invoice may be missing
+  if (!documentsComplete(req.proc_code, { ...docsMap, "07": true })) fail(path, "Required documents are missing.");
+
+  const { count: proofs } = await supabase
+    .from("request_files")
+    .select("id", { count: "exact", head: true })
+    .eq("request_id", requestId)
+    .in("doc_key", ADVANCE_PROOF_DOC_KEYS);
+  if (!proofs) {
+    fail(path, "Advance payment: upload the proforma / quotation / order confirmation first (folder 03 Quotations received or 06 Purchase order).");
+  }
+
+  await supabase.from("requests").update({ stage: "payment" }).eq("id", requestId);
+  await supabase.from("audit_log").insert({ request_id: requestId, action: "advance_payment_stage" });
+
+  revalidatePath(path);
+  redirect(path);
+}
+
+/**
  * Payment authorization (form PR04.AA05). Prepared by the person who compiled the request
  * (Budget Holder) or the PM while the request is in the payment stage; CAR / RAC approve it.
  * There can be several per request (advance, balance...).
@@ -730,6 +765,17 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
       .is("invoice_id", null);
     if ((openAdv ?? []).some((a) => isAdvanceOverdue(a))) {
       fail(path, "You have advance payments still without invoice after 30 days: link the invoices (Advances page) before opening a new one.");
+    }
+  }
+
+  // without invoice the payment can only be an advance (the invoice folder 07 is empty and no invoice is registered)
+  if (!isAdvance) {
+    const [{ data: inv07 }, { count: invCount }] = await Promise.all([
+      supabase.from("request_documents").select("checked").eq("request_id", requestId).eq("doc_key", "07").maybeSingle(),
+      supabase.from("invoices").select("id", { count: "exact", head: true }).eq("request_id", requestId),
+    ]);
+    if (!inv07?.checked && !invCount) {
+      fail(path, "No invoice for this request yet: tick \"Advance payment\" to authorize the payment before the invoice.");
     }
   }
 
