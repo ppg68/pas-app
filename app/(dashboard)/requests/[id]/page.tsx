@@ -693,7 +693,9 @@ export default async function RequestDetailPage({
                             ? "Bank transfer"
                             : a.payment_type === "cash"
                               ? "Cash"
-                              : (a.payment_type_other ?? "Other"),
+                              : a.payment_type === "credit_card"
+                                ? "Credit card"
+                                : (a.payment_type_other ?? "Other"),
                         ],
                         ["Bank transfer description", a.bank_description || "—"],
                         [

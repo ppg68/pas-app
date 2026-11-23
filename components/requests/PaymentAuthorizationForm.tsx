@@ -165,6 +165,7 @@ export default function PaymentAuthorizationForm({
           <select name="payment_type" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
             <option value="bank_transfer">Bank transfer</option>
             <option value="cash">Cash</option>
+            <option value="credit_card">Credit card</option>
             <option value="other">Other (specify)</option>
           </select>
         </div>

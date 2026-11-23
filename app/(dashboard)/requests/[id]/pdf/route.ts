@@ -215,7 +215,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             ? "Bank transfer"
             : a.payment_type === "cash"
               ? "Cash"
-              : (a.payment_type_other ?? "Other"),
+              : a.payment_type === "credit_card"
+                ? "Credit card"
+                : (a.payment_type_other ?? "Other"),
         ],
         ["Bank transfer description", a.bank_description ?? "—"],
         ["Amount", `${money(a.amount)} ${a.currency}`],

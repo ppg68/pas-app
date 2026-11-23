@@ -736,7 +736,7 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
   const beneficiary = text("beneficiary");
   if (!description || !beneficiary) fail(path, "Description of the payment and beneficiary are required.");
   const paymentType = text("payment_type");
-  if (!["bank_transfer", "cash", "other"].includes(paymentType)) fail(path, "Choose the payment type.");
+  if (!["bank_transfer", "cash", "credit_card", "other"].includes(paymentType)) fail(path, "Choose the payment type.");
   const typeOther = text("payment_type_other");
   if (paymentType === "other" && !typeOther) fail(path, "Specify the payment type.");
 
