@@ -4,6 +4,7 @@ import { useState } from "react";
 import MoneyInput from "@/components/MoneyInput";
 import SubmitButton from "@/components/SubmitButton";
 import { createPaymentAuthorization } from "@/lib/domain/workflow";
+import { ADVANCE_REASONS, ADVANCE_INVOICE_DAYS } from "@/lib/domain/advances";
 
 export type PaInvoiceOption = {
   id: string;
@@ -50,6 +51,8 @@ export default function PaymentAuthorizationForm({
   );
   const [balanceTouched, setBalanceTouched] = useState(false);
   const [paymentType, setPaymentType] = useState("bank_transfer");
+  const [isAdvance, setIsAdvance] = useState(false);
+  const [advanceReason, setAdvanceReason] = useState("proforma");
 
   const fmt = (n: number) => n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -92,7 +95,47 @@ export default function PaymentAuthorizationForm({
         )}
       </div>
 
-      {invoices.length > 0 && (
+      <div className="field" style={{ background: "#FFF8E6", border: "0.5px solid #E8D9A8", borderRadius: 8, padding: 10 }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600 }}>
+          <input
+            type="checkbox"
+            name="is_advance"
+            checked={isAdvance}
+            onChange={(e) => setIsAdvance(e.target.checked)}
+            style={{ width: "auto" }}
+          />
+          Advance payment — the invoice is not available yet
+        </label>
+        {isAdvance && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8, fontSize: 12, lineHeight: 1.5 }}>
+            <div style={{ color: "var(--ink-soft)" }}>
+              Upload the proforma / quotation / order confirmation first (folder <b>03 Quotations received</b> or{" "}
+              <b>06 Purchase order</b>). The invoice must be linked to the payment within{" "}
+              <b>{ADVANCE_INVOICE_DAYS} days</b> of the authorization: you and the administration get a reminder.
+            </div>
+            <div style={rowStyle}>
+              <div className="field" style={{ width: 260 }}>
+                <label>Why is there no invoice yet?</label>
+                <select name="advance_reason" value={advanceReason} onChange={(e) => setAdvanceReason(e.target.value)}>
+                  {Object.entries(ADVANCE_REASONS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {advanceReason === "other" && (
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Specify</label>
+                  <input name="advance_reason_other" required />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {invoices.length > 0 && !isAdvance && (
         <div className="field">
           <label>Invoice this payment refers to (optional — fills in beneficiary and amount)</label>
           <select name="invoice_id" value={invoiceId} onChange={(e) => onInvoice(e.target.value)}>

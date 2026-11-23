@@ -24,9 +24,11 @@ import {
   closeOffers,
   selectWinner,
   authorizePaymentAuth,
+  linkAdvanceInvoice,
 } from "@/lib/domain/workflow";
 import SubmitButton from "@/components/SubmitButton";
 import PaymentAuthorizationForm from "@/components/requests/PaymentAuthorizationForm";
+import { ADVANCE_REASONS, ADVANCE_INVOICE_DAYS, advanceDueDate, isAdvanceOverdue } from "@/lib/domain/advances";
 import IncrementForm from "@/components/requests/IncrementForm";
 import ProcedureGuide from "@/components/requests/ProcedureGuide";
 import FilesCard, { type RequestFile } from "@/components/requests/FilesCard";
@@ -647,6 +649,31 @@ export default async function RequestDetailPage({
                       [
                         ["Date", fmtWhen(a.created_at).slice(0, 10)],
                         ["Description", a.description],
+                        ...(a.is_advance
+                          ? ([
+                              [
+                                "Advance payment",
+                                <span key="adv">
+                                  <b style={{ color: inv ? "var(--navy)" : isAdvanceOverdue(a) ? "#B3261E" : "#8A5A00" }}>
+                                    {inv
+                                      ? "Invoice received"
+                                      : isAdvanceOverdue(a)
+                                        ? "INVOICE OVERDUE"
+                                        : "Invoice awaited"}
+                                  </b>{" "}
+                                  — {ADVANCE_REASONS[a.advance_reason ?? ""] ?? "—"}
+                                  {a.advance_reason === "other" && a.advance_reason_other ? `: ${a.advance_reason_other}` : ""}
+                                  {!inv && (
+                                    <>
+                                      {" "}
+                                      · invoice due by <b>{fmtWhen(advanceDueDate(a).toISOString()).slice(0, 10)}</b> ({ADVANCE_INVOICE_DAYS} days
+                                      after the authorization)
+                                    </>
+                                  )}
+                                </span>,
+                              ],
+                            ] as [string, React.ReactNode][])
+                          : []),
                         ["Invoice", inv ? `${inv.supplier ?? "—"}${inv.protocol ? ` · ${inv.protocol}` : ""}` : "—"],
                         ["Beneficiary", a.beneficiary],
                         [
@@ -712,6 +739,31 @@ export default async function RequestDetailPage({
                     </tr>
                   </tbody>
                 </table>
+                {a.is_advance && !a.invoice_id && (() => {
+                  const taken = new Set((payAuths ?? []).map((x) => x.invoice_id).filter((v): v is string => !!v));
+                  const free = (requestInvoices ?? []).filter((i) => !taken.has(i.id));
+                  const canLink = request.initiated_by === userId || a.prepared_by === userId || roles.has("CONTRACTS" as Role) || roles.has("ADMIN" as Role);
+                  if (!canLink) return null;
+                  return free.length === 0 ? (
+                    <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 10 }}>
+                      When the invoice arrives, register it in the Invoices section for this IR: it can then be linked here.
+                    </p>
+                  ) : (
+                    <form action={linkAdvanceInvoice.bind(null, a.id, request.id)} style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+                      <select name="invoice_id" required style={{ maxWidth: 420 }}>
+                        <option value="">— invoice received —</option>
+                        {free.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {`${i.supplier ?? "—"} — ${money(i.amount)} ${i.currency}${i.protocol ? ` — ${i.protocol}` : ""}`}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="primary">
+                        Link invoice
+                      </button>
+                    </form>
+                  );
+                })()}
                 {canApprove && myRole && (
                   <form action={authorizePaymentAuth.bind(null, a.id, request.id, myRole)} style={{ marginTop: 10 }}>
                     <button type="submit" className="primary">

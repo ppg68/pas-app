@@ -565,6 +565,10 @@ export type Database = {
       }
       payment_authorizations: {
         Row: {
+          advance_invoice_linked_at: string | null
+          advance_reason: string | null
+          advance_reason_other: string | null
+          advance_reminder_sent_at: string | null
           amount: number
           authorized_at: string | null
           authorized_by: string | null
@@ -579,6 +583,7 @@ export type Database = {
           donor_procedure: string | null
           euro_equivalent: number | null
           id: string
+          is_advance: boolean
           invoice_id: string | null
           pa_date: string
           payment_details: string | null
@@ -589,6 +594,8 @@ export type Database = {
           status: string
         }
         Insert: {
+          advance_reason?: string | null
+          advance_reason_other?: string | null
           amount: number
           balance_after?: number | null
           bank_description?: string | null
@@ -599,6 +606,7 @@ export type Database = {
           donor_procedure?: string | null
           euro_equivalent?: number | null
           invoice_id?: string | null
+          is_advance?: boolean
           payment_details?: string | null
           payment_type?: string
           payment_type_other?: string | null
@@ -607,6 +615,8 @@ export type Database = {
           status?: string
         }
         Update: {
+          advance_invoice_linked_at?: string | null
+          advance_reminder_sent_at?: string | null
           amount?: number
           balance_after?: number | null
           bank_description?: string | null
@@ -1022,6 +1032,10 @@ export type Database = {
       add_increment: {
         Args: { req_id: string; amount: number; reason: string }
         Returns: Json
+      }
+      link_advance_invoice: {
+        Args: { pa_id: string; inv_id: string }
+        Returns: undefined
       }
       authorize_payment: {
         Args: { pa_id: string; as_role: Database["pas"]["Enums"]["app_role"] }

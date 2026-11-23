@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { fetchProjectCups, cupForProject } from "@/lib/domain/projectCups";
 import { sendEmail, escapeHtml } from "@/lib/notify";
+import { ADVANCE_REASONS, ADVANCE_PROOF_DOC_KEYS, isAdvanceOverdue } from "@/lib/domain/advances";
 import {
   isDerogation,
   procedureAllowed,
@@ -704,8 +705,36 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
   const typeOther = text("payment_type_other");
   if (paymentType === "other" && !typeOther) fail(path, "Specify the payment type.");
 
-  let invoiceId = text("invoice_id") || null;
-  if (!invoiceId) {
+  // advance payment: the invoice does not exist yet
+  const isAdvance = text("is_advance") === "on";
+  const advanceReason = text("advance_reason");
+  const advanceReasonOther = text("advance_reason_other");
+  if (isAdvance) {
+    if (!(advanceReason in ADVANCE_REASONS)) fail(path, "Advance payment: choose the reason why there is no invoice yet.");
+    if (advanceReason === "other" && !advanceReasonOther) fail(path, "Advance payment: specify the reason.");
+    // the document that justifies the amount (proforma, quotation, order confirmation) must already be uploaded
+    const { count: proofs } = await supabase
+      .from("request_files")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", requestId)
+      .in("doc_key", ADVANCE_PROOF_DOC_KEYS);
+    if (!proofs) {
+      fail(path, "Advance payment: upload the proforma / quotation / order confirmation first (folder 03 Quotations received or 06 Purchase order).");
+    }
+    // whoever has advances past the 30 days without invoice cannot open new ones
+    const { data: openAdv } = await supabase
+      .from("payment_authorizations")
+      .select("authorized_at, created_at")
+      .eq("prepared_by", user.id)
+      .eq("is_advance", true)
+      .is("invoice_id", null);
+    if ((openAdv ?? []).some((a) => isAdvanceOverdue(a))) {
+      fail(path, "You have advance payments still without invoice after 30 days: link the invoices (Advances page) before opening a new one.");
+    }
+  }
+
+  let invoiceId = isAdvance ? null : text("invoice_id") || null;
+  if (!invoiceId && !isAdvance) {
     // No invoice chosen: if the request has exactly one invoice not yet covered by a payment
     // authorization, it is the one this payment refers to (so "PA signed" gets ticked on approval).
     const [{ data: invs }, { data: used }] = await Promise.all([
@@ -733,13 +762,16 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
     currency,
     euro_equivalent: euro,
     prepared_by: user.id,
+    is_advance: isAdvance,
+    advance_reason: isAdvance ? advanceReason : null,
+    advance_reason_other: isAdvance && advanceReason === "other" ? advanceReasonOther : null,
   }).select("id").single();
   if (error || !created) fail(path, error?.message ?? "Unable to save the payment authorization.");
 
   await supabase.from("audit_log").insert({
     request_id: requestId,
     user_id: user.id,
-    action: "payment_authorization_prepared",
+    action: isAdvance ? "advance_payment_prepared" : "payment_authorization_prepared",
   });
 
   await notifyPaymentAuthorizers({
@@ -866,6 +898,38 @@ export async function addIncrement(requestId: string, formData: FormData) {
 
   revalidatePath(path);
   revalidatePath("/");
+  redirect(path);
+}
+
+/** Links the invoice that finally arrived to an advance payment (closes the advance). */
+export async function linkAdvanceInvoice(paId: string, requestId: string, formData: FormData) {
+  const path = `/requests/${requestId}`;
+  const supabase = await createClient();
+  const invoiceId = String(formData.get("invoice_id") || "").trim();
+  if (!invoiceId) fail(path, "Choose the invoice to link.");
+
+  const { error } = await supabase.rpc("link_advance_invoice", { pa_id: paId, inv_id: invoiceId });
+  if (error) fail(path, error.message);
+
+  // the invoice gets the payment row of the (already authorized) advance, as for any other payment
+  const { data: pa } = await supabase
+    .from("payment_authorizations")
+    .select("amount, status")
+    .eq("id", paId)
+    .maybeSingle();
+  if (pa && pa.status === "authorized") {
+    try {
+      await supabase.from("invoice_payments").upsert(
+        { invoice_id: invoiceId, payment_authorization_id: paId, amount: pa.amount, note: "Advance payment: invoice received" },
+        { onConflict: "payment_authorization_id", ignoreDuplicates: true }
+      );
+    } catch {
+      // best effort
+    }
+  }
+
+  revalidatePath(path);
+  revalidatePath("/advances");
   redirect(path);
 }
 

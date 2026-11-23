@@ -47,6 +47,9 @@ export default function Sidebar({
             New request
           </Link>
         )}
+        <Link href="/advances" className={isActive("/advances") ? "active" : ""}>
+          Advances
+        </Link>
         <Link href="/contract-requests" className={isActive("/contract-requests") ? "active" : ""}>
           Contract requests
         </Link>

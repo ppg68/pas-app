@@ -1,4 +1,7 @@
 {
   "regions": ["cdg1"],
-  "crons": [{ "path": "/api/cron/fuel-prices", "schedule": "0 15 * * 2,3,4" }]
+  "crons": [
+    { "path": "/api/cron/fuel-prices", "schedule": "0 15 * * 2,3,4" },
+    { "path": "/api/cron/advance-reminders", "schedule": "0 6 * * *" }
+  ]
 }
