@@ -391,6 +391,46 @@ export async function signExpenseReport(id: string, role: "PM" | "RAC") {
   redirect(`/expenses/${id}`);
 }
 
+/** ADMIN: reopens an approved report so that the requester can correct it; the requester is told by email. */
+export async function reopenExpenseReport(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reopen_expense_report", { rid: id });
+  if (error) fail(`/expenses/${id}`, error.message);
+  try {
+    const { data: rep } = await supabase
+      .from("expense_reports")
+      .select("number, requester_name, requester_email, worker_id, worker_name, total_eur")
+      .eq("id", id)
+      .maybeSingle();
+    const link = `${await baseUrl()}/expenses/${id}`;
+    if (rep) {
+      const to: { name: string; email: string }[] = [];
+      if (rep.requester_email) to.push({ name: rep.requester_name, email: rep.requester_email });
+      if (rep.worker_id) {
+        const { data: w } = await supabase.from("profiles").select("full_name, email").eq("id", rep.worker_id).maybeSingle();
+        if (w?.email && !to.some((x) => x.email === w.email)) to.push({ name: w.full_name, email: w.email });
+      }
+      after(async () => {
+        for (const x of to) {
+          try {
+            await sendEmail({
+              to: x.email,
+              subject: `Expense report ${rep.number}: please correct it`,
+              html: `<p>Hello ${escapeHtml(x.name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} was reopened for a correction (for example the exchange rates). Open it, press <b>Edit report</b>, correct it and press <b>Send to the approvers</b>: it needs to be approved again.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
+            });
+          } catch (e) {
+            console.error("[expenses] reopen email failed", e);
+          }
+        }
+      });
+    }
+  } catch {
+    // best effort
+  }
+  revalidatePath(`/expenses/${id}`);
+  redirect(`/expenses/${id}`);
+}
+
 /** Flag users (Logistics / Contracts) and ADMIN: flags the report as paid, or removes the flag. */
 export async function setExpensePaid(id: string, paid: boolean) {
   const supabase = await createClient();

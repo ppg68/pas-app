@@ -18,6 +18,7 @@ import {
   deleteExpenseReport,
   registerExpenseReport,
   setExpensePaid,
+  reopenExpenseReport,
   sendExpenseReport,
   signExpenseReport,
 } from "../actions";
@@ -189,6 +190,16 @@ export default async function ExpenseDetail({
               >
                 <button type="submit" className="ghost danger">
                   Delete
+                </button>
+              </ConfirmForm>
+            )}
+            {isAdmin && r.status === "approved" && !r.paid_at && (
+              <ConfirmForm
+                action={reopenExpenseReport.bind(null, id)}
+                message="Reopen this report for correction? The approvals are cleared, the requester is emailed and it must be approved again."
+              >
+                <button type="submit" className="ghost">
+                  Reopen for correction
                 </button>
               </ConfirmForm>
             )}
