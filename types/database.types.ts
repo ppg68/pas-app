@@ -1058,6 +1058,7 @@ export type Database = {
         Returns: Json
       }
       set_expense_paid: { Args: { rid: string; paid: boolean }; Returns: undefined }
+      reopen_expense_report: { Args: { rid: string }; Returns: undefined }
       register_expense_report: { Args: { rid: string; protocol: string; note: string | null }; Returns: undefined }
       sign_trip_request: {
         Args: { rid: string; as_role: Database["pas"]["Enums"]["app_role"] }
