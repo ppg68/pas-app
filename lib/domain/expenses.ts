@@ -62,6 +62,8 @@ export type ExpenseReportRow = {
   car_model: string | null;
   fuel: string | null;
   notes: string | null;
+  /** all the expenses are on the coordination: the budget line is optional */
+  coordination: boolean;
   /** total to be reimbursed (rows not paid with the Oikos credit card) */
   total_eur: number;
   /** total of the rows paid with the Oikos credit card (not reimbursed) */

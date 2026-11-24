@@ -85,12 +85,13 @@ function parseReport(f: FormData) {
       };
     });
 
+  const coordination = f.get("coordination") === "on";
   if (lines.length === 0) bad("Add at least one expense row.");
   lines.forEach((l, i) => {
     const n = `Row ${i + 1}`;
     if (!l.line_date) bad(`${n}: enter the document date.`);
     if (l.line_date < MIN_EXPENSE_DATE) bad(`${n}: expenses dated before 1 January 2026 are no longer accepted.`);
-    if (!l.budget_line) bad(`${n}: enter the budget line.`);
+    if (!l.budget_line && !coordination) bad(`${n}: enter the budget line (or tick "All on the coordination").`);
     if (l.section === "km") {
       if (!l.km || !l.fuel_price) bad(`${n}: enter the km and the ACI fuel cost (per litre, kg or kWh).`);
     } else {
@@ -111,6 +112,7 @@ function parseReport(f: FormData) {
     car_model: opt(f, "car_model"),
     fuel: opt(f, "fuel"),
     notes: opt(f, "notes"),
+    coordination,
     // reimbursed total: the rows paid with the Oikos credit card are kept apart
     total_eur: round2(lines.filter((l) => !l.paid_with_card).reduce((s, l) => s + l.amount_eur, 0)),
     total_card_eur: round2(lines.filter((l) => l.paid_with_card).reduce((s, l) => s + l.amount_eur, 0)),

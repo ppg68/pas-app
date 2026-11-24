@@ -153,6 +153,7 @@ export default function ExpenseForm({
     }
   }
   const known = !!projectCodes[projectKey(internal)];
+  const [coordination, setCoordination] = useState(d.coordination ?? false);
   const [tripId, setTripId] = useState(d.trip_id ?? "");
   const [lines, setLines] = useState<Row[]>(() => (defaultLines ?? []).map((l) => fromRow(l, defaultFiles ?? [])));
   const router = useRouter();
@@ -434,6 +435,9 @@ export default function ExpenseForm({
           <input name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
         </div>
       </div>
+      <label className="checkbox-row">
+        <input type="checkbox" name="coordination" checked={coordination} onChange={(e) => setCoordination(e.target.checked)} /> All the expenses are on the coordination (the budget line is then optional)
+      </label>
       <div style={row}>
         <div className="field" style={col()}>
           <label>Internal project code *</label>
@@ -504,14 +508,14 @@ export default function ExpenseForm({
             )}
             {idx.length > 0 && (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                <table style={{ width: "100%", minWidth: 1250, borderCollapse: "collapse", fontSize: "0.85rem" }}>
                   <thead>
                     <tr style={{ textAlign: "left" }}>
                       <th style={cell}>Date</th>
                       <th style={cell}></th>
-                      <th style={cell}>Budget line</th>
+                      <th style={cell}>Budget line{coordination ? "" : " *"}</th>
                       <th style={cell}>{isKm ? "From / to" : "Location"}</th>
-                      <th style={cell}>Motive</th>
+                      <th style={cell}>Purpose</th>
                       {isKm ? (
                         <>
                           <th style={cell}>km</th>
@@ -559,9 +563,9 @@ export default function ExpenseForm({
                           )}
                         </td>
                         <td style={{ ...cell, width: 80 }}>
-                          <input style={inp} value={l.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
+                          <input style={inp} value={l.budget_line} required={!coordination} onChange={(e) => patch(i, { budget_line: e.target.value })} />
                         </td>
-                        <td style={isKm ? { ...cell, width: 200, minWidth: 200, maxWidth: 200 } : cell}>
+                        <td style={isKm ? { ...cell, width: 220, minWidth: 220, maxWidth: 220 } : { ...cell, minWidth: 180 }}>
                           {isKm ? (
                             (() => {
                               const pl = parsePlaces(l.location);
@@ -609,7 +613,7 @@ export default function ExpenseForm({
                             <input style={inp} value={l.location} onChange={(e) => patch(i, { location: e.target.value })} />
                           )}
                         </td>
-                        <td style={cell}>
+                        <td style={{ ...cell, minWidth: 220 }}>
                           <input style={inp} value={l.motive} onChange={(e) => patch(i, { motive: e.target.value })} />
                         </td>
                         {isKm ? (
@@ -635,13 +639,17 @@ export default function ExpenseForm({
                             <td style={{ ...cell, width: 90 }}>
                               <input style={inp} inputMode="decimal" value={l.amount_orig} onChange={(e) => patch(i, { amount_orig: e.target.value })} />
                             </td>
-                            <td style={{ ...cell, width: 70 }}>
+                            <td style={{ ...cell, width: 110, minWidth: 110 }}>
                               <input
                                 style={inp}
                                 inputMode="decimal"
                                 value={l.exchange_rate}
                                 disabled={(l.currency || "EUR").toUpperCase() === "EUR"}
-                                onChange={(e) => patch(i, { exchange_rate: e.target.value })}
+                                title="You can type a different rate (e.g. the one of the bank or of the receipt)"
+                                onChange={(e) => {
+                                  patch(i, { exchange_rate: e.target.value });
+                                  setFxNote((n) => ({ ...n, [l.key]: "Rate typed by you (1 EUR = " + (e.target.value || "?") + " " + (l.currency || "") + ")" }));
+                                }}
                               />
                               {(l.currency || "EUR").toUpperCase() !== "EUR" && (
                                 <>
