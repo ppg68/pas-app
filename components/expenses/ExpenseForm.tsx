@@ -561,7 +561,7 @@ export default function ExpenseForm({
                         <td style={{ ...cell, width: 80 }}>
                           <input style={inp} value={l.budget_line} onChange={(e) => patch(i, { budget_line: e.target.value })} />
                         </td>
-                        <td style={cell}>
+                        <td style={isKm ? { ...cell, width: 200, minWidth: 200, maxWidth: 200 } : cell}>
                           {isKm ? (
                             (() => {
                               const pl = parsePlaces(l.location);
@@ -601,7 +601,7 @@ export default function ExpenseForm({
                                   <button type="button" className="ghost" style={{ padding: "2px 8px", fontSize: "0.8rem" }} onClick={() => void calcKm(i, true)} title="Calculate the km from the two places">
                                     Calculate km
                                   </button>
-                                  {kmNote[l.key] && <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>{kmNote[l.key]}</span>}
+                                  {kmNote[l.key] && <span style={{ fontSize: 11, color: "var(--ink-soft)", overflowWrap: "anywhere" }}>{kmNote[l.key]}</span>}
                                 </div>
                               );
                             })()
