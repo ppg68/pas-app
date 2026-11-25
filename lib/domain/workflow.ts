@@ -775,7 +775,10 @@ export async function createPaymentAuthorization(requestId: string, formData: Fo
       supabase.from("invoices").select("id", { count: "exact", head: true }).eq("request_id", requestId),
     ]);
     if (!inv07?.checked && !invCount) {
-      fail(path, "No invoice for this request yet: tick \"Advance payment\" to authorize the payment before the invoice.");
+      fail(
+        path,
+        "THE INVOICE IS NOT AVAILABLE YET. To authorize this payment before the invoice arrives, tick the box \"Advance payment — the invoice is not available yet\" at the top of this form, choose the reason, and make sure the proforma / quotation / order confirmation is uploaded in folder 03 Quotations received or 06 Purchase order."
+      );
     }
   }
 

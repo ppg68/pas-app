@@ -95,6 +95,13 @@ export default function PaymentAuthorizationForm({
         )}
       </div>
 
+      {invoices.length === 0 && !isAdvance && (
+        <div style={{ background: "#FDECEA", border: "0.5px solid #E5A8A0", borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.5 }}>
+          <b>No invoice registered for this request yet.</b> If the invoice is still to be received, tick{" "}
+          <b>Advance payment</b> below, otherwise the authorization will be refused.
+        </div>
+      )}
+
       <div className="field" style={{ background: "#FFF8E6", border: "0.5px solid #E8D9A8", borderRadius: 8, padding: 10 }}>
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600 }}>
           <input
