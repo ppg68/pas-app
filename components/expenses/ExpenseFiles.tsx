@@ -105,6 +105,11 @@ export default function ExpenseFiles({
           >
             <span style={{ flex: "1 1 320px" }}>
               <b>{l.seq}.</b> {dmy(l.line_date)} · {SECTION_BY_KEY[l.section].account} · BL {l.budget_line ?? "—"} · {l.motive || l.location || ""} ·{" "}
+              {l.section !== "km" && (l.currency || "EUR").toUpperCase() !== "EUR" && l.amount_orig != null && (
+                <span style={{ color: "var(--ink-soft)" }}>
+                  {money(l.amount_orig)} {l.currency} · rate 1 EUR = {l.exchange_rate ?? "?"} {l.currency} →{" "}
+                </span>
+              )}
               <b>€ {money(l.amount_eur)}</b>
             </span>
             {mine.some((f) => f.kind !== "payment_proof") ? null : <span className="stamp">receipt missing</span>}
