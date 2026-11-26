@@ -75,6 +75,8 @@ export function expenseSections(
   };
 
   const hist: [string, string][] = [["Filed by", `${r.requester_name} on ${dt(r.created_at)}`]];
+  if (r.cap_verified_at) hist.push(["CAP check", `Verified by ${r.cap_verified_by_name ?? ""} on ${dt(r.cap_verified_at)}`]);
+  else if (r.status === "pending") hist.push(["CAP check", "Waiting for the CAP"]);
   if (!approvals.some((a) => a.signer_role === "PM")) {
     hist.push(["Superior", "No superior chosen: the RAC / CAR checks the report"]);
   }

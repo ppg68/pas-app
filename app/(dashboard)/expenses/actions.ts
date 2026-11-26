@@ -26,7 +26,7 @@ const numOrNull = (s: string) => {
 };
 
 type Holder = { id: string; full_name: string; email: string | null };
-type Role = "PM" | "RAC" | "CAR";
+type Role = "PM" | "RAC" | "CAR" | "CAP";
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
 async function holders(supabase: Supa, role: Role) {
@@ -185,7 +185,7 @@ async function createImpl(formData: FormData): Promise<ExpenseSaveResult> {
     bad(apErr.message);
   }
 
-  // the approvers are told when the requester presses "Send to the approvers" on the report page
+  // the CAP is told when the requester presses "Send to the CAP" on the report page
   revalidatePath("/expenses");
   const lineIds = (insLines ?? []).sort((x, y) => x.seq - y.seq).map((x) => x.id);
   return { id: inserted.id, lineIds };
@@ -202,7 +202,7 @@ export async function createExpenseReport(formData: FormData): Promise<ExpenseSa
 
 
 
-/** The approvers are emailed when the requester confirms the receipts are attached. */
+/** The CAP is emailed when the requester confirms the receipts are attached. */
 export async function sendExpenseReport(id: string) {
   const supabase = await createClient();
   const { data: rep } = await supabase
@@ -222,25 +222,22 @@ export async function sendExpenseReport(id: string) {
   if (missing.length > 0 && !legacy) {
     fail(`/expenses/${id}`, `Attach the receipt of every expense row (missing: row ${missing.map((m) => m.seq).join(", ")}). Mileage rows need none.`);
   }
-  const { data: aps } = await supabase.from("expense_approvals").select("user_id, signer_role").eq("report_id", id);
-  // the superior (if any) approves first; otherwise the RAC / CAR
-  const first = (aps ?? []).find((a) => a.signer_role === "PM") ?? (aps ?? []).find((a) => a.signer_role === "RAC");
+  // the CAP checks first; the approvers are emailed after the verification
   const link = `${await baseUrl()}/expenses/${id}`;
-  const people = await Promise.all([superiors(supabase), racOrCar(supabase)]);
-  const list = people.flat().filter((h, i, a) => h.id === first?.user_id && a.findIndex((x) => x.id === h.id) === i);
+  const list = await holders(supabase, "CAP");
   after(async () => {
     for (const h of list) {
       if (!h.email) continue;
       try {
         await sendEmail({
           to: h.email,
-          subject: `Expense report ${rep.number}: your approval is needed`,
+          subject: `Expense report ${rep.number}: to be verified`,
           html: `<p>Hello ${escapeHtml(h.full_name)},</p>
-<p><b>${escapeHtml(rep.requester_name)}</b> submitted the expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} (€ ${rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 })}). Your approval is needed.</p>
+<p><b>${escapeHtml(rep.requester_name)}</b> submitted the expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} (€ ${rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 })}). Please verify it: it can be approved only afterwards.</p>
 ${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
         });
       } catch (e) {
-        console.error("[expenses] approval email failed", e);
+        console.error("[expenses] CAP email failed", e);
       }
     }
   });
@@ -299,6 +296,88 @@ export async function updateExpenseReport(id: string, formData: FormData): Promi
     if (e instanceof FormError) return { error: e.message };
     throw e;
   }
+}
+
+/** CAP: the report is correct; the superior (if any), otherwise the RAC / CAR, is asked to approve it. */
+export async function verifyExpenseReport(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cap_verify_expense_report", { rid: id });
+  if (error) fail(`/expenses/${id}`, error.message);
+  try {
+    const [{ data: rep }, { data: aps }] = await Promise.all([
+      supabase.from("expense_reports").select("number, worker_name, requester_name, requester_email, total_eur").eq("id", id).maybeSingle(),
+      supabase.from("expense_approvals").select("user_id, signer_role").eq("report_id", id),
+    ]);
+    const first = (aps ?? []).find((a) => a.signer_role === "PM") ?? (aps ?? []).find((a) => a.signer_role === "RAC");
+    const people = (await Promise.all([superiors(supabase), racOrCar(supabase)])).flat();
+    const approver = people.find((h) => h.id === first?.user_id);
+    const link = `${await baseUrl()}/expenses/${id}`;
+    if (rep) {
+      const amount = rep.total_eur.toLocaleString("it-IT", { minimumFractionDigits: 2 });
+      const mails: { to: string; subject: string; html: string }[] = [];
+      if (approver?.email) {
+        mails.push({
+          to: approver.email,
+          subject: `Expense report ${rep.number}: your approval is needed`,
+          html: `<p>Hello ${escapeHtml(approver.full_name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} (€ ${amount}), submitted by ${escapeHtml(rep.requester_name)}, was verified by the CAP. Your approval for payment is needed.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
+        });
+      }
+      if (rep.requester_email) {
+        mails.push({
+          to: rep.requester_email,
+          subject: `Expense report ${rep.number}: verified`,
+          html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>The CAP verified your expense report <b>${escapeHtml(rep.number)}</b>. It is now waiting for the approval.</p>${link ? `<p><a href="${link}">Open the report</a></p>` : ""}`,
+        });
+      }
+      after(async () => {
+        for (const m of mails) {
+          try {
+            await sendEmail(m);
+          } catch (e) {
+            console.error("[expenses] verification email failed", e);
+          }
+        }
+      });
+    }
+  } catch {
+    // best effort
+  }
+  revalidatePath(`/expenses/${id}`);
+  redirect(`/expenses/${id}`);
+}
+
+/** CAP: sends the report back to the requester with the reason; it must be sent and verified again. */
+export async function returnExpenseReport(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const reason = str(formData, "return_reason");
+  if (!reason) fail(`/expenses/${id}`, "Write what has to be corrected.");
+  const { error } = await supabase.rpc("cap_return_expense_report", { rid: id });
+  if (error) fail(`/expenses/${id}`, error.message);
+  try {
+    const { data: rep } = await supabase
+      .from("expense_reports")
+      .select("number, requester_name, requester_email, worker_name")
+      .eq("id", id)
+      .maybeSingle();
+    const link = `${await baseUrl()}/expenses/${id}`;
+    if (rep?.requester_email) {
+      after(async () => {
+        try {
+          await sendEmail({
+            to: rep.requester_email!,
+            subject: `Expense report ${rep.number}: please correct it`,
+            html: `<p>Hello ${escapeHtml(rep.requester_name)},</p><p>The CAP sent back the expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)}:</p><p style="white-space:pre-wrap">${escapeHtml(reason)}</p><p>Open it, press <b>Edit report</b>, correct it and press <b>Send to the CAP</b> again.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
+          });
+        } catch (e) {
+          console.error("[expenses] return email failed", e);
+        }
+      });
+    }
+  } catch {
+    // best effort
+  }
+  revalidatePath(`/expenses/${id}`);
+  redirect(`/expenses/${id}?returned=1`);
 }
 
 export async function signExpenseReport(id: string, role: "PM" | "RAC") {
@@ -416,7 +495,7 @@ export async function reopenExpenseReport(id: string) {
             await sendEmail({
               to: x.email,
               subject: `Expense report ${rep.number}: please correct it`,
-              html: `<p>Hello ${escapeHtml(x.name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} was reopened for a correction (for example the exchange rates). Open it, press <b>Edit report</b>, correct it and press <b>Send to the approvers</b>: it needs to be approved again.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
+              html: `<p>Hello ${escapeHtml(x.name)},</p><p>The expense report <b>${escapeHtml(rep.number)}</b> of ${escapeHtml(rep.worker_name)} was reopened for a correction (for example the exchange rates). Open it, press <b>Edit report</b>, correct it and press <b>Send to the CAP</b>: it needs to be verified and approved again.</p>${link ? `<p><a href="${link}">Open the report in PAS</a></p>` : ""}`,
             });
           } catch (e) {
             console.error("[expenses] reopen email failed", e);

@@ -6,7 +6,7 @@ import { STATUS_LABEL, money, type ExpenseApproval, type ExpenseReportRow } from
 
 type Item = Pick<
   ExpenseReportRow,
-  "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol" | "paid_at"
+  "id" | "number" | "status" | "worker_name" | "subject" | "internal_code" | "total_eur" | "requester_name" | "created_at" | "callisto_protocol" | "paid_at" | "cap_verified_at"
 >;
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ created?: string; filter?: string; deleted?: string }> }) {
@@ -20,7 +20,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const isAdministration = (myRoles ?? []).some((x) => ["ADMIN", "RAC", "CAR"].includes(x.role as string));
   const { data } = await supabase
     .from("expense_reports")
-    .select("id, number, status, worker_name, subject, internal_code, total_eur, requester_name, created_at, callisto_protocol, paid_at")
+    .select("id, number, status, worker_name, subject, internal_code, total_eur, requester_name, created_at, callisto_protocol, paid_at, cap_verified_at")
     .order("created_at", { ascending: false });
   const all = (data ?? []) as Item[];
   const toImport = all.filter((r) => r.status === "approved");
@@ -62,7 +62,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
-      {created && <div className="banner">Expense report {created} sent. The approvers have been notified by email.</div>}
+      {created && <div className="banner">Expense report {created} sent. The CAP has been notified by email.</div>}
       {deleted && <div className="banner">{deleted} expense report{deleted === "1" ? "" : "s"} deleted.</div>}
       {isAdmin && rows.length > 0 && <BulkDeleteBar formId="expenses-bulk" action={bulkDeleteExpenses} what="expense reports" />}
 
@@ -107,8 +107,8 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                     <span className={`stamp ${r.status === "pending" || r.status === "approved" ? "warn" : r.status === "registered" ? "brand" : ""}`}>
                       {r.status === "approved" && isAdministration ? "To import in Callisto" : STATUS_LABEL[r.status]}
                     </span>
-                    {r.status === "pending" && missing(r.id) ? (
-                      <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {missing(r.id)}</span>
+                    {r.status === "pending" && (!r.cap_verified_at || missing(r.id)) ? (
+                      <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>waiting: {r.cap_verified_at ? missing(r.id) : "CAP check"}</span>
                     ) : null}
                     {r.paid_at ? <span className="stamp brand" style={{ marginLeft: 6 }}>paid</span> : null}
                     {r.callisto_protocol ? <span style={{ fontSize: 11, marginLeft: 6 }}>· {r.callisto_protocol}</span> : null}

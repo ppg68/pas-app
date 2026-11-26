@@ -74,6 +74,9 @@ export type ExpenseReportRow = {
   registered_at: string | null;
   paid_at: string | null;
   paid_by_name: string | null;
+  /** the CAP checks the report before it can be approved */
+  cap_verified_at: string | null;
+  cap_verified_by_name: string | null;
   registration_note: string | null;
   created_at: string;
 };

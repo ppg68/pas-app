@@ -21,6 +21,8 @@ import {
   reopenExpenseReport,
   sendExpenseReport,
   signExpenseReport,
+  verifyExpenseReport,
+  returnExpenseReport,
 } from "../actions";
 
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "");
@@ -45,10 +47,10 @@ export default async function ExpenseDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; new?: string }>;
+  searchParams: Promise<{ error?: string; new?: string; returned?: string }>;
 }) {
   const { id } = await params;
-  const { error, new: isNew } = await searchParams;
+  const { error, new: isNew, returned } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -74,7 +76,9 @@ export default async function ExpenseDetail({
   const canRecord = roles.includes("CAR") || roles.includes("RAC") || isAdmin;
   const isOwner = r.requested_by === user?.id;
   const anySigned = approvals.some((a) => a.signed_at);
-  const canEdit = isOwner && r.status === "pending" && !anySigned;
+  const canEdit = isOwner && r.status === "pending" && !anySigned && !r.cap_verified_at;
+  // the CAP (or an ADMIN) checks the report before anybody approves it, never their own
+  const isCap = (roles.includes("CAP") || isAdmin) && !isOwner && r.worker_id !== user?.id;
 
   let tripNumber: string | null = null;
   if (r.trip_id) {
@@ -120,9 +124,11 @@ export default async function ExpenseDetail({
       {error && <div className="banner error">{error}</div>}
       {isNew && canEdit && (
         <div className="banner">
-          Report saved. Check it, then press <b>Send to the approvers</b>: until then nobody is notified and you can still edit it.
+          Report saved. Check it, then press <b>Send to the CAP</b>: until then nobody is notified and you can still edit it.
         </div>
       )}
+
+      {returned && <div className="banner">The report was sent back to the requester, who has been emailed.</div>}
 
       <div className="card" style={{ marginBottom: 14 }}>
         <h2 style={{ fontSize: "1rem", marginBottom: 8 }}>Approvals</h2>
@@ -131,13 +137,37 @@ export default async function ExpenseDetail({
             No superior chosen: the RAC / CAR checks and approves the report.
           </p>
         )}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
+          <b style={{ width: 90 }}>CAP check</b>
+          <span style={{ flex: 1 }}>{r.cap_verified_by_name ?? ""}</span>
+          {r.cap_verified_at ? (
+            <span className="stamp brand">verified {dt(r.cap_verified_at)}</span>
+          ) : r.status === "pending" && isCap && hasFiles ? (
+            <form action={verifyExpenseReport.bind(null, id)}>
+              <SubmitButton pendingLabel="Verifying…">Verified</SubmitButton>
+            </form>
+          ) : (
+            <span className="stamp">{r.status === "pending" ? "waiting" : "not recorded"}</span>
+          )}
+        </div>
+        {r.status === "pending" && isCap && (
+          <form action={returnExpenseReport.bind(null, id)} style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", padding: "4px 0 8px" }}>
+            <div className="field" style={{ flex: 1, minWidth: 220 }}>
+              <label>Something to correct? Write it and send the report back</label>
+              <input name="return_reason" required />
+            </div>
+            <SubmitButton className="ghost" pendingLabel="Sending…">
+              Send back
+            </SubmitButton>
+          </form>
+        )}
         {approvals.map((a) => (
           <div key={a.signer_role} style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
             <b style={{ width: 90 }}>{a.signer_role === "RAC" ? "RAC / CAR" : "Superior"}</b>
             <span style={{ flex: 1 }}>{a.user_name}</span>
             {a.signed_at ? (
               <span className="stamp brand">approved {dt(a.signed_at)}</span>
-            ) : r.status === "pending" && a.user_id === user?.id && hasFiles && (a.signer_role === "PM" || approvals.every((x) => x.signer_role === "RAC" || x.signed_at)) ? (
+            ) : r.status === "pending" && r.cap_verified_at && a.user_id === user?.id && hasFiles && (a.signer_role === "PM" || approvals.every((x) => x.signer_role === "RAC" || x.signed_at)) ? (
               <form action={signExpenseReport.bind(null, id, a.signer_role)}>
                 <SubmitButton pendingLabel="Approving…">Approve</SubmitButton>
               </form>
@@ -174,7 +204,7 @@ export default async function ExpenseDetail({
         {canEdit && (
           <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             <form action={sendExpenseReport.bind(null, id)}>
-              <SubmitButton pendingLabel="Sending…">Send to the approvers</SubmitButton>
+              <SubmitButton pendingLabel="Sending…">Send to the CAP</SubmitButton>
             </form>
             <Link href={`/expenses/${id}/edit`} className="ghost">
               Edit report
@@ -214,7 +244,7 @@ export default async function ExpenseDetail({
         )}
         {r.status === "pending" && !hasFiles && (
           <p className="subtitle" style={{ margin: "8px 0 0" }}>
-            Approvals open once the receipt of every row is attached (edit the report to add the missing ones).
+            The CAP can verify the report once the receipt of every row is attached (edit the report to add the missing ones).
           </p>
         )}
       </div>
