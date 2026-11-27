@@ -150,6 +150,19 @@ export function lineAmountEur(l: Pick<LineInput, "section" | "km" | "fuel_price"
   return rate > 0 ? round2(amount / rate) : 0;
 }
 
+/** The rate that gives exactly the euro amount typed by the person (e.g. read on the bank statement), with as few
+ *  decimals as possible; "" while one of the two amounts is missing. */
+export function rateFromEur(amountOrig: string, amountEur: string) {
+  const amount = toNum(amountOrig);
+  const eur = round2(toNum(amountEur));
+  if (!(amount > 0) || !(eur > 0)) return "";
+  for (let d = 6; d <= 12; d++) {
+    const rate = Number((amount / eur).toFixed(d));
+    if (rate > 0 && round2(amount / rate) === eur) return String(rate);
+  }
+  return String(amount / eur);
+}
+
 export const money = (n: number | null | undefined) =>
   n == null ? "" : n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

@@ -12,6 +12,7 @@ import {
   lineAmountEur,
   MIN_EXPENSE_DATE,
   money,
+  rateFromEur,
   round2,
   type ExpenseFileRow,
   type ExpenseLineRow,
@@ -209,11 +210,37 @@ export default function ExpenseForm({
   // currency conversion: the InforEuro monthly rate of the receipt date fills the rate (the person can overwrite it)
   const [autoFx, setAutoFx] = useState<Record<string, string>>({});
   const [fxNote, setFxNote] = useState<Record<string, string>>({});
+  // the euro amount typed by the person (bank statement): the rate is then worked out from the two amounts
+  const [typedEur, setTypedEur] = useState<Record<string, string>>({});
+  const forgetEur = (key: string) =>
+    setTypedEur((t) => {
+      const { [key]: _drop, ...rest } = t;
+      return rest;
+    });
+  const eurRateNote = (rate: string, cur: string) =>
+    rate ? `Rate from your euro amount: 1 EUR = ${rate} ${cur}` : "Enter both amounts: the rate is calculated";
+  function changeEur(i: number, l: Row, value: string) {
+    const rate = rateFromEur(l.amount_orig, value);
+    if (value) setTypedEur((t) => ({ ...t, [l.key]: value }));
+    else forgetEur(l.key);
+    patch(i, { exchange_rate: rate });
+    setFxNote((n) => ({ ...n, [l.key]: value ? eurRateNote(rate, l.currency) : "" }));
+  }
+  /** a new amount in the receipt currency: if the euro amount was typed it stays, and the rate follows */
+  function amountPatch(l: Row, amount: string): Partial<LineInput> {
+    const eur = typedEur[l.key];
+    if (eur === undefined) return { amount_orig: amount };
+    const rate = rateFromEur(amount, eur);
+    setFxNote((n) => ({ ...n, [l.key]: eurRateNote(rate, l.currency) }));
+    return { amount_orig: amount, exchange_rate: rate };
+  }
+
   async function fillRate(key: string, currency: string, date: string, force = false) {
     const cur = currency.trim().toUpperCase();
     if (cur === "EUR" || !/^[A-Z]{3}$/.test(cur) || !date) return;
     const l = lines.find((x) => x.key === key);
-    // an automatic rate never overwrites a rate the person typed
+    // an automatic rate never overwrites a rate or a euro amount the person typed
+    if (!force && typedEur[key] !== undefined) return;
     if (!force && l?.exchange_rate && l.exchange_rate !== autoFx[key]) return;
     try {
       const res = await fetch(`/api/inforeuro?currency=${cur}&date=${date}`);
@@ -254,11 +281,11 @@ export default function ExpenseForm({
     const cur = g.currency ?? ((l.currency || "EUR").toUpperCase());
     const date = g.date ?? l.line_date;
     patch(i, {
-      ...(g.amount != null ? { amount_orig: String(g.amount) } : {}),
+      ...(g.amount != null ? amountPatch(l, String(g.amount)) : {}),
       ...(g.currency ? { currency: g.currency } : {}),
       ...(g.date ? { line_date: g.date } : {}),
     });
-    if (cur !== "EUR") void fillRate(l.key, cur, date, true);
+    if (cur !== "EUR" && typedEur[l.key] === undefined) void fillRate(l.key, cur, date, true);
     setGuess((x) => {
       const { [key]: _drop, ...rest } = x;
       return rest;
@@ -487,7 +514,7 @@ export default function ExpenseForm({
               {sec.hint}.{" "}
               {isKm
                 ? "The km are calculated from the road distance between the two cities you enter (you can correct them). The ACI cost is the national average price of the week of the travel date, for the fuel used (per litre; per kg for methane; per kWh for electricity): it is filled in automatically once you choose the fuel and the date."
-                : "For another currency enter the 3-letter code (USD, MZN, ...): the InforEuro monthly rate of the month of the receipt is filled in and converted to euro (foreign units per 1 EUR); you can overwrite it."}
+                : "For another currency enter the 3-letter code (USD, MZN, ...): the InforEuro monthly rate of the month of the receipt is filled in and converted to euro (foreign units per 1 EUR); you can overwrite it. If you know the euro amount (e.g. from the bank statement), type it in the € column: the rate is calculated from the two amounts."}
             </p>
             {isKm && (
               <details style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
@@ -632,12 +659,16 @@ export default function ExpenseForm({
                                 style={inp}
                                 value={l.currency}
                                 maxLength={3}
-                                onChange={(e) => patch(i, { currency: e.target.value.toUpperCase() })}
-                                onBlur={() => void fillRate(l.key, l.currency, l.line_date, true)}
+                                onChange={(e) => {
+                                  const currency = e.target.value.toUpperCase();
+                                  // the rate of the previous currency is no longer valid (unless it comes from a typed euro amount)
+                                  patch(i, { currency, ...(typedEur[l.key] === undefined ? { exchange_rate: "" } : {}) });
+                                }}
+                                onBlur={() => void fillRate(l.key, l.currency, l.line_date)}
                               />
                             </td>
                             <td style={{ ...cell, width: 90 }}>
-                              <input style={inp} inputMode="decimal" value={l.amount_orig} onChange={(e) => patch(i, { amount_orig: e.target.value })} />
+                              <input style={inp} inputMode="decimal" value={l.amount_orig} onChange={(e) => patch(i, amountPatch(l, e.target.value))} />
                             </td>
                             <td style={{ ...cell, width: 110, minWidth: 110 }}>
                               <input
@@ -647,13 +678,14 @@ export default function ExpenseForm({
                                 disabled={(l.currency || "EUR").toUpperCase() === "EUR"}
                                 title="You can type a different rate (e.g. the one of the bank or of the receipt)"
                                 onChange={(e) => {
+                                  forgetEur(l.key);
                                   patch(i, { exchange_rate: e.target.value });
                                   setFxNote((n) => ({ ...n, [l.key]: "Rate typed by you (1 EUR = " + (e.target.value || "?") + " " + (l.currency || "") + ")" }));
                                 }}
                               />
                               {(l.currency || "EUR").toUpperCase() !== "EUR" && (
                                 <>
-                                  <button type="button" className="ghost" style={{ padding: "1px 6px", fontSize: "0.75rem", marginTop: 2 }} onClick={() => void fillRate(l.key, l.currency, l.line_date, true)} title="Get the InforEuro rate of the month of the receipt">
+                                  <button type="button" className="ghost" style={{ padding: "1px 6px", fontSize: "0.75rem", marginTop: 2 }} onClick={() => { forgetEur(l.key); void fillRate(l.key, l.currency, l.line_date, true); }} title="Get the InforEuro rate of the month of the receipt">
                                     InforEuro
                                   </button>
                                   {fxNote[l.key] && <div style={{ fontSize: 11, color: "var(--ink-soft)", minWidth: 120 }}>{fxNote[l.key]}</div>}
@@ -662,7 +694,20 @@ export default function ExpenseForm({
                             </td>
                           </>
                         )}
-                        <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", paddingTop: 9 }}>{money(lineAmountEur(l))}</td>
+                        {!isKm && (l.currency || "EUR").toUpperCase() !== "EUR" ? (
+                          <td style={{ ...cell, width: 100, minWidth: 100 }}>
+                            <input
+                              style={{ ...inp, textAlign: "right" }}
+                              inputMode="decimal"
+                              aria-label={`Euro amount of row ${i + 1}`}
+                              title="You can type the euro amount (e.g. from the bank statement): the rate is calculated"
+                              value={typedEur[l.key] ?? (lineAmountEur(l) ? lineAmountEur(l).toFixed(2) : "")}
+                              onChange={(e) => changeEur(i, l, e.target.value)}
+                            />
+                          </td>
+                        ) : (
+                          <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", paddingTop: 9 }}>{money(lineAmountEur(l))}</td>
+                        )}
                         <td style={{ ...cell, width: 170 }}>
                           {!isKm && (
                             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
